@@ -1,44 +1,44 @@
-import axios from "axios";
-import type { MovieMedia, ShowMedia } from "@p-stream/providers";
+import axios from 'axios'
+import type { MovieMedia, ShowMedia } from '@p-stream/providers'
 
-const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_API_KEY = process.env.TMDB_API_KEY || "";
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
+const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
 
 if (!TMDB_API_KEY) {
   console.warn(
-    "⚠️  TMDB_API_KEY not set in environment variables. TMDB features will not work."
-  );
+    '⚠️  TMDB_API_KEY not set in environment variables. TMDB features will not work.'
+  )
 }
 
 interface TMDBMovieResponse {
-  id: number;
-  title: string;
-  release_date: string;
-  imdb_id?: string;
+  id: number
+  title: string
+  release_date: string
+  imdb_id?: string
 }
 
 interface TMDBShowResponse {
-  id: number;
-  name: string;
-  first_air_date: string;
+  id: number
+  name: string
+  first_air_date: string
   seasons: Array<{
-    id: number;
-    season_number: number;
-    name: string;
-    episode_count: number;
-  }>;
+    id: number
+    season_number: number
+    name: string
+    episode_count: number
+  }>
 }
 
 interface TMDBSeasonResponse {
-  id: number;
-  name: string;
-  season_number: number;
+  id: number
+  name: string
+  season_number: number
   episodes: Array<{
-    id: number;
-    episode_number: number;
-    name: string;
-  }>;
-  episode_count?: number;
+    id: number
+    episode_number: number
+    name: string
+  }>
+  episode_count?: number
 }
 
 /**
@@ -48,7 +48,7 @@ interface TMDBSeasonResponse {
  */
 export async function generateMovieMedia(tmdbId: string): Promise<MovieMedia> {
   if (!TMDB_API_KEY) {
-    throw new Error("TMDB_API_KEY is not configured");
+    throw new Error('TMDB_API_KEY is not configured')
   }
 
   try {
@@ -59,29 +59,29 @@ export async function generateMovieMedia(tmdbId: string): Promise<MovieMedia> {
           api_key: TMDB_API_KEY,
         },
       }
-    );
+    )
 
-    const movie = response.data;
-    const releaseYear = new Date(movie.release_date).getFullYear();
+    const movie = response.data
+    const releaseYear = new Date(movie.release_date).getFullYear()
 
     const media: MovieMedia = {
-      type: "movie",
+      type: 'movie',
       title: movie.title,
       releaseYear,
       tmdbId: tmdbId,
       ...(movie.imdb_id && { imdbId: movie.imdb_id }),
-    };
+    }
 
-    return media;
+    return media
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
         `Failed to fetch movie from TMDB: ${
           error.response?.data?.status_message || error.message
         }`
-      );
+      )
     }
-    throw error;
+    throw error
   }
 }
 
@@ -98,7 +98,7 @@ export async function generateShowMedia(
   episodeNumber: number
 ): Promise<ShowMedia> {
   if (!TMDB_API_KEY) {
-    throw new Error("TMDB_API_KEY is not configured");
+    throw new Error('TMDB_API_KEY is not configured')
   }
 
   try {
@@ -110,10 +110,10 @@ export async function generateShowMedia(
           api_key: TMDB_API_KEY,
         },
       }
-    );
+    )
 
-    const show = showResponse.data;
-    const releaseYear = new Date(show.first_air_date).getFullYear();
+    const show = showResponse.data
+    const releaseYear = new Date(show.first_air_date).getFullYear()
 
     // Fetch season details to get episode TMDB ID
     const seasonResponse = await axios.get<TMDBSeasonResponse>(
@@ -123,21 +123,21 @@ export async function generateShowMedia(
           api_key: TMDB_API_KEY,
         },
       }
-    );
+    )
 
-    const season = seasonResponse.data;
+    const season = seasonResponse.data
     const episode = season.episodes.find(
-      (ep) => ep.episode_number === episodeNumber
-    );
+      ep => ep.episode_number === episodeNumber
+    )
 
     if (!episode) {
       throw new Error(
         `Episode ${episodeNumber} not found in season ${seasonNumber}`
-      );
+      )
     }
 
     const media: ShowMedia = {
-      type: "show",
+      type: 'show',
       title: show.name,
       releaseYear,
       tmdbId: tmdbId,
@@ -151,18 +151,18 @@ export async function generateShowMedia(
         title: season.name,
         episodeCount: season.episode_count,
       },
-    };
+    }
 
-    return media;
+    return media
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
         `Failed to fetch TV show from TMDB: ${
           error.response?.data?.status_message || error.message
         }`
-      );
+      )
     }
-    throw error;
+    throw error
   }
 }
 
@@ -174,7 +174,7 @@ export async function generateShowMedia(
  */
 export async function searchMovies(query: string, year?: number) {
   if (!TMDB_API_KEY) {
-    throw new Error("TMDB_API_KEY is not configured");
+    throw new Error('TMDB_API_KEY is not configured')
   }
 
   try {
@@ -184,23 +184,23 @@ export async function searchMovies(query: string, year?: number) {
         query,
         ...(year && { year }),
       },
-    });
+    })
 
     return response.data.results.map((movie: any) => ({
       id: movie.id,
       title: movie.title,
       releaseDate: movie.release_date,
       overview: movie.overview,
-    }));
+    }))
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
         `Failed to search movies on TMDB: ${
           error.response?.data?.status_message || error.message
         }`
-      );
+      )
     }
-    throw error;
+    throw error
   }
 }
 
@@ -212,7 +212,7 @@ export async function searchMovies(query: string, year?: number) {
  */
 export async function searchTVShows(query: string, year?: number) {
   if (!TMDB_API_KEY) {
-    throw new Error("TMDB_API_KEY is not configured");
+    throw new Error('TMDB_API_KEY is not configured')
   }
 
   try {
@@ -222,22 +222,22 @@ export async function searchTVShows(query: string, year?: number) {
         query,
         ...(year && { first_air_date_year: year }),
       },
-    });
+    })
 
     return response.data.results.map((show: any) => ({
       id: show.id,
       name: show.name,
       firstAirDate: show.first_air_date,
       overview: show.overview,
-    }));
+    }))
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
         `Failed to search TV shows on TMDB: ${
           error.response?.data?.status_message || error.message
         }`
-      );
+      )
     }
-    throw error;
+    throw error
   }
 }

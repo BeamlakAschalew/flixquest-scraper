@@ -1,40 +1,40 @@
-import type { Stream } from "@p-stream/providers";
+import type { Stream } from '@p-stream/providers'
 
 export interface StreamMovieRequest {
-  tmdbId: string;
+  tmdbId: string
 }
 
 export interface StreamTVRequest {
-  tmdbId: string;
-  season: number;
-  episode: number;
+  tmdbId: string
+  season: number
+  episode: number
 }
 
 export interface StreamResponse {
-  success: boolean;
+  success: boolean
   media?: {
-    type: string;
-    title: string;
-    releaseYear: number;
-    tmdbId: string;
-  };
+    type: string
+    title: string
+    releaseYear: number
+    tmdbId: string
+  }
   stream?: {
-    sourceId: string;
-    embedId?: string;
-    type: string;
-    id: string;
-    playlist?: string;
-    qualities?: any;
-    flags: string[];
-    captions: any[];
-    headers?: Record<string, string>;
-    preferredHeaders?: Record<string, string>;
-  };
-  error?: string;
+    sourceId: string
+    embedId?: string
+    type: string
+    id: string
+    playlist?: string
+    qualities?: any
+    flags: string[]
+    captions: any[]
+    headers?: Record<string, string>
+    preferredHeaders?: Record<string, string>
+  }
+  error?: string
 }
 
 export interface ErrorResponse {
-  success: false;
-  error: string;
-  details?: string;
+  success: false
+  error: string
+  details?: string
 }
