@@ -238,14 +238,19 @@ app.get('/embeds', (_req, res) => {
   res.json({ success: true, embeds })
 })
 
-// Start server
-app.listen(port, () => {
-  console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
-  console.log(`📖 API Documentation:`)
-  console.log(`   GET /stream-movie?tmdbId={id}`)
-  console.log(`   GET /stream-tv?tmdbId={id}&season={num}&episode={num}`)
-  console.log(`   GET /sources`)
-  console.log(`   GET /embeds`)
-  console.log('')
-  console.log(`⚠️  Make sure to set TMDB_API_KEY environment variable`)
-})
+// Start server (only in development, not on Vercel)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
+    console.log(`📖 API Documentation:`)
+    console.log(`   GET /stream-movie?tmdbId={id}`)
+    console.log(`   GET /stream-tv?tmdbId={id}&season={num}&episode={num}`)
+    console.log(`   GET /sources`)
+    console.log(`   GET /embeds`)
+    console.log('')
+    console.log(`⚠️  Make sure to set TMDB_API_KEY environment variable`)
+  })
+}
+
+// Export the Express app for Vercel
+export default app

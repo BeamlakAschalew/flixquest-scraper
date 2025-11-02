@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "pnpm build",
   "builds": [
     {
       "src": "dist/index.js",
@@ -9,10 +10,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "dist/index.js"
+      "dest": "/dist/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
