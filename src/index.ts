@@ -2,9 +2,9 @@ import 'dotenv/config'
 import express from 'express'
 import type { Request, Response } from 'express'
 import { NotFoundError } from '@p-stream/providers'
-import { generateMovieMedia, generateShowMedia } from './utils/tmdb'
-import { buildProviders } from './utils/providers'
-import type { StreamResponse, ErrorResponse } from './types/index'
+import { generateMovieMedia, generateShowMedia } from './utils/tmdb.js'
+import { buildProviders } from './utils/providers.js'
+import type { StreamResponse, ErrorResponse } from './types/index.js'
 
 const app = express()
 const port = parseInt(process.env.PORT || '3000', 10)
