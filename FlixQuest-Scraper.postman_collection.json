@@ -1,0 +1,216 @@
+{
+  "info": {
+    "name": "FlixQuest Scraper API",
+    "description": "Collection of API endpoints for FlixQuest Scraper",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": [""]
+        },
+        "description": "Check API health and get endpoint documentation"
+      }
+    },
+    {
+      "name": "Stream Movie - Hamilton",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-movie?tmdbId=556574",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-movie"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "556574",
+              "description": "TMDB ID for Hamilton"
+            }
+          ]
+        },
+        "description": "Get streaming link for Hamilton (2020)"
+      }
+    },
+    {
+      "name": "Stream Movie - Shawshank Redemption",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-movie?tmdbId=278",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-movie"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "278",
+              "description": "TMDB ID for The Shawshank Redemption"
+            }
+          ]
+        },
+        "description": "Get streaming link for The Shawshank Redemption (1994)"
+      }
+    },
+    {
+      "name": "Stream Movie - Inception",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-movie?tmdbId=27205",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-movie"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "27205",
+              "description": "TMDB ID for Inception"
+            }
+          ]
+        },
+        "description": "Get streaming link for Inception (2010)"
+      }
+    },
+    {
+      "name": "Stream TV - The Office S1E1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-tv"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "2316",
+              "description": "TMDB ID for The Office"
+            },
+            {
+              "key": "season",
+              "value": "1",
+              "description": "Season number"
+            },
+            {
+              "key": "episode",
+              "value": "1",
+              "description": "Episode number"
+            }
+          ]
+        },
+        "description": "Get streaming link for The Office Season 1 Episode 1"
+      }
+    },
+    {
+      "name": "Stream TV - Breaking Bad S1E1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-tv?tmdbId=1396&season=1&episode=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-tv"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "1396",
+              "description": "TMDB ID for Breaking Bad"
+            },
+            {
+              "key": "season",
+              "value": "1",
+              "description": "Season number"
+            },
+            {
+              "key": "episode",
+              "value": "1",
+              "description": "Episode number"
+            }
+          ]
+        },
+        "description": "Get streaming link for Breaking Bad Season 1 Episode 1"
+      }
+    },
+    {
+      "name": "Stream TV - Stranger Things S1E1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/stream-tv?tmdbId=66732&season=1&episode=1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["stream-tv"],
+          "query": [
+            {
+              "key": "tmdbId",
+              "value": "66732",
+              "description": "TMDB ID for Stranger Things"
+            },
+            {
+              "key": "season",
+              "value": "1",
+              "description": "Season number"
+            },
+            {
+              "key": "episode",
+              "value": "1",
+              "description": "Episode number"
+            }
+          ]
+        },
+        "description": "Get streaming link for Stranger Things Season 1 Episode 1"
+      }
+    },
+    {
+      "name": "List Sources",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/sources",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["sources"]
+        },
+        "description": "Get list of all available streaming sources"
+      }
+    },
+    {
+      "name": "List Embeds",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3000/embeds",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3000",
+          "path": ["embeds"]
+        },
+        "description": "Get list of all available embed scrapers"
+      }
+    }
+  ]
+}
