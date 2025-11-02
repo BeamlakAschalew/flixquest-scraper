@@ -7,10 +7,14 @@ import { buildProviders } from "./utils/providers";
 import type { StreamResponse, ErrorResponse } from "./types/index";
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT || "3000", 10);
 
 // Middleware to parse JSON bodies
 app.use(express.json());
+
+// Add CORS for cross-origin requests (optional, uncomment if needed)
+// import cors from 'cors';
+// app.use(cors());
 
 // Health check endpoint
 app.get("/", (_req, res) => {

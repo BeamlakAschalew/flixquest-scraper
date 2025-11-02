@@ -1,0 +1,17 @@
+[build]
+  command = "pnpm install && pnpm build"
+  publish = "dist"
+  functions = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.js"
+  status = 200
+  force = true
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@p-stream/providers", "cheerio"]
