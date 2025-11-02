@@ -1,5 +1,3 @@
-import type { Stream } from '@p-stream/providers'
-
 export interface StreamMovieRequest {
   tmdbId: string
 }
@@ -24,9 +22,9 @@ export interface StreamResponse {
     type: string
     id: string
     playlist?: string
-    qualities?: any
+    qualities?: unknown
     flags: string[]
-    captions: any[]
+    captions: unknown[]
     headers?: Record<string, string>
     preferredHeaders?: Record<string, string>
   }

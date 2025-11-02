@@ -186,12 +186,19 @@ export async function searchMovies(query: string, year?: number) {
       },
     })
 
-    return response.data.results.map((movie: any) => ({
-      id: movie.id,
-      title: movie.title,
-      releaseDate: movie.release_date,
-      overview: movie.overview,
-    }))
+    return response.data.results.map(
+      (movie: {
+        id: number
+        title: string
+        release_date: string
+        overview: string
+      }) => ({
+        id: movie.id,
+        title: movie.title,
+        releaseDate: movie.release_date,
+        overview: movie.overview,
+      })
+    )
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
@@ -224,12 +231,19 @@ export async function searchTVShows(query: string, year?: number) {
       },
     })
 
-    return response.data.results.map((show: any) => ({
-      id: show.id,
-      name: show.name,
-      firstAirDate: show.first_air_date,
-      overview: show.overview,
-    }))
+    return response.data.results.map(
+      (show: {
+        id: number
+        name: string
+        first_air_date: string
+        overview: string
+      }) => ({
+        id: show.id,
+        name: show.name,
+        firstAirDate: show.first_air_date,
+        overview: show.overview,
+      })
+    )
   } catch (error) {
     if (axios.isAxiosError(error)) {
       throw new Error(
