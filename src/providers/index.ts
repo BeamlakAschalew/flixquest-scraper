@@ -1,0 +1,22 @@
+import type { Provider } from '../types/index.js'
+import { pstreamProvider } from './pstream.js'
+
+// Register all providers here
+export const providers: Record<string, Provider> = {
+  pstream: pstreamProvider,
+}
+
+// Get a provider by ID
+export function getProvider(providerId: string): Provider | undefined {
+  return providers[providerId]
+}
+
+// Get all provider IDs
+export function getAllProviderIds(): string[] {
+  return Object.keys(providers)
+}
+
+// Get all providers
+export function getAllProviders(): Provider[] {
+  return Object.values(providers)
+}
