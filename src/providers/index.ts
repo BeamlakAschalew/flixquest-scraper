@@ -1,9 +1,17 @@
 import type { Provider } from '../types/index.js'
 import { pstreamProvider } from './pstream.js'
+import { vixsrcProvider } from './vixsrc.js'
+import { vidsrcProvider } from './vidsrc.js'
+import { vidzeeProvider } from './vidzee.js'
+import { uhdmoviesProvider } from './uhdmovies.js'
 
 // Register all providers here
 export const providers: Record<string, Provider> = {
   pstream: pstreamProvider,
+  vixsrc: vixsrcProvider,
+  vidsrc: vidsrcProvider,
+  vidzee: vidzeeProvider,
+  uhdmovies: uhdmoviesProvider,
 }
 
 // Get a provider by ID
