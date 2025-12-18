@@ -1129,10 +1129,19 @@ async function getUHDMoviesStreams(
       `[UHDMovies] Resolving ${downloadInfo.links.length} SID link(s)...`
     )
 
-    // Resolve all links
+    // Resolve links - only one per unique resolution
     const providerLinks: ProviderLink[] = []
+    const resolvedQualities = new Set<string>()
 
     for (const linkInfo of downloadInfo.links) {
+      // Skip if we already have a successful link for this quality
+      if (resolvedQualities.has(linkInfo.quality)) {
+        console.log(
+          `[UHDMovies] Skipping duplicate quality: ${linkInfo.quality}`
+        )
+        continue
+      }
+
       try {
         let driveleechUrl: string | null = null
 
@@ -1159,10 +1168,13 @@ async function getUHDMoviesStreams(
             quality: linkInfo.quality,
             subtitles: [] as Subtitle[],
           })
+          // Mark this quality as resolved
+          resolvedQualities.add(linkInfo.quality)
+          console.log(`[UHDMovies] Successfully resolved: ${linkInfo.quality}`)
         }
       } catch (error) {
         console.error(
-          `[UHDMovies] Error resolving link: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `[UHDMovies] Error resolving link for ${linkInfo.quality}: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
       }
     }

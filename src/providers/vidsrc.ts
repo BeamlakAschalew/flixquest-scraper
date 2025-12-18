@@ -83,7 +83,7 @@ async function serversLoad(
         : baseFrameSrc
       BASEDOM = new URL(fullUrl).origin
       console.log(`[VidSrc] Updated BASEDOM to: ${BASEDOM}`)
-    } catch (e) {
+    } catch {
       // Fallback regex for origin
       const originMatch = (
         baseFrameSrc.startsWith('//') ? 'https:' + baseFrameSrc : baseFrameSrc
