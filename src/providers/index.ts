@@ -5,6 +5,7 @@ import { vidsrcProvider } from './vidsrc.js'
 import { vidzeeProvider } from './vidzee.js'
 import { uhdmoviesProvider } from './uhdmovies.js'
 import { showboxProvider } from './showbox.js'
+import { fourKHDHubProvider } from './fourkhdhub.js'
 
 // Register all providers here
 export const providers: Record<string, Provider> = {
@@ -14,6 +15,7 @@ export const providers: Record<string, Provider> = {
   vidzee: vidzeeProvider,
   uhdmovies: uhdmoviesProvider,
   showbox: showboxProvider,
+  '4khdhub': fourKHDHubProvider,
 }
 
 // Get a provider by ID
