@@ -29,7 +29,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@p-stream/providers": "github:p-stream/providers#production",
     "axios": "^1.2.4",
     "cheerio": "^1.0.0-rc.12",
     "crypto-js": "^4.1.1",

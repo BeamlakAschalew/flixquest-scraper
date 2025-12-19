@@ -23,18 +23,6 @@ function base64Decode(str: string): string {
   return Buffer.from(str, 'base64').toString('utf-8')
 }
 
-function parseBytes(sizeStr: string): number {
-  const match = sizeStr.match(/([\d.]+)\s*([GM]B)/i)
-  if (!match) return 0
-
-  const value = parseFloat(match[1])
-  const unit = match[2].toUpperCase()
-
-  if (unit === 'GB') return value * 1024 * 1024 * 1024
-  if (unit === 'MB') return value * 1024 * 1024
-  return 0
-}
-
 function calculateLevenshtein(str1: string, str2: string): number {
   const s1 = str1.toLowerCase()
   const s2 = str2.toLowerCase()
