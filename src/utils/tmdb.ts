@@ -1,5 +1,4 @@
 import axios from 'axios'
-import type { MovieMedia, ShowMedia } from '@p-stream/providers'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 const TMDB_API_KEY = process.env.TMDB_API_KEY || ''
@@ -8,6 +7,31 @@ if (!TMDB_API_KEY) {
   console.warn(
     '⚠️  TMDB_API_KEY not set in environment variables. TMDB features will not work.'
   )
+}
+
+export interface MovieMedia {
+  type: 'movie'
+  title: string
+  releaseYear: number
+  tmdbId: string
+  imdbId?: string
+}
+
+export interface ShowMedia {
+  type: 'show'
+  title: string
+  releaseYear: number
+  tmdbId: string
+  episode: {
+    number: number
+    tmdbId: string
+  }
+  season: {
+    number: number
+    tmdbId: string
+    title: string
+    episodeCount?: number
+  }
 }
 
 interface TMDBMovieResponse {
