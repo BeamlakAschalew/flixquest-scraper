@@ -8,99 +8,128 @@ import {
   getAllProviders,
 } from './providers/index.js'
 import type { ErrorResponse, ProviderResponse } from './types/index.js'
+import { handleStreamProxy, proxyStreamLinks } from './utils/stream-proxy.js'
 
 const app = express()
+const api = express.Router()
 const port = parseInt(process.env.PORT || '3000', 10)
+const API_PREFIX = '/v2'
 
-// Middleware to parse JSON bodies
+app.set('trust proxy', 1)
 app.use(express.json())
 
-// Add CORS for cross-origin requests (optional, uncomment if needed)
-// import cors from 'cors';
-// app.use(cors());
+app.get('/proxy', handleStreamProxy)
+app.head('/proxy', handleStreamProxy)
 
-// Health check endpoint
+function proxyBaseUrl(req: Request): string {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function shouldProxy(req: Request): boolean {
+  return getQueryString(req.query.proxy)?.toLowerCase() !== 'false'
+}
+
+function getQueryString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function parsePositiveInteger(value: unknown): number | undefined {
+  const stringValue = getQueryString(value)
+  if (!stringValue || !/^\d+$/.test(stringValue)) return undefined
+
+  const numberValue = Number(stringValue)
+  return Number.isSafeInteger(numberValue) && numberValue > 0
+    ? numberValue
+    : undefined
+}
+
+function resolveProvider(req: Request, res: Response) {
+  const providerId = getQueryString(req.query.provider)
+
+  if (!providerId) {
+    const error: ErrorResponse = {
+      success: false,
+      error: 'Missing or invalid provider parameter',
+      details: `Available providers: ${getAllProviderIds().join(', ')}`,
+    }
+    res.status(400).json(error)
+    return undefined
+  }
+
+  const provider = getProvider(providerId)
+  if (!provider) {
+    const error: ErrorResponse = {
+      success: false,
+      error: `Provider '${providerId}' not found`,
+      details: `Available providers: ${getAllProviderIds().join(', ')}`,
+    }
+    res.status(404).json(error)
+    return undefined
+  }
+
+  return provider
+}
+
 app.get('/', (_req, res) => {
   res.json({
     name: 'FlixQuest Scraper API',
-    version: '1.0.0',
+    version: '2.0.0',
     status: 'running',
     endpoints: {
-      streamMovie: 'GET /stream-movie?tmdbId={id}',
-      streamTV: 'GET /stream-tv?tmdbId={id}&season={num}&episode={num}',
-      providerStreamMovie: 'GET /:provider/stream-movie?tmdbId={id}',
-      providerStreamTV:
-        'GET /:provider/stream-tv?tmdbId={id}&season={num}&episode={num}',
-      providers: 'GET /providers',
-      sources: 'GET /sources',
-      embeds: 'GET /embeds',
+      streamMovie: 'GET /v2/stream-movie?tmdbId={id}&provider={providerId}',
+      streamTV:
+        'GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
+      providers: 'GET /v2/providers',
+      proxy: 'GET /proxy?token={signedToken}',
     },
     availableProviders: getAllProviderIds(),
   })
 })
 
-/**
- * List available providers
- * GET /providers
- */
-app.get('/providers', (_req, res) => {
-  const providerList = getAllProviders().map(p => ({
-    id: p.id,
-    name: p.name,
+api.get('/providers', (_req, res) => {
+  const providerList = getAllProviders().map(provider => ({
+    id: provider.id,
+    name: provider.name,
   }))
   res.json({ success: true, providers: providerList })
 })
 
 /**
- * Provider-specific stream movie endpoint
- * GET /:provider/stream-movie?tmdbId=556574
+ * GET /v2/stream-movie?tmdbId=556574&provider=vixsrc
  */
-app.get('/:provider/stream-movie', async (req: Request, res: Response) => {
+api.get('/stream-movie', async (req: Request, res: Response) => {
+  const provider = resolveProvider(req, res)
+  if (!provider) return
+
+  const tmdbId = getQueryString(req.query.tmdbId)
+  if (!tmdbId) {
+    const error: ErrorResponse = {
+      success: false,
+      error: 'Missing or invalid tmdbId parameter',
+    }
+    res.status(400).json(error)
+    return
+  }
+
   try {
-    const { provider: providerId } = req.params
-    const { tmdbId } = req.query
-
-    const provider = getProvider(providerId)
-
-    if (!provider) {
-      const error: ErrorResponse = {
-        success: false,
-        error: `Provider '${providerId}' not found`,
-        details: `Available providers: ${getAllProviderIds().join(', ')}`,
-      }
-      return res.status(404).json(error)
-    }
-
-    if (!tmdbId || typeof tmdbId !== 'string') {
-      const error: ErrorResponse = {
-        success: false,
-        error: 'Missing or invalid tmdbId parameter',
-      }
-      return res.status(400).json(error)
-    }
-
     console.log(
       `🎬 [${provider.name}] Fetching movie streams for TMDB ID: ${tmdbId}`
     )
 
-    // Generate media object from TMDB for metadata
     const media = await generateMovieMedia(tmdbId)
-
     console.log(
       `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear})`
     )
 
     const links = await provider.streamMovie(tmdbId)
-
-    if (!links || links.length === 0) {
+    if (links.length === 0) {
       const error: ErrorResponse = {
         success: false,
         error: 'No streams found for this movie',
       }
-      return res.status(404).json(error)
+      res.status(404).json(error)
+      return
     }
-
-    console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
     const response: ProviderResponse = {
       success: true,
@@ -111,13 +140,15 @@ app.get('/:provider/stream-movie', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links,
+      links: shouldProxy(req)
+        ? proxyStreamLinks(links, proxyBaseUrl(req))
+        : links,
     }
 
+    console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
     res.json(response)
   } catch (err) {
-    console.error('❌ Error in /:provider/stream-movie:', err)
-
+    console.error('❌ Error in /v2/stream-movie:', err)
     const error: ErrorResponse = {
       success: false,
       error: 'Failed to fetch movie stream',
@@ -128,66 +159,53 @@ app.get('/:provider/stream-movie', async (req: Request, res: Response) => {
 })
 
 /**
- * Provider-specific stream TV endpoint
- * GET /:provider/stream-tv?tmdbId=2316&season=1&episode=1
+ * GET /v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc
  */
-app.get('/:provider/stream-tv', async (req: Request, res: Response) => {
+api.get('/stream-tv', async (req: Request, res: Response) => {
+  const provider = resolveProvider(req, res)
+  if (!provider) return
+
+  const tmdbId = getQueryString(req.query.tmdbId)
+  const season = parsePositiveInteger(req.query.season)
+  const episode = parsePositiveInteger(req.query.episode)
+
+  if (!tmdbId) {
+    const error: ErrorResponse = {
+      success: false,
+      error: 'Missing or invalid tmdbId parameter',
+    }
+    res.status(400).json(error)
+    return
+  }
+
+  if (!season || !episode) {
+    const error: ErrorResponse = {
+      success: false,
+      error: 'Missing or invalid season/episode parameters',
+    }
+    res.status(400).json(error)
+    return
+  }
+
   try {
-    const { provider: providerId } = req.params
-    const { tmdbId, season, episode } = req.query
-
-    const provider = getProvider(providerId)
-
-    if (!provider) {
-      const error: ErrorResponse = {
-        success: false,
-        error: `Provider '${providerId}' not found`,
-        details: `Available providers: ${getAllProviderIds().join(', ')}`,
-      }
-      return res.status(404).json(error)
-    }
-
-    if (!tmdbId || typeof tmdbId !== 'string') {
-      const error: ErrorResponse = {
-        success: false,
-        error: 'Missing or invalid tmdbId parameter',
-      }
-      return res.status(400).json(error)
-    }
-
-    const seasonNum = parseInt(season as string)
-    const episodeNum = parseInt(episode as string)
-
-    if (isNaN(seasonNum) || isNaN(episodeNum)) {
-      const error: ErrorResponse = {
-        success: false,
-        error: 'Missing or invalid season/episode parameters',
-      }
-      return res.status(400).json(error)
-    }
-
     console.log(
-      `🎬 [${provider.name}] Fetching TV streams for TMDB ID: ${tmdbId} S${seasonNum}E${episodeNum}`
+      `🎬 [${provider.name}] Fetching TV streams for TMDB ID: ${tmdbId} S${season}E${episode}`
     )
 
-    // Generate media object from TMDB for metadata
-    const media = await generateShowMedia(tmdbId, seasonNum, episodeNum)
-
+    const media = await generateShowMedia(tmdbId, season, episode)
     console.log(
-      `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear}) - S${seasonNum}E${episodeNum}`
+      `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear}) - S${season}E${episode}`
     )
 
-    const links = await provider.streamTV(tmdbId, seasonNum, episodeNum)
-
-    if (!links || links.length === 0) {
+    const links = await provider.streamTV(tmdbId, season, episode)
+    if (links.length === 0) {
       const error: ErrorResponse = {
         success: false,
         error: 'No streams found for this episode',
       }
-      return res.status(404).json(error)
+      res.status(404).json(error)
+      return
     }
-
-    console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
     const response: ProviderResponse = {
       success: true,
@@ -198,13 +216,15 @@ app.get('/:provider/stream-tv', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links,
+      links: shouldProxy(req)
+        ? proxyStreamLinks(links, proxyBaseUrl(req))
+        : links,
     }
 
+    console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
     res.json(response)
   } catch (err) {
-    console.error('❌ Error in /:provider/stream-tv:', err)
-
+    console.error('❌ Error in /v2/stream-tv:', err)
     const error: ErrorResponse = {
       success: false,
       error: 'Failed to fetch TV show stream',
@@ -214,19 +234,20 @@ app.get('/:provider/stream-tv', async (req: Request, res: Response) => {
   }
 })
 
-// Start server (only in development, not on Vercel)
+app.use(API_PREFIX, api)
+
 if (process.env.NODE_ENV !== 'production') {
   app.listen(port, () => {
     console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
-    console.log(`📖 API Documentation:`)
-    console.log(`   GET /stream-movie?tmdbId={id}`)
-    console.log(`   GET /stream-tv?tmdbId={id}&season={num}&episode={num}`)
-    console.log(`   GET /sources`)
-    console.log(`   GET /embeds`)
+    console.log('📖 API v2:')
+    console.log('   GET /v2/stream-movie?tmdbId={id}&provider={providerId}')
+    console.log(
+      '   GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
+    )
+    console.log('   GET /v2/providers')
     console.log('')
-    console.log(`⚠️  Make sure to set TMDB_API_KEY environment variable`)
+    console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
   })
 }
 
-// Export the Express app for Vercel
 export default app

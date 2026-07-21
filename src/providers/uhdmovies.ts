@@ -229,12 +229,17 @@ async function extractDownloadLinks(
     const movieTitle = $('h1').first().text().trim()
     const downloadLinks: DownloadLink[] = []
 
-    $(
-      'a[href*="tech.unblockedgames.world"], a[href*="tech.examzculture.in"]'
-    ).each((_, element) => {
+    $('a[href*="?sid="], a[href*="&sid="]').each((_, element) => {
       const link = $(element).attr('href')
+      const className = $(element).attr('class') || ''
+      const buttonText = $(element).text().replace(/\s+/g, ' ').trim()
+      if (!/maxbutton/i.test(className) && !/download/i.test(buttonText)) return
+
       if (link && !downloadLinks.some(item => item.link === link)) {
-        let quality = 'Unknown Quality'
+        const linkText = buttonText
+        let quality = /2160|1080|720|480|4k|uhd|hdr|dovi|remux/i.test(linkText)
+          ? linkText
+          : 'Unknown Quality'
         let size = 'Unknown'
 
         // Look for quality in preceding elements
@@ -242,6 +247,7 @@ async function extractDownloadLinks(
         if (prevElement.length > 0) {
           const prevText = prevElement.text().trim()
           if (
+            quality === 'Unknown Quality' &&
             prevText &&
             prevText.length > 20 &&
             !prevText.includes('Download')
@@ -384,9 +390,7 @@ async function extractTvShowDownloadLinks(
           // Check for episode links
           if (
             $el.is('p') &&
-            $el.find(
-              'a[href*="tech.unblockedgames.world"], a[href*="tech.examzculture.in"]'
-            ).length > 0
+            $el.find('a[href*="?sid="], a[href*="&sid="]').length > 0
           ) {
             const episodeRegex = new RegExp(
               `^Episode\\s+0*${episode}(?!\\d)`,
@@ -501,7 +505,7 @@ async function extractTvShowDownloadLinks(
 
       // Fallback: search all episode links
       $(
-        '.entry-content a[href*="tech.unblockedgames.world"], .entry-content a[href*="tech.examzculture.in"]'
+        '.entry-content a[href*="?sid="], .entry-content a[href*="&sid="]'
       ).each((_, el) => {
         const linkElement = $(el)
         const episodeRegex = new RegExp(`^Episode\\s+0*${episode}(?!\\d)`, 'i')
@@ -823,9 +827,27 @@ async function extractFinalDownloadUrl(
     const instantDownloadLink = $('a:contains("Instant Download")').attr('href')
     if (instantDownloadLink) {
       try {
-        const urlParams = new URLSearchParams(
-          new URL(instantDownloadLink).search
+        const instantUrl = new URL(
+          instantDownloadLink,
+          new URL(driveleechUrl).origin
         )
+        if (
+          /cdn\.video-gen\.xyz|workers\.dev|\.r2\.dev/i.test(
+            instantUrl.hostname
+          ) ||
+          /\.(mkv|mp4|m3u8)(?:[?#]|$)/i.test(instantUrl.href)
+        ) {
+          const directUrl = await unwrapMediaRedirect(
+            instantUrl.href,
+            driveleechUrl
+          )
+          console.log(
+            `[UHDMovies] Found direct Instant Download link: ${directUrl}`
+          )
+          return { url: directUrl, size: sizeInfo, fileName }
+        }
+
+        const urlParams = new URLSearchParams(instantUrl.search)
         const keys = urlParams.get('url')
         if (keys) {
           const apiUrl = `${new URL(instantDownloadLink).origin}/api`
@@ -886,6 +908,36 @@ async function extractFinalDownloadUrl(
   }
 }
 
+async function unwrapMediaRedirect(
+  url: string,
+  referer: string
+): Promise<string> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': DEFAULT_HEADERS['User-Agent'],
+        Referer: referer,
+        Range: 'bytes=0-0',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15_000),
+    })
+    const finalUrl = response.url || url
+    await response.body?.cancel()
+
+    const parsed = new URL(finalUrl)
+    for (const key of ['url', 'link', 'd']) {
+      const embedded = parsed.searchParams.get(key)
+      if (embedded && /^https?:\/\//i.test(embedded)) {
+        return new URL(embedded).href
+      }
+    }
+    return finalUrl
+  } catch {
+    return url
+  }
+}
+
 /**
  * Compare media info to search result
  */
@@ -893,28 +945,44 @@ function compareMedia(
   mediaInfo: MediaInfo,
   searchResult: SearchResult
 ): boolean {
-  const normalizeString = (str: string) =>
+  const tokenize = (str: string) =>
     String(str || '')
       .toLowerCase()
-      .replace(/[^a-zA-Z0-9]/g, '')
+      .replace(/\bdownload\b/g, ' ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+
+  const containsTokenSequence = (haystack: string[], needle: string[]) =>
+    needle.length > 0 &&
+    haystack.some((_token, index) =>
+      needle.every((token, offset) => haystack[index + offset] === token)
+    )
 
   const titleWithAnd = mediaInfo.title.replace(/\s*&\s*/g, ' and ')
-  const normalizedMediaTitle = normalizeString(titleWithAnd)
-  const normalizedResultTitle = normalizeString(searchResult.title)
+  const mediaTokens = tokenize(titleWithAnd)
+  const resultTitleBeforeYear = searchResult.title.split(
+    /\b(?:19[89]\d|20\d{2})\b/
+  )[0]
+  const resultTokens = tokenize(resultTitleBeforeYear)
 
-  // Check if titles match
-  let titleMatches = normalizedResultTitle.includes(normalizedMediaTitle)
+  // Use whole-token phrase matching so short titles such as "Leo" do not
+  // accidentally match unrelated results such as "Napoleon".
+  let titleMatches = mediaTokens.every(
+    (token, index) => resultTokens[index] === token
+  )
 
   // Check for collection matches
   if (!titleMatches) {
-    const mainTitle = normalizedMediaTitle.split('and')[0]
-    const isCollection =
-      normalizedResultTitle.includes('duology') ||
-      normalizedResultTitle.includes('trilogy') ||
-      normalizedResultTitle.includes('collection') ||
-      normalizedResultTitle.includes('saga')
+    const andIndex = mediaTokens.indexOf('and')
+    const mainTitle =
+      andIndex > 0 ? mediaTokens.slice(0, andIndex) : mediaTokens
+    const isCollection = resultTokens.some(token =>
+      ['duology', 'trilogy', 'collection', 'saga'].includes(token)
+    )
 
-    if (isCollection && normalizedResultTitle.includes(mainTitle)) {
+    if (isCollection && containsTokenSequence(resultTokens, mainTitle)) {
       titleMatches = true
     }
   }
@@ -928,7 +996,7 @@ function compareMedia(
 
     if (yearMatches) {
       const hasMatchingYear = yearMatches.some(
-        yearStr => Math.abs(parseInt(yearStr) - mediaInfo.year) <= 1
+        yearStr => parseInt(yearStr) === mediaInfo.year
       )
       if (!hasMatchingYear) return false
     }
@@ -1147,7 +1215,9 @@ async function getUHDMoviesStreams(
 
         if (
           linkInfo.link.includes('tech.unblockedgames.world') ||
-          linkInfo.link.includes('tech.examzculture.in')
+          linkInfo.link.includes('tech.examzculture.in') ||
+          linkInfo.link.includes('?sid=') ||
+          linkInfo.link.includes('&sid=')
         ) {
           driveleechUrl = await resolveSidToDriveleech(linkInfo.link)
         } else if (

@@ -7,15 +7,16 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
-- 🌐 **Multiple Providers**: Supports 6 streaming providers (Vixsrc, Vidsrc, Vidzee, UHDMovies, Showbox, 4K HD Hub)
+- 🌐 **Multiple Providers**: Supports 12 streaming providers, including 4KHDHub, StreamFlix, UHDMovies, and VidEasy
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
+- 🛡️ **Header-aware proxy**: Signed `/proxy` URLs apply provider User-Agent and Referer headers and rewrite HLS segments
 - 🚀 **Deployment Ready**: Supports Vercel, Netlify, and Render deployments
 
 ## Prerequisites
 
-- Node.js (v18 or higher recommended)
+- Node.js 22 or higher
 - pnpm (or npm/yarn)
 - TMDB API Key ([Get one here](https://www.themoviedb.org/settings/api))
 
@@ -44,6 +45,7 @@ cp .env.example .env
 
 ```env
 TMDB_API_KEY=your_actual_api_key_here
+STREAM_PROXY_SECRET=your_long_random_secret
 PORT=3000
 FEBBOX_COOKIE=your_febbox_cookir_for_showbox
 SHOWBOX_PROXY_URL_VALUE=your_proxy_for_showbox
@@ -83,16 +85,12 @@ curl "http://localhost:3000/"
 ```json
 {
   "name": "FlixQuest Scraper API",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "running",
   "endpoints": {
-    "streamMovie": "GET /stream-movie?tmdbId={id}",
-    "streamTV": "GET /stream-tv?tmdbId={id}&season={num}&episode={num}",
-    "providerStreamMovie": "GET /:provider/stream-movie?tmdbId={id}",
-    "providerStreamTV": "GET /:provider/stream-tv?tmdbId={id}&season={num}&episode={num}",
-    "providers": "GET /providers",
-    "sources": "GET /sources",
-    "embeds": "GET /embeds"
+    "streamMovie": "GET /v2/stream-movie?tmdbId={id}&provider={providerId}",
+    "streamTV": "GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}",
+    "providers": "GET /v2/providers"
   },
   "availableProviders": [
     "vixsrc",
@@ -100,7 +98,13 @@ curl "http://localhost:3000/"
     "vidzee",
     "uhdmovies",
     "showbox",
-    "4khdhub"
+    "4khdhub",
+    "4khdhubnew",
+    "dahmermovies",
+    "dahmermovies-tv",
+    "streamflix",
+    "videasy",
+    "notorrent"
   ]
 }
 ```
@@ -109,12 +113,12 @@ curl "http://localhost:3000/"
 
 Get all available streaming providers.
 
-**Endpoint:** `GET /providers`
+**Endpoint:** `GET /v2/providers`
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/providers"
+curl "http://localhost:3000/v2/providers"
 ```
 
 **Response:**
@@ -128,29 +132,33 @@ curl "http://localhost:3000/providers"
     { "id": "vidzee", "name": "Vidzee" },
     { "id": "uhdmovies", "name": "UHDMovies" },
     { "id": "showbox", "name": "Showbox" },
-    { "id": "4khdhub", "name": "4K HD Hub" }
+    { "id": "4khdhub", "name": "4KHDHub" },
+    { "id": "4khdhubnew", "name": "4KHDHub-NEW" },
+    { "id": "dahmermovies", "name": "DahmerMovies" },
+    { "id": "dahmermovies-tv", "name": "DahmerMovies-TV" },
+    { "id": "streamflix", "name": "StreamFlix" },
+    { "id": "videasy", "name": "VidEasy" },
+    { "id": "notorrent", "name": "NoTorrent" }
   ]
 }
 ```
 
-### 3. Stream Movie (Provider-Specific)
+### 3. Stream Movie
 
 Get streaming links for a movie using TMDB ID from a specific provider.
 
-**Endpoint:** `GET /:provider/stream-movie`
-
-**Path Parameters:**
-
-- `provider` (string, required): Provider ID (e.g., `vixsrc`, `vidsrc`, `vidzee`, `uhdmovies`, `showbox`, `4khdhub`)
+**Endpoint:** `GET /v2/stream-movie`
 
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the movie
+- `provider` (string, required): Provider ID returned by `GET /v2/providers`
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/vixsrc/stream-movie?tmdbId=556574"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
 ```
 
 **Response:**
@@ -184,26 +192,24 @@ curl "http://localhost:3000/vixsrc/stream-movie?tmdbId=556574"
 }
 ```
 
-### 4. Stream TV Show (Provider-Specific)
+### 4. Stream TV Show
 
 Get streaming links for a TV show episode using TMDB ID, season, and episode number from a specific provider.
 
-**Endpoint:** `GET /:provider/stream-tv`
-
-**Path Parameters:**
-
-- `provider` (string, required): Provider ID (e.g., `vixsrc`, `vidsrc`, `vidzee`, `uhdmovies`, `showbox`, `4khdhub`)
+**Endpoint:** `GET /v2/stream-tv`
 
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the TV show
 - `season` (number, required): Season number
 - `episode` (number, required): Episode number
+- `provider` (string, required): Provider ID returned by `GET /v2/providers`
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/vixsrc/stream-tv?tmdbId=2316&season=1&episode=1"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc"
 ```
 
 **Response:**
@@ -237,6 +243,12 @@ curl "http://localhost:3000/vixsrc/stream-tv?tmdbId=2316&season=1&episode=1"
 }
 ```
 
+### Stream Proxy
+
+Stream responses use signed `/proxy` URLs by default. The proxy forwards provider-required `User-Agent`, `Referer`, byte-range, and conditional request headers. HLS manifests are rewritten so their variants, encryption keys, subtitles, and media segments continue through the same signed proxy.
+
+Proxy tokens expire after six hours and cannot be changed to target arbitrary URLs. Set `STREAM_PROXY_SECRET` to a long, private value in every deployment instance. Add `proxy=false` to a movie or TV request when direct upstream URLs are preferred.
+
 ## Project Structure
 
 ```
@@ -254,7 +266,12 @@ flixquest-scraper/
 │   │   ├── vidzee.ts         # Vidzee provider implementation
 │   │   ├── uhdmovies.ts      # UHDMovies provider implementation
 │   │   ├── showbox.ts        # Showbox provider implementation
-│   │   └── fourkhdhub.ts     # 4K HD Hub provider implementation
+│   │   ├── fourkhdhub.ts     # 4K HD Hub provider implementation
+│   │   ├── dahmermovies.ts   # DahmerMovies provider implementation
+│   │   ├── dahmermovies-tv.ts # DahmerMovies direct-link variant
+│   │   ├── streamflix.ts     # StreamFlix provider implementation
+│   │   ├── videasy.ts        # VidEasy provider implementation
+│   │   └── notorrent.ts      # NoTorrent provider implementation
 │   └── utils/
 │       └── tmdb.ts           # TMDB API helper functions
 ├── dist/                     # Compiled JavaScript output (gitignored)
@@ -347,6 +364,12 @@ interface Provider {
 - `uhdmovies` - UHDMovies provider
 - `showbox` - Showbox provider
 - `4khdhub` - 4K HD Hub provider
+- `4khdhubnew` - 4KHDHub-NEW broad-search provider
+- `dahmermovies` - DahmerMovies direct-file provider
+- `dahmermovies-tv` - DahmerMovies direct-link/Android TV variant
+- `streamflix` - StreamFlix movie and episode provider
+- `videasy` - VidEasy multi-server provider
+- `notorrent` - NoTorrent Stremio-addon provider
 
 ## Error Handling
 

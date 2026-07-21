@@ -26,16 +26,20 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-movie?tmdbId=556574",
+          "raw": "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-movie"],
+          "path": ["v2", "stream-movie"],
           "query": [
             {
               "key": "tmdbId",
               "value": "556574",
               "description": "TMDB ID for Hamilton"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -48,16 +52,20 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-movie?tmdbId=278",
+          "raw": "http://localhost:3000/v2/stream-movie?tmdbId=278&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-movie"],
+          "path": ["v2", "stream-movie"],
           "query": [
             {
               "key": "tmdbId",
               "value": "278",
               "description": "TMDB ID for The Shawshank Redemption"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -70,16 +78,20 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-movie?tmdbId=27205",
+          "raw": "http://localhost:3000/v2/stream-movie?tmdbId=27205&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-movie"],
+          "path": ["v2", "stream-movie"],
           "query": [
             {
               "key": "tmdbId",
               "value": "27205",
               "description": "TMDB ID for Inception"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -92,11 +104,11 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1",
+          "raw": "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-tv"],
+          "path": ["v2", "stream-tv"],
           "query": [
             {
               "key": "tmdbId",
@@ -112,6 +124,10 @@
               "key": "episode",
               "value": "1",
               "description": "Episode number"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -124,11 +140,11 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-tv?tmdbId=1396&season=1&episode=1",
+          "raw": "http://localhost:3000/v2/stream-tv?tmdbId=1396&season=1&episode=1&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-tv"],
+          "path": ["v2", "stream-tv"],
           "query": [
             {
               "key": "tmdbId",
@@ -144,6 +160,10 @@
               "key": "episode",
               "value": "1",
               "description": "Episode number"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -156,11 +176,11 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/stream-tv?tmdbId=66732&season=1&episode=1",
+          "raw": "http://localhost:3000/v2/stream-tv?tmdbId=66732&season=1&episode=1&provider=vixsrc",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["stream-tv"],
+          "path": ["v2", "stream-tv"],
           "query": [
             {
               "key": "tmdbId",
@@ -176,6 +196,10 @@
               "key": "episode",
               "value": "1",
               "description": "Episode number"
+            },
+            {
+              "key": "provider",
+              "value": "vixsrc"
             }
           ]
         },
@@ -183,33 +207,18 @@
       }
     },
     {
-      "name": "List Sources",
+      "name": "List Providers",
       "request": {
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:3000/sources",
+          "raw": "http://localhost:3000/v2/providers",
           "protocol": "http",
           "host": ["localhost"],
           "port": "3000",
-          "path": ["sources"]
+          "path": ["v2", "providers"]
         },
-        "description": "Get list of all available streaming sources"
-      }
-    },
-    {
-      "name": "List Embeds",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:3000/embeds",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "3000",
-          "path": ["embeds"]
-        },
-        "description": "Get list of all available embed scrapers"
+        "description": "Get list of all available streaming providers"
       }
     }
   ]

@@ -25,6 +25,7 @@ export interface ProviderLink {
   isM3U8: boolean
   quality: string
   subtitles: Subtitle[]
+  headers?: Record<string, string>
 }
 
 // Provider response interface

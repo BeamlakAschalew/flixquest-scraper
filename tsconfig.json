@@ -6,13 +6,11 @@
 
     "rootDir": "./src",
     "outDir": "./dist",
-    "noEmit": true,
 
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "allowImportingTsExtensions": true,
 
     "sourceMap": true,
     "types": ["node"]

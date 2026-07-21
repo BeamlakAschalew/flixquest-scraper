@@ -1,11 +1,11 @@
 {
   "name": "flixquest-scraper",
   "type": "module",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A powerful Express.js API for scraping streaming links for movies and TV shows",
   "main": "src/index.ts",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.0.0",
     "pnpm": ">=8.0.0"
   },
   "scripts": {

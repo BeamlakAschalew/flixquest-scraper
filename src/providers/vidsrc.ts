@@ -6,7 +6,12 @@ import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
  */
 
 // Constants
-const SOURCE_URL = 'https://vidsrc.xyz/embed'
+const SOURCE_BASE_URLS = [
+  'https://vidsrc.me',
+  'https://vidsrc.in',
+  'https://vidsrc.net',
+]
+const REQUEST_TIMEOUT_MS = 15_000
 let BASEDOM = 'https://cloudnestra.com'
 
 // Default headers for requests
@@ -38,6 +43,7 @@ async function makeRequest(
       method: options.method || 'GET',
       headers,
       ...options,
+      signal: options.signal || AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -117,11 +123,13 @@ async function serversLoad(
 interface StreamQuality {
   quality: string
   url: string
+  headers?: Record<string, string>
 }
 
 async function parseMasterM3U8(
   m3u8Content: string,
-  masterM3U8Url: string
+  masterM3U8Url: string,
+  headers?: Record<string, string>
 ): Promise<StreamQuality[]> {
   const lines = m3u8Content.split('\n').map(line => line.trim())
   const streams: StreamQuality[] = []
@@ -149,13 +157,13 @@ async function parseMasterM3U8(
         const streamUrlPart = lines[i + 1]
         try {
           const fullStreamUrl = new URL(streamUrlPart, masterM3U8Url).href
-          streams.push({ quality, url: fullStreamUrl })
+          streams.push({ quality, url: fullStreamUrl, headers })
         } catch (e) {
           console.error(
             `[VidSrc] Error constructing URL for stream: ${streamUrlPart}`,
             e
           )
-          streams.push({ quality, url: streamUrlPart })
+          streams.push({ quality, url: streamUrlPart, headers })
         }
         i++
       }
@@ -171,7 +179,37 @@ async function parseMasterM3U8(
     return getHeight(b.quality) - getHeight(a.quality)
   })
 
-  return streams
+  // Some VidSrc servers return a media playlist instead of a multivariant
+  // playlist. In that case the requested URL itself is the playable stream.
+  return streams.length
+    ? streams
+    : [{ quality: 'unknown', url: masterM3U8Url, headers }]
+}
+
+async function replaceTokenPlaceholders(
+  streamUrl: string,
+  referer: string
+): Promise<string> {
+  if (!/__TOKEN(?:PG)?__/.test(streamUrl)) return streamUrl
+
+  const tokenUrl = new URL('/generate.php', streamUrl).href
+  const response = await makeRequest(tokenUrl, {
+    headers: { Referer: referer },
+  })
+  const token = (await response.text()).trim()
+  if (!token) throw new Error('VidSrc token endpoint returned an empty token')
+
+  return streamUrl.replace(/__TOKEN(?:PG)?__/g, encodeURIComponent(token))
+}
+
+async function loadMasterPlaylist(
+  streamUrl: string,
+  referer: string
+): Promise<StreamQuality[]> {
+  const resolvedUrl = await replaceTokenPlaceholders(streamUrl, referer)
+  const headers = { Referer: referer, Accept: '*/*' }
+  const response = await makeRequest(resolvedUrl, { headers })
+  return parseMasterM3U8(await response.text(), resolvedUrl, headers)
 }
 
 /**
@@ -193,6 +231,26 @@ async function PRORCPhandler(prorcp: string): Promise<StreamQuality[] | null> {
     })
 
     const prorcpResponse = await prorcpFetch.text()
+
+    // Current VidSrc player pages expose a tokenized playlist URL in their
+    // scripts. The token is issued by the media host's generate.php endpoint.
+    // This is the same extra player step performed by maintained VidSrc
+    // implementations and avoids returning the intermediate PRORCP page.
+    const playlistUrls = Array.from(
+      prorcpResponse.matchAll(/https?:\/\/[^"'\s<>\\]+\.m3u8[^"'\s<>\\]*/gi),
+      match => match[0].replace(/&amp;/g, '&')
+    )
+    for (const playlistUrl of new Set(playlistUrls)) {
+      try {
+        console.log(`[VidSrc] Found player M3U8: ${playlistUrl}`)
+        return await loadMasterPlaylist(playlistUrl, prorcpUrl)
+      } catch (error) {
+        console.warn(
+          `[VidSrc] Player M3U8 failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      }
+    }
+
     const regex = /file:\s*'([^']*)'/gm
     const match = regex.exec(prorcpResponse)
 
@@ -200,12 +258,7 @@ async function PRORCPhandler(prorcp: string): Promise<StreamQuality[] | null> {
       const masterM3U8Url = match[1]
       console.log(`[VidSrc] Found master M3U8: ${masterM3U8Url}`)
 
-      const m3u8FileFetch = await makeRequest(masterM3U8Url, {
-        headers: { Referer: prorcpUrl, Accept: '*/*' },
-      })
-
-      const m3u8Content = await m3u8FileFetch.text()
-      return parseMasterM3U8(m3u8Content, masterM3U8Url)
+      return loadMasterPlaylist(masterM3U8Url, prorcpUrl)
     }
 
     console.warn('[VidSrc] No master M3U8 URL found in prorcp response')
@@ -324,13 +377,35 @@ async function rcpGrabber(html: string): Promise<{
 /**
  * Build URL for embed page
  */
-function getUrl(id: string, type: 'movie' | 'tv'): string {
+function getPath(id: string, type: 'movie' | 'tv'): string {
   if (type === 'movie') {
-    return `${SOURCE_URL}/movie/${id}`
+    return `/embed/movie/${id}`
   } else {
     const arr = id.split(':')
-    return `${SOURCE_URL}/tv/${arr[0]}/${arr[1]}-${arr[2]}`
+    return `/embed/tv/${arr[0]}/${arr[1]}-${arr[2]}`
   }
+}
+
+async function fetchEmbedPage(
+  id: string,
+  type: 'movie' | 'tv'
+): Promise<{ html: string; url: string }> {
+  const path = getPath(id, type)
+  let lastError: unknown
+  for (const baseUrl of SOURCE_BASE_URLS) {
+    const url = `${baseUrl}${path}`
+    try {
+      const response = await makeRequest(url, {
+        headers: { Referer: `${baseUrl}/` },
+      })
+      return { html: await response.text(), url: response.url || url }
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('No VidSrc domain is available')
 }
 
 /**
@@ -340,15 +415,12 @@ async function getStreamContent(
   id: string,
   type: 'movie' | 'tv'
 ): Promise<ProviderLink[]> {
-  const url = getUrl(id, type)
-  console.log(`[VidSrc] Fetching embed page: ${url}`)
+  console.log(`[VidSrc] Fetching embed page for ${id}`)
 
   try {
-    const embedRes = await makeRequest(url, {
-      headers: { Referer: SOURCE_URL },
-    })
-    const embedResp = await embedRes.text()
-    const { servers, title } = await serversLoad(embedResp)
+    const { html: embedResp, url } = await fetchEmbedPage(id, type)
+    console.log(`[VidSrc] Using embed page: ${url}`)
+    const { servers } = await serversLoad(embedResp)
 
     console.log(`[VidSrc] Found ${servers.length} servers`)
 
@@ -402,6 +474,7 @@ async function getStreamContent(
             isM3U8: true,
             quality: stream.quality,
             subtitles: [] as Subtitle[], // VidSrc doesn't provide subtitles directly
+            headers: stream.headers,
           }))
         }
 
