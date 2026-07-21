@@ -4,6 +4,7 @@ import { findDahmerShowDirectories } from '../utils/dahmer-directory.js'
 
 const TMDB_API_URL = 'https://api.themoviedb.org/3'
 const DAHMER_MOVIES_API = 'https://a.111477.xyz'
+const DAHMER_WORKER_API = 'https://p.111477.xyz/bulk'
 const REQUEST_TIMEOUT_MS = 10_000
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -215,6 +216,8 @@ function toProviderLink(
 ): ProviderLink | null {
   try {
     const directUrl = new URL(link.href, directoryUrl).href
+    const workerUrl = new URL(DAHMER_WORKER_API)
+    workerUrl.searchParams.set('u', directUrl)
 
     const fileFormat =
       link.text.match(/\.(mkv|mp4|m3u8|avi|webm)$/i)?.[1].toUpperCase() ||
@@ -230,7 +233,7 @@ function toProviderLink(
 
     return {
       server: `DahmerMovies | ${language} | ${link.size} | ${fileFormat} | ${info}`,
-      url: directUrl,
+      url: workerUrl.href,
       isM3U8: fileFormat === 'M3U8',
       quality: resolution.toLowerCase() === '4k' ? '2160p' : resolution,
       subtitles: [],

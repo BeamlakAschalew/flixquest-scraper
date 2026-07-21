@@ -5,8 +5,7 @@ import { findDahmerShowDirectories } from '../utils/dahmer-directory.js'
 const TMDB_API_URL = 'https://api.themoviedb.org/3'
 const DAHMER_MOVIES_API = 'https://a.111477.xyz'
 const REQUEST_TIMEOUT_MS = 15_000
-const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const USER_AGENT = 'Mozilla/5.0 (Android) ExoPlayer'
 const REQUEST_HEADERS = {
   'User-Agent': USER_AGENT,
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -44,6 +43,35 @@ function parseLinks(html: string): DirectoryLink[] {
   }
 
   return links
+}
+
+async function resolveFinalUrl(value: string): Promise<string> {
+  let target = value
+  try {
+    const url = new URL(value)
+    const wrappedUrl = url.pathname.endsWith('/bulk')
+      ? url.searchParams.get('u')
+      : undefined
+    if (wrappedUrl) target = new URL(wrappedUrl).href
+  } catch {
+    return value
+  }
+
+  try {
+    const response = await fetch(target, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': USER_AGENT,
+        Referer: `${DAHMER_MOVIES_API}/`,
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    await response.body?.cancel()
+    return response.ok ? response.url || target : target
+  } catch {
+    return target
+  }
 }
 
 async function directoryPaths(
@@ -131,23 +159,26 @@ async function getDahmerTvStreams(
         Number(/2160p|4k/i.test(b.text)) - Number(/2160p|4k/i.test(a.text))
     )
 
-    const results = links.slice(0, 5).map(link => {
-      const url = new URL(link.href, directoryUrl).href
-      const quality = /2160p|4k/i.test(link.text) ? '2160p' : '1080p'
+    const results = await Promise.all(
+      links.slice(0, 5).map(async link => {
+        const directUrl = new URL(link.href, directoryUrl).href
+        const url = await resolveFinalUrl(directUrl)
+        const quality = /2160p|4k/i.test(link.text) ? '2160p' : '1080p'
 
-      return {
-        server: 'DahmerMovies-TV',
-        url,
-        isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
-        quality,
-        subtitles: [],
-        headers: {
-          'User-Agent': USER_AGENT,
-          Referer: `${DAHMER_MOVIES_API}/`,
-          Range: 'bytes=0-',
-        },
-      } satisfies ProviderLink
-    })
+        return {
+          server: 'DahmerMovies-TV',
+          url,
+          isM3U8: /\.m3u8(?:$|[?#])/i.test(directUrl),
+          quality,
+          subtitles: [],
+          headers: {
+            'User-Agent': USER_AGENT,
+            Referer: `${DAHMER_MOVIES_API}/`,
+            Range: 'bytes=0-',
+          },
+        } satisfies ProviderLink
+      })
+    )
 
     return Array.from(new Map(results.map(link => [link.url, link])).values())
   } catch (error) {

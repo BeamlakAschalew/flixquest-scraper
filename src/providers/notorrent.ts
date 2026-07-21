@@ -99,6 +99,19 @@ function buildAddonUrl(
     : `${NOTORRENT_API}/stream/movie/${imdbId}.json`
 }
 
+function isPlaceholderStream(url: string, title: string): boolean {
+  const combined = `${url} ${title}`
+  return (
+    /(?:^|\/)(?:premium|placeholder|sample|demo)(?:[-_.][^/?#]*)?\.mp4(?:[?#]|$)/i.test(
+      url
+    ) ||
+    /\b(?:placeholder|sample video|demo video|test video|premium player|premium video|configure addon|mpv player)\b/i.test(
+      combined
+    ) ||
+    /\b(?:big buck bunny|elephants dream|sintel)\b/i.test(combined)
+  )
+}
+
 function mapStream(item: NoTorrentStream): ProviderLink | null {
   const title = cleanText(item.title || '')
   if (
@@ -106,8 +119,7 @@ function mapStream(item: NoTorrentStream): ProviderLink | null {
     !item.url ||
     item.url.includes('github.com') ||
     item.url.includes('googleusercontent') ||
-    /hostingersite\.com\/premium\.mp4/i.test(item.url) ||
-    /\bmpv\s*player\b|premium\s*(?:player|video)|configure\s+addon/i.test(title)
+    isPlaceholderStream(item.url, title)
   ) {
     return null
   }

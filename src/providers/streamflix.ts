@@ -174,7 +174,7 @@ function createLink(
 
 function joinStreamUrl(baseUrl: string, path: string): string {
   if (/^https?:\/\//i.test(path)) return path
-  return `${baseUrl}${path}`
+  return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
 
 function movieLinks(
@@ -183,14 +183,21 @@ function movieLinks(
 ): ProviderLink[] {
   if (!item.movielink) return []
 
-  const links = [
-    ...(config.premium || []).map(base =>
-      createLink(joinStreamUrl(base, item.movielink || ''), '1080p', 'Premium')
+  // Config revisions may rotate movie files across the same download/CDN pools
+  // used by TV, so try those hosts after the movie-specific pools.
+  const bases = [
+    ...(config.premium || []).map(base => [base, '1080p', 'Premium'] as const),
+    ...(config.movies || []).map(base => [base, '720p', 'Standard'] as const),
+    ...(config.download || []).map(
+      base => [base, '720p', 'Download CDN'] as const
     ),
-    ...(config.movies || []).map(base =>
-      createLink(joinStreamUrl(base, item.movielink || ''), '720p', 'Standard')
-    ),
+    ...(config.tv || []).map(base => [base, '720p', 'Fallback CDN'] as const),
   ]
+  const links = Array.from(
+    new Map(bases.map(entry => [entry[0], entry] as const)).values()
+  ).map(([base, quality, description]) =>
+    createLink(joinStreamUrl(base, item.movielink || ''), quality, description)
+  )
 
   return links.filter((link): link is ProviderLink => link !== null)
 }

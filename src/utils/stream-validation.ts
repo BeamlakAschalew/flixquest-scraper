@@ -90,11 +90,20 @@ export async function validateStreamLinks(
 }
 
 export function withStreamValidation(provider: Provider): Provider {
+  async function validated(links: ProviderLink[]): Promise<ProviderLink[]> {
+    const result = await validateStreamLinks(links)
+    if (links.length !== result.length) {
+      console.log(
+        `[${provider.name}] Stream validation kept ${result.length}/${links.length} candidate(s)`
+      )
+    }
+    return result
+  }
+
   return {
     ...provider,
-    streamMovie: async tmdbId =>
-      validateStreamLinks(await provider.streamMovie(tmdbId)),
+    streamMovie: async tmdbId => validated(await provider.streamMovie(tmdbId)),
     streamTV: async (tmdbId, season, episode) =>
-      validateStreamLinks(await provider.streamTV(tmdbId, season, episode)),
+      validated(await provider.streamTV(tmdbId, season, episode)),
   }
 }
