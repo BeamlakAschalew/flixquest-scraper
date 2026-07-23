@@ -26,6 +26,9 @@ export interface ProviderLink {
   quality: string
   subtitles: Subtitle[]
   headers?: Record<string, string>
+  // Browser clients cannot set some anti-hotlink headers. Such links must
+  // remain behind the API proxy even when raw upstream URLs are requested.
+  requiresProxy?: boolean
 }
 
 // Provider response interface

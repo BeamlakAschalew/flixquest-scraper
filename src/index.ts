@@ -7,7 +7,11 @@ import {
   getAllProviderIds,
   getAllProviders,
 } from './providers/index.js'
-import type { ErrorResponse, ProviderResponse } from './types/index.js'
+import type {
+  ErrorResponse,
+  ProviderLink,
+  ProviderResponse,
+} from './types/index.js'
 import { handleStreamProxy, proxyStreamLinks } from './utils/stream-proxy.js'
 
 const app = express()
@@ -27,6 +31,17 @@ function proxyBaseUrl(req: Request): string {
 
 function shouldProxy(req: Request): boolean {
   return getQueryString(req.query.proxy)?.toLowerCase() !== 'false'
+}
+
+function responseStreamLinks(
+  req: Request,
+  links: ProviderLink[]
+): ProviderLink[] {
+  const proxyAll = shouldProxy(req)
+  const baseUrl = proxyBaseUrl(req)
+  return links.map(link =>
+    proxyAll || link.requiresProxy ? proxyStreamLinks([link], baseUrl)[0] : link
+  )
 }
 
 function getQueryString(value: unknown): string | undefined {
@@ -140,9 +155,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links: shouldProxy(req)
-        ? proxyStreamLinks(links, proxyBaseUrl(req))
-        : links,
+      links: responseStreamLinks(req, links),
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
@@ -216,9 +229,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links: shouldProxy(req)
-        ? proxyStreamLinks(links, proxyBaseUrl(req))
-        : links,
+      links: responseStreamLinks(req, links),
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)

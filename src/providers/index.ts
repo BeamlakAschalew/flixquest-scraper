@@ -10,9 +10,16 @@ import { dahmerMoviesTvProvider } from './dahmermovies-tv.js'
 import { noTorrentProvider } from './notorrent.js'
 import { streamFlixProvider } from './streamflix.js'
 import { vidEasyProvider } from './videasy.js'
+import { vidEasy2Provider } from './videasy2.js'
 import { bollyFlixProvider } from './bollyflix.js'
 import { playImdbProvider } from './playimdb.js'
 import { vidlinkProvider } from './vidlink.js'
+import { netMirrorProvider } from './netmirror.js'
+import { tamilianProvider } from './tamilian.js'
+import { vidFastProvider } from './vidfast.js'
+import { castleProvider } from './castle.js'
+import { movieBlastProvider } from './movieblast.js'
+import { peachifyProvider } from './peachify.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 
 // Register all providers here
@@ -28,10 +35,17 @@ const rawProviders: Record<string, Provider> = {
   'dahmermovies-tv': dahmerMoviesTvProvider,
   streamflix: streamFlixProvider,
   videasy: vidEasyProvider,
+  videasy2: vidEasy2Provider,
   notorrent: noTorrentProvider,
   bollyflix: bollyFlixProvider,
   playimdb: playImdbProvider,
   vidlink: vidlinkProvider,
+  netmirror: netMirrorProvider,
+  tamilian: tamilianProvider,
+  vidfast: vidFastProvider,
+  castle: castleProvider,
+  movieblast: movieBlastProvider,
+  peachify: peachifyProvider,
 }
 
 // Every public provider result is checked with a one-byte ranged request. This

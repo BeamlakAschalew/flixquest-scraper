@@ -7,7 +7,7 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
-- 🌐 **Multiple Providers**: Supports 12 streaming providers, including 4KHDHub, StreamFlix, UHDMovies, and VidEasy
+- 🌐 **Multiple Providers**: Supports 22 streaming providers, including 4KHDHub, StreamFlix, UHDMovies, VidEasy, VidFast, NetMirror, Castle, Peachify, and MovieBlast
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
@@ -153,7 +153,7 @@ Get streaming links for a movie using TMDB ID from a specific provider.
 
 - `tmdbId` (string, required): The TMDB ID of the movie
 - `provider` (string, required): Provider ID returned by `GET /v2/providers`
-- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly. Anti-hotlink-protected streams remain proxied so browser playback does not fail with 403.
 
 **Example:**
 
@@ -204,7 +204,7 @@ Get streaming links for a TV show episode using TMDB ID, season, and episode num
 - `season` (number, required): Season number
 - `episode` (number, required): Episode number
 - `provider` (string, required): Provider ID returned by `GET /v2/providers`
-- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly. Anti-hotlink-protected streams remain proxied so browser playback does not fail with 403.
 
 **Example:**
 
@@ -369,7 +369,17 @@ interface Provider {
 - `dahmermovies-tv` - DahmerMovies direct-link/Android TV variant
 - `streamflix` - StreamFlix movie and episode provider
 - `videasy` - VidEasy multi-server provider
+- `videasy2` - VidEasy WASM-backed multi-server provider
 - `notorrent` - NoTorrent Stremio-addon provider
+- `bollyflix` - BollyFlix Stremio relay provider
+- `playimdb` - PlayIMDb direct-stream provider
+- `vidlink` - Vidlink multi-quality provider
+- `netmirror` - NetMirror multi-quality movie and episode provider
+- `tamilian` - Tamilian 1080p movie provider
+- `vidfast` - VidFast multi-server movie and episode provider
+- `castle` - Castle multi-quality movie and episode provider
+- `peachify` - Peachify multi-mirror movie and episode provider
+- `movieblast` - MovieBlast signed-link movie and episode provider
 
 ## Error Handling
 

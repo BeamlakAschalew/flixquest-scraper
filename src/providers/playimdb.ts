@@ -1,6 +1,8 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 
-const API_URL = 'https://streamdata.vaplayer.ru/api.php'
+const API_URL =
+  process.env.PLAYIMDB_API_URL?.trim() ||
+  'https://streamdata.vaplayer.ru/api.php'
 const REQUEST_TIMEOUT_MS = 12_000
 const HEADERS = {
   Origin: 'https://nextgencloudfabric.com',
@@ -81,7 +83,7 @@ async function getStreams(
       payload.status?.toLowerCase() !== 'success'
     ) {
       console.log(
-        `[PlayIMDb] Upstream status: ${payload.status_code ?? payload.status ?? 'unknown'}`
+        `[PlayIMDb] Upstream has no match (status: ${payload.status_code ?? payload.status ?? 'unknown'}) for ${mediaType}/${tmdbId}`
       )
       return []
     }

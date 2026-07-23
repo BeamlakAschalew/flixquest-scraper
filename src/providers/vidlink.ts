@@ -3,45 +3,68 @@ import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 const BASE_URL = 'https://vidlink.pro'
 const ENCRYPT_URL = 'https://enc-dec.app/api/enc-vidlink'
 const REQUEST_TIMEOUT_MS = 12_000
+const MAX_REQUEST_ATTEMPTS = 2
 const HEADERS = {
+  Accept: 'application/json,*/*',
   'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
   Referer: `${BASE_URL}/`,
   Origin: BASE_URL,
+}
+
+interface VidlinkQuality {
+  url?: string
+  headers?: Record<string, string>
+}
+
+interface VidlinkSubtitle {
+  file?: string
+  url?: string
+  label?: string
+  lang?: string
+  language?: string
 }
 
 interface VidlinkResponse {
   stream?: {
     playlist?: string
-    qualities?: Record<string, string>
+    qualities?: Record<string, string | VidlinkQuality>
+    captions?: VidlinkSubtitle[]
   }
-  subtitles?: Array<{
-    file?: string
-    url?: string
-    label?: string
-    lang?: string
-  }>
+  subtitles?: VidlinkSubtitle[]
 }
 
 async function requestJson<T>(
   url: string,
   headers?: Record<string, string>
 ): Promise<T> {
-  const response = await fetch(url, {
-    headers,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
-  if (!response.ok)
-    throw new Error(`HTTP ${response.status} from ${new URL(url).hostname}`)
-  return (await response.json()) as T
+  let lastError: unknown
+  for (let attempt = 1; attempt <= MAX_REQUEST_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status} from ${new URL(url).hostname}`)
+      return (await response.json()) as T
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
 }
 
 function subtitlesFrom(payload: VidlinkResponse): Subtitle[] {
-  return (payload.subtitles || []).flatMap(item => {
+  return (payload.stream?.captions || payload.subtitles || []).flatMap(item => {
     const file = item.file || item.url
     if (!file || !/^https?:\/\//i.test(file)) return []
     return [
-      { file, label: item.label || item.lang || 'Unknown', kind: 'captions' },
+      {
+        file,
+        label: item.label || item.lang || item.language || 'Unknown',
+        kind: 'captions',
+      },
     ]
   })
 }
@@ -64,26 +87,37 @@ async function getStreams(
         ? `/api/b/movie/${encodeURIComponent(encrypted.result)}`
         : `/api/b/tv/${encodeURIComponent(encrypted.result)}/${season}/${episode}`
     const payload = await requestJson<VidlinkResponse>(
-      `${BASE_URL}${path}`,
+      `${BASE_URL}${path}?multiLang=0`,
       HEADERS
     )
     const subtitles = subtitlesFrom(payload)
-    const candidates = new Map<string, string>()
+    const candidates = new Map<
+      string,
+      { quality: string; headers: Record<string, string> }
+    >()
     if (payload.stream?.playlist)
-      candidates.set(payload.stream.playlist, 'auto')
-    for (const [quality, url] of Object.entries(
+      candidates.set(payload.stream.playlist, {
+        quality: 'auto',
+        headers: HEADERS,
+      })
+    for (const [quality, value] of Object.entries(
       payload.stream?.qualities || {}
     )) {
-      if (typeof url === 'string') candidates.set(url, quality)
+      const url = typeof value === 'string' ? value : value?.url
+      if (!url) continue
+      candidates.set(url, {
+        quality,
+        headers: typeof value === 'string' ? HEADERS : value.headers || HEADERS,
+      })
     }
 
-    const streams = Array.from(candidates, ([url, quality], index) => ({
+    const streams = Array.from(candidates, ([url, candidate], index) => ({
       server: `vidlink-${index + 1}`,
       url,
       isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
-      quality: quality.toLowerCase(),
+      quality: candidate.quality.toLowerCase().replace(/^(\d+)$/, '$1p'),
       subtitles,
-      headers: HEADERS,
+      headers: candidate.headers,
     })).filter(link => /^https?:\/\//i.test(link.url))
     console.log(
       `[Vidlink] Extracted ${streams.length} candidate stream(s); response fields: ${Object.keys(payload).join(', ') || 'none'}`
