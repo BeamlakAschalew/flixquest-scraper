@@ -39,12 +39,6 @@ interface CinebyServer {
   qualityFilter?: string
 }
 
-const NEON_SERVER: CinebyServer = {
-  name: 'Neon',
-  endpoint: 'neon2/sources-with-title',
-  audio: 'Original audio',
-}
-
 const SERVERS: CinebyServer[] = [
   {
     name: 'Yoru',
@@ -56,7 +50,11 @@ const SERVERS: CinebyServer[] = [
     endpoint: 'm4uhd/sources-with-title',
     audio: 'Original audio',
   },
-  NEON_SERVER,
+  {
+    name: 'Neon',
+    endpoint: 'neon2/sources-with-title',
+    audio: 'Original audio',
+  },
   {
     name: 'Vyse',
     endpoint: 'hdmovie/sources-with-title',
@@ -429,8 +427,7 @@ async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number,
-  servers: CinebyServer[] = SERVERS
+  episode?: number
 ): Promise<ProviderLink[]> {
   try {
     if (!/^\d+$/.test(tmdbId)) throw new Error('TMDB ID must be numeric')
@@ -449,7 +446,7 @@ async function getStreams(
     // lookup and query all player servers concurrently.
     const seed = await fetchSeed(tmdbId)
     const settled = await Promise.allSettled(
-      servers.map(server =>
+      SERVERS.map(server =>
         fetchServer(server, tmdbId, mediaType, details, seed, season, episode)
       )
     )
@@ -457,7 +454,7 @@ async function getStreams(
     settled.forEach((result, index) => {
       if (result.status === 'rejected') {
         console.warn(
-          `[Cineby] ${servers[index].name} failed: ${
+          `[Cineby] ${SERVERS[index].name} failed: ${
             result.reason instanceof Error
               ? result.reason.message
               : 'Unknown error'
@@ -481,17 +478,6 @@ async function getStreams(
     )
     return []
   }
-}
-
-// WatchFlux currently server-renders this same single Neon source. Keeping the
-// resolver here avoids duplicating Cineby's encrypted response protocol.
-export function getCinebyNeonStreams(
-  tmdbId: string,
-  mediaType: 'movie' | 'tv',
-  season?: number,
-  episode?: number
-): Promise<ProviderLink[]> {
-  return getStreams(tmdbId, mediaType, season, episode, [NEON_SERVER])
 }
 
 export const cinebyProvider: Provider = {
