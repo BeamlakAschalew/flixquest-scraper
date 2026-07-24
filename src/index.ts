@@ -285,9 +285,9 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
 
 app.use(API_PREFIX, api)
 
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => {
-    console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
+app.listen(port, () => {
+  console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
+  if (process.env.NODE_ENV !== 'production') {
     console.log('📖 API v2:')
     console.log('   GET /v2/stream-movie?tmdbId={id}&provider={providerId}')
     console.log(
@@ -296,7 +296,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.log('   GET /v2/providers')
     console.log('')
     console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
-  })
-}
+  }
+})
 
 export default app
