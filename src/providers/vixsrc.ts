@@ -7,10 +7,20 @@ const USER_AGENT =
 
 const VIXSRC_HEADERS = {
   'User-Agent': USER_AGENT,
-  Accept: 'application/json, text/javascript, */*; q=0.01',
+  Accept:
+    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
-  Referer: BASE_URL,
-  Origin: BASE_URL,
+  'Cache-Control': 'max-age=0',
+  Referer: `${BASE_URL}/`,
+  'Sec-Ch-Ua':
+    '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'same-origin',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
 }
 
 interface VixsrcApiResponse {
