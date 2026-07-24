@@ -20,6 +20,17 @@ import { vidFastProvider } from './vidfast.js'
 import { castleProvider } from './castle.js'
 import { movieBlastProvider } from './movieblast.js'
 import { peachifyProvider } from './peachify.js'
+import { movixProvider } from './movix.js'
+import { purStreamProvider } from './purstream.js'
+import { xPassProvider } from './xpass.js'
+import { kisskhProvider } from './kisskh.js'
+import { dramaFullProvider } from './dramafull.js'
+import { toonHubProvider } from './toonhub.js'
+import { cuevanaProvider } from './cuevana.js'
+import { jetFilmizleProvider } from './jetfilmizle.js'
+import { cinebyProvider } from './cineby.js'
+import { artemisProvider } from './artemis.js'
+import { watchFluxProvider } from './watchflux.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 
 // Register all providers here
@@ -46,6 +57,17 @@ const rawProviders: Record<string, Provider> = {
   castle: castleProvider,
   movieblast: movieBlastProvider,
   peachify: peachifyProvider,
+  movix: movixProvider,
+  purstream: purStreamProvider,
+  xpass: xPassProvider,
+  kisskh: kisskhProvider,
+  dramafull: dramaFullProvider,
+  toonhub: toonHubProvider,
+  cuevana: cuevanaProvider,
+  jetfilmizle: jetFilmizleProvider,
+  cineby: cinebyProvider,
+  artemis: artemisProvider,
+  watchflux: watchFluxProvider,
 }
 
 // Every public provider result is checked with a one-byte ranged request. This
@@ -60,6 +82,12 @@ export const providers: Record<string, Provider> = Object.fromEntries(
 // Get a provider by ID
 export function getProvider(providerId: string): Provider | undefined {
   return providers[providerId]
+}
+
+// API routes choose the final direct/proxied URL before validation. Other
+// consumers keep using getProvider() for direct upstream validation.
+export function getRawProvider(providerId: string): Provider | undefined {
+  return rawProviders[providerId]
 }
 
 // Get all provider IDs

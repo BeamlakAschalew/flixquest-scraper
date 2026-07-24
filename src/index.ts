@@ -3,9 +3,9 @@ import express from 'express'
 import type { Request, Response } from 'express'
 import { generateMovieMedia, generateShowMedia } from './utils/tmdb.js'
 import {
-  getProvider,
   getAllProviderIds,
   getAllProviders,
+  getRawProvider,
 } from './providers/index.js'
 import type {
   ErrorResponse,
@@ -13,6 +13,7 @@ import type {
   ProviderResponse,
 } from './types/index.js'
 import { handleStreamProxy, proxyStreamLinks } from './utils/stream-proxy.js'
+import { validateStreamLinks } from './utils/stream-validation.js'
 
 const app = express()
 const api = express.Router()
@@ -33,15 +34,16 @@ function shouldProxy(req: Request): boolean {
   return getQueryString(req.query.proxy)?.toLowerCase() !== 'false'
 }
 
-function responseStreamLinks(
+async function responseStreamLinks(
   req: Request,
   links: ProviderLink[]
-): ProviderLink[] {
+): Promise<ProviderLink[]> {
   const proxyAll = shouldProxy(req)
   const baseUrl = proxyBaseUrl(req)
-  return links.map(link =>
+  const finalLinks = links.map(link =>
     proxyAll || link.requiresProxy ? proxyStreamLinks([link], baseUrl)[0] : link
   )
+  return validateStreamLinks(finalLinks)
 }
 
 function getQueryString(value: unknown): string | undefined {
@@ -71,7 +73,7 @@ function resolveProvider(req: Request, res: Response) {
     return undefined
   }
 
-  const provider = getProvider(providerId)
+  const provider = getRawProvider(providerId)
   if (!provider) {
     const error: ErrorResponse = {
       success: false,
@@ -136,14 +138,32 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear})`
     )
 
-    const links = await provider.streamMovie(tmdbId)
-    if (links.length === 0) {
+    const candidates = await provider.streamMovie(tmdbId)
+    if (candidates.length === 0) {
       const error: ErrorResponse = {
         success: false,
         error: 'No streams found for this movie',
       }
       res.status(404).json(error)
       return
+    }
+
+    const links = await responseStreamLinks(req, candidates)
+    if (links.length === 0) {
+      console.log(
+        `[${provider.name}] Final URL validation kept 0/${candidates.length} candidate(s)`
+      )
+      const error: ErrorResponse = {
+        success: false,
+        error: 'No validated streams found for this movie',
+      }
+      res.status(404).json(error)
+      return
+    }
+    if (links.length !== candidates.length) {
+      console.log(
+        `[${provider.name}] Final URL validation kept ${links.length}/${candidates.length} candidate(s)`
+      )
     }
 
     const response: ProviderResponse = {
@@ -155,7 +175,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links: responseStreamLinks(req, links),
+      links,
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
@@ -210,14 +230,32 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear}) - S${season}E${episode}`
     )
 
-    const links = await provider.streamTV(tmdbId, season, episode)
-    if (links.length === 0) {
+    const candidates = await provider.streamTV(tmdbId, season, episode)
+    if (candidates.length === 0) {
       const error: ErrorResponse = {
         success: false,
         error: 'No streams found for this episode',
       }
       res.status(404).json(error)
       return
+    }
+
+    const links = await responseStreamLinks(req, candidates)
+    if (links.length === 0) {
+      console.log(
+        `[${provider.name}] Final URL validation kept 0/${candidates.length} candidate(s)`
+      )
+      const error: ErrorResponse = {
+        success: false,
+        error: 'No validated streams found for this episode',
+      }
+      res.status(404).json(error)
+      return
+    }
+    if (links.length !== candidates.length) {
+      console.log(
+        `[${provider.name}] Final URL validation kept ${links.length}/${candidates.length} candidate(s)`
+      )
     }
 
     const response: ProviderResponse = {
@@ -229,7 +267,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
         releaseYear: media.releaseYear,
         tmdbId: media.tmdbId,
       },
-      links: responseStreamLinks(req, links),
+      links,
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)

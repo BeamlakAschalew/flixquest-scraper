@@ -7,7 +7,7 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
-- 🌐 **Multiple Providers**: Supports 22 streaming providers, including 4KHDHub, StreamFlix, UHDMovies, VidEasy, VidFast, NetMirror, Castle, Peachify, and MovieBlast
+- 🌐 **Multiple Providers**: Supports 30 streaming providers, including 4KHDHub, StreamFlix, Kisskh, ToonHub, Cuevana, JetFilmizle, UHDMovies, VidEasy, and NetMirror
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
@@ -245,7 +245,7 @@ curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider
 
 ### Stream Proxy
 
-Stream responses use signed `/proxy` URLs by default. The proxy forwards provider-required `User-Agent`, `Referer`, byte-range, and conditional request headers. HLS manifests are rewritten so their variants, encryption keys, subtitles, and media segments continue through the same signed proxy.
+Stream responses use signed `/proxy` URLs by default. The proxy forwards provider-required `User-Agent`, `Referer`, byte-range, and conditional request headers. HLS manifests are rewritten so their variants, encryption keys, subtitles, and media segments continue through the same signed proxy. Validation runs against the final URL returned to the client: `/proxy` when proxying is enabled and the upstream URL otherwise.
 
 Proxy tokens expire after six hours and cannot be changed to target arbitrary URLs. Set `STREAM_PROXY_SECRET` to a long, private value in every deployment instance. Add `proxy=false` to a movie or TV request when direct upstream URLs are preferred.
 
@@ -380,6 +380,17 @@ interface Provider {
 - `castle` - Castle multi-quality movie and episode provider
 - `peachify` - Peachify multi-mirror movie and episode provider
 - `movieblast` - MovieBlast signed-link movie and episode provider
+- `purstream` - PurStream English/French movie and episode provider
+- `movix` - Movix Hollywood movie and episode aggregator
+- `xpass` - XPass multi-server movie and episode provider
+- `kisskh` - Asian drama/movie provider with original audio and English subtitles
+- `dramafull` - Additional Asian and K-drama fallback provider
+- `toonhub` - English/Hindi/Japanese anime and cartoon provider
+- `cuevana` - Castilian and Latin-American Spanish movie and episode provider
+- `jetfilmizle` - Turkish movie and episode provider with multi-audio HLS
+
+For catalog, audio-language, and quality details, see
+[`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).
 
 ## Error Handling
 
