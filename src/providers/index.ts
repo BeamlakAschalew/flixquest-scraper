@@ -31,6 +31,7 @@ import { jetFilmizleProvider } from './jetfilmizle.js'
 import { cinebyProvider } from './cineby.js'
 import { artemisProvider } from './artemis.js'
 import { watchFluxProvider } from './watchflux.js'
+import { aetherProvider } from './aether.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 
 // Register all providers here
@@ -68,6 +69,7 @@ const rawProviders: Record<string, Provider> = {
   cineby: cinebyProvider,
   artemis: artemisProvider,
   watchflux: watchFluxProvider,
+  aether: aetherProvider,
 }
 
 // Every public provider result is checked with a one-byte ranged request. This
