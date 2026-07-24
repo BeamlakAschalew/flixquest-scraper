@@ -1,7 +1,8 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 const BASE_URL = 'https://vixsrc.to'
-const REQUEST_TIMEOUT_MS = 10_000
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150 Safari/537.36'
 

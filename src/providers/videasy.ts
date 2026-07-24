@@ -1,8 +1,9 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 const WINGS_API_BASE = 'https://api.wingsdatabase.com'
-const REQUEST_TIMEOUT_MS = 15_000
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 

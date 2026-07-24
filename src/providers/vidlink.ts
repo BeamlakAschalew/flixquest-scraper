@@ -1,8 +1,9 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 const BASE_URL = 'https://vidlink.pro'
 const ENCRYPT_URL = 'https://enc-dec.app/api/enc-vidlink'
-const REQUEST_TIMEOUT_MS = 12_000
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const MAX_REQUEST_ATTEMPTS = 2
 const HEADERS = {
   Accept: 'application/json,*/*',
