@@ -16,7 +16,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:stream": "tsx stream-tester.ts"
   },
   "keywords": [
     "streaming",
