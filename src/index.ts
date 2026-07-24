@@ -14,6 +14,12 @@ import type {
 } from './types/index.js'
 import { handleStreamProxy, proxyStreamLinks } from './utils/stream-proxy.js'
 import { validateStreamLinks } from './utils/stream-validation.js'
+import {
+  forwardProxyStorage,
+  setupForwardProxyPatch,
+} from './utils/forward-proxy.js'
+
+setupForwardProxyPatch()
 
 const app = express()
 const api = express.Router()
@@ -22,6 +28,23 @@ const API_PREFIX = '/api/v2'
 
 app.set('trust proxy', 1)
 app.use(express.json())
+
+app.use((req, _res, next) => {
+  const fProxyQuery = req.query.fProxy || req.query.forwardProxy
+  const fProxyStr = typeof fProxyQuery === 'string' ? fProxyQuery.trim() : ''
+
+  const fProxyEnabled =
+    fProxyQuery === 'true' ||
+    fProxyQuery === '1' ||
+    fProxyStr.toLowerCase() === 'true' ||
+    fProxyStr.startsWith('http')
+
+  const proxyUrl = fProxyStr.startsWith('http') ? fProxyStr : undefined
+
+  forwardProxyStorage.run({ fProxyEnabled, proxyUrl }, () => {
+    next()
+  })
+})
 
 app.get('/proxy', handleStreamProxy)
 app.head('/proxy', handleStreamProxy)
