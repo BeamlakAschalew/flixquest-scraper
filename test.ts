@@ -56,36 +56,36 @@ async function runTests() {
   await testEndpoint('Health Check', `${BASE_URL}/`)
 
   // Test 2: List providers
-  await testEndpoint('List Providers', `${BASE_URL}/v2/providers`)
+  await testEndpoint('List Providers', `${BASE_URL}/api/v2/providers`)
 
   // Test 4: Stream movie (Hamilton)
   await testEndpoint(
     'Stream Movie - Hamilton',
-    `${BASE_URL}/v2/stream-movie?tmdbId=556574&provider=vixsrc`
+    `${BASE_URL}/api/v2/stream-movie?tmdbId=556574&provider=vixsrc`
   )
 
   // Test 5: Stream TV show (The Office S1E1)
   await testEndpoint(
     'Stream TV Show - The Office S1E1',
-    `${BASE_URL}/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc`
+    `${BASE_URL}/api/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc`
   )
 
   // Test 6: Error handling - missing tmdbId
   await testEndpoint(
     'Error Test - Missing tmdbId',
-    `${BASE_URL}/v2/stream-movie?provider=vixsrc`
+    `${BASE_URL}/api/v2/stream-movie?provider=vixsrc`
   )
 
   // Test 6: Error handling - missing provider
   await testEndpoint(
     'Error Test - Missing provider',
-    `${BASE_URL}/v2/stream-movie?tmdbId=556574`
+    `${BASE_URL}/api/v2/stream-movie?tmdbId=556574`
   )
 
   // Test 7: Error handling - invalid episode
   await testEndpoint(
     'Error Test - Invalid Episode',
-    `${BASE_URL}/v2/stream-tv?tmdbId=2316&season=1&episode=999&provider=vixsrc`
+    `${BASE_URL}/api/v2/stream-tv?tmdbId=2316&season=1&episode=999&provider=vixsrc`
   )
 
   console.log('\n================================')

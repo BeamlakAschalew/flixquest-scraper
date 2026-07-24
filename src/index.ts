@@ -18,7 +18,7 @@ import { validateStreamLinks } from './utils/stream-validation.js'
 const app = express()
 const api = express.Router()
 const port = parseInt(process.env.PORT || '3000', 10)
-const API_PREFIX = '/v2'
+const API_PREFIX = '/api/v2'
 
 app.set('trust proxy', 1)
 app.use(express.json())
@@ -93,10 +93,10 @@ app.get('/', (_req, res) => {
     version: '2.0.0',
     status: 'running',
     endpoints: {
-      streamMovie: 'GET /v2/stream-movie?tmdbId={id}&provider={providerId}',
+      streamMovie: 'GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}',
       streamTV:
-        'GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
-      providers: 'GET /v2/providers',
+        'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
+      providers: 'GET /api/v2/providers',
       proxy: 'GET /proxy?token={signedToken}',
     },
     availableProviders: getAllProviderIds(),
@@ -112,7 +112,7 @@ api.get('/providers', (_req, res) => {
 })
 
 /**
- * GET /v2/stream-movie?tmdbId=556574&provider=vixsrc
+ * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc
  */
 api.get('/stream-movie', async (req: Request, res: Response) => {
   const provider = resolveProvider(req, res)
@@ -181,7 +181,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
     res.json(response)
   } catch (err) {
-    console.error('❌ Error in /v2/stream-movie:', err)
+    console.error('❌ Error in /api/v2/stream-movie:', err)
     const error: ErrorResponse = {
       success: false,
       error: 'Failed to fetch movie stream',
@@ -192,7 +192,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
 })
 
 /**
- * GET /v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc
+ * GET /api/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc
  */
 api.get('/stream-tv', async (req: Request, res: Response) => {
   const provider = resolveProvider(req, res)
@@ -273,7 +273,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
     res.json(response)
   } catch (err) {
-    console.error('❌ Error in /v2/stream-tv:', err)
+    console.error('❌ Error in /api/v2/stream-tv:', err)
     const error: ErrorResponse = {
       success: false,
       error: 'Failed to fetch TV show stream',
@@ -289,11 +289,11 @@ app.listen(port, () => {
   console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
   if (process.env.NODE_ENV !== 'production') {
     console.log('📖 API v2:')
-    console.log('   GET /v2/stream-movie?tmdbId={id}&provider={providerId}')
+    console.log('   GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}')
     console.log(
-      '   GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
+      '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
     )
-    console.log('   GET /v2/providers')
+    console.log('   GET /api/v2/providers')
     console.log('')
     console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
   }

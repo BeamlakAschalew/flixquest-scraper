@@ -284,7 +284,7 @@ async function testMovieStream(
   provider: string,
   movie: TestMovie
 ): Promise<TestResult> {
-  const url = `${BASE_URL}/v2/stream-movie?tmdbId=${movie.tmdbId}&provider=${provider}&proxy=${PROXY}`
+  const url = `${BASE_URL}/api/v2/stream-movie?tmdbId=${movie.tmdbId}&provider=${provider}&proxy=${PROXY}`
   const start = performance.now()
 
   try {
@@ -340,7 +340,7 @@ async function testTVStream(
   provider: string,
   show: TestShow
 ): Promise<TestResult> {
-  const url = `${BASE_URL}/v2/stream-tv?tmdbId=${show.tmdbId}&season=${show.season}&episode=${show.episode}&provider=${provider}&proxy=${PROXY}`
+  const url = `${BASE_URL}/api/v2/stream-tv?tmdbId=${show.tmdbId}&season=${show.season}&episode=${show.episode}&provider=${provider}&proxy=${PROXY}`
   const start = performance.now()
 
   try {
@@ -569,7 +569,7 @@ async function main() {
   // 2. Fetch provider list from the API
   let providerIds: string[]
   try {
-    const provRes = await fetch(`${BASE_URL}/v2/providers`, {
+    const provRes = await fetch(`${BASE_URL}/api/v2/providers`, {
       signal: AbortSignal.timeout(5000),
     })
     const provData = await provRes.json()
@@ -579,7 +579,7 @@ async function main() {
     )
   } catch {
     console.error(
-      `${c.red}✗ Failed to fetch provider list from /v2/providers${c.reset}`
+      `${c.red}✗ Failed to fetch provider list from /api/v2/providers${c.reset}`
     )
     process.exit(1)
   }
