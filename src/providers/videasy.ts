@@ -261,16 +261,20 @@ async function fetchMediaDetails(
 }
 
 async function getSeed(tmdbId: string): Promise<string> {
-  const response = await fetch(
-    `${WINGS_API_BASE}/seed?mediaId=${encodeURIComponent(tmdbId)}`,
-    {
-      headers: REQUEST_HEADERS,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    }
-  )
-  if (!response.ok) throw new Error(`Seed HTTP ${response.status}`)
+  const seedUrl = `${WINGS_API_BASE}/seed?mediaId=${encodeURIComponent(tmdbId)}`
+  console.log(`[VidEasy] Requesting seed: ${seedUrl}`)
+  const response = await fetch(seedUrl, {
+    headers: REQUEST_HEADERS,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  if (!response.ok) {
+    throw new Error(`Seed HTTP ${response.status} (${response.statusText}) from URL: ${seedUrl}`)
+  }
   const data = (await response.json()) as { seed?: string }
-  if (!data.seed) throw new Error('VidEasy response did not include a seed')
+  if (!data.seed) {
+    throw new Error(`VidEasy response from ${seedUrl} did not include a seed`)
+  }
+  console.log(`[VidEasy] Obtained seed: ${data.seed.substring(0, 15)}...`)
   return data.seed
 }
 
@@ -373,20 +377,28 @@ async function fetchServer(
   url.searchParams.set('seed', seed)
 
   try {
+    console.log(`[VidEasy] Server [${serverName}] requesting: ${url.href}`)
     const response = await fetch(url, {
       headers: REQUEST_HEADERS,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} (${response.statusText})`)
+    }
     const encryptedText = await response.text()
-    if (!encryptedText.trim()) return []
-    return formatLinks(
+    if (!encryptedText.trim()) {
+      console.warn(`[VidEasy] Server [${serverName}] returned empty payload (${url.href})`)
+      return []
+    }
+    const links = formatLinks(
       decryptWingsPayload(encryptedText, seed, Number(tmdbId)),
       serverName
     )
+    console.log(`[VidEasy] Server [${serverName}] extracted ${links.length} stream(s)`)
+    return links
   } catch (error) {
     console.warn(
-      `[VidEasy] ${serverName} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidEasy] Server [${serverName}] failed (${url.href}): ${error instanceof Error ? error.message : 'Unknown error'}`
     )
     return []
   }
@@ -408,7 +420,10 @@ async function getVidEasyStreams(
       fetchMediaDetails(tmdbId, mediaType, season, episode),
       getSeed(tmdbId),
     ])
-    if (!details) return []
+    if (!details) {
+      console.warn(`[VidEasy] Failed to fetch media details from TMDB for ID: ${tmdbId}`)
+      return []
+    }
 
     const settled = await Promise.allSettled(
       Object.entries(SERVERS).map(([name, path]) =>
@@ -435,7 +450,7 @@ async function getVidEasyStreams(
     )
   } catch (error) {
     console.error(
-      `[VidEasy] Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidEasy] Request failed for TMDB ${tmdbId}: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
     return []
   }
