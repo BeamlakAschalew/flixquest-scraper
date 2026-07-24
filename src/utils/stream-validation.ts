@@ -1,6 +1,7 @@
 import type { Provider, ProviderLink } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from './config.js'
 
-const VALIDATION_TIMEOUT_MS = 5_000
+const VALIDATION_TIMEOUT_MS = Math.max(15_000, DEFAULT_REQUEST_TIMEOUT_MS)
 const VALIDATION_CONCURRENCY = 8
 const MEDIA_EXTENSION = /\.(?:m3u8|mp4|mkv|webm|avi|mov|ts)(?:$|[?#])/i
 const MEDIA_CONTENT_TYPE =
@@ -27,13 +28,18 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
   }
 
   try {
+    const headers: Record<string, string> = {
+      ...link.headers,
+      Accept: '*/*',
+    }
+    if (!link.isM3U8) headers.Range = 'bytes=0-0'
+    if (!new URL(url).pathname.toLowerCase().includes('/playlist/')) {
+      headers['x-skip-forward-proxy'] = 'true'
+    }
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        ...link.headers,
-        Accept: '*/*',
-        Range: 'bytes=0-0',
-      },
+      headers,
       redirect: 'follow',
       signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
     })
@@ -45,6 +51,7 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
       contentType
     )
     const looksLikeMedia =
+      link.isM3U8 ||
       MEDIA_CONTENT_TYPE.test(contentType) ||
       MEDIA_EXTENSION.test(finalUrl) ||
       /filename\s*=.*\.(?:mp4|mkv|webm|avi|mov|ts)/i.test(disposition)

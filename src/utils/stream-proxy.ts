@@ -5,6 +5,11 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { Request, Response as ExpressResponse } from 'express'
 import type { ProviderLink } from '../types/index.js'
+import {
+  forwardProxyStorage,
+  mustUseForwardProxyUrl,
+  type ForwardProxyContext,
+} from './forward-proxy.js'
 
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000
 const MAX_REDIRECTS = 8
@@ -14,6 +19,8 @@ interface ProxyPayload {
   url: string
   headers: Record<string, string>
   expires: number
+  isM3U8?: boolean
+  forwardProxy?: ForwardProxyContext
 }
 
 function getSigningSecret(): string {
@@ -32,11 +39,14 @@ function sign(value: string): string {
 }
 
 function createToken(link: ProviderLink): string {
+  const forwardProxy = forwardProxyStorage.getStore()
   const payload = Buffer.from(
     JSON.stringify({
       url: link.url,
       headers: link.headers || {},
       expires: Date.now() + TOKEN_TTL_MS,
+      isM3U8: link.isM3U8,
+      forwardProxy: forwardProxy?.fProxyEnabled ? forwardProxy : undefined,
     } satisfies ProxyPayload)
   ).toString('base64url')
   return `${payload}.${sign(payload)}`
@@ -66,7 +76,12 @@ function decodeToken(token: string): ProxyPayload {
     typeof payload.expires !== 'number' ||
     payload.expires < Date.now() ||
     !payload.headers ||
-    typeof payload.headers !== 'object'
+    typeof payload.headers !== 'object' ||
+    (payload.isM3U8 !== undefined && typeof payload.isM3U8 !== 'boolean') ||
+    (payload.forwardProxy !== undefined &&
+      (payload.forwardProxy.fProxyEnabled !== true ||
+        (payload.forwardProxy.proxyUrl !== undefined &&
+          typeof payload.forwardProxy.proxyUrl !== 'string')))
   ) {
     throw new Error('Expired or invalid proxy token')
   }
@@ -157,9 +172,13 @@ async function fetchWithSafeRedirects(
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
     let response: Response
     try {
+      const requestHeaders = { ...headers }
+      if (!mustUseForwardProxyUrl(url.href)) {
+        requestHeaders['x-skip-forward-proxy'] = 'true'
+      }
       response = await fetch(url, {
         method,
-        headers,
+        headers: requestHeaders,
         redirect: 'manual',
         signal: controller.signal,
       })
@@ -188,10 +207,41 @@ export function proxyStreamLinks(
   links: ProviderLink[],
   baseUrl: string
 ): ProviderLink[] {
-  return links.map(link => ({
-    ...link,
-    url: proxyUrl(baseUrl, link),
-  }))
+  return links.map(link => {
+    const proxySubtitleUrl = (value: string, label: string): string => {
+      try {
+        const url = new URL(value)
+        const localProxy = new URL('/proxy', baseUrl)
+        if (!['http:', 'https:'].includes(url.protocol)) return value
+        if (url.origin === localProxy.origin && url.pathname === '/proxy') {
+          return value
+        }
+
+        const isM3U8 =
+          /\.m3u8(?:$|[?#])/i.test(url.href) ||
+          url.pathname.toLowerCase().includes('/playlist/')
+        return proxyUrl(baseUrl, {
+          server: `Subtitle | ${label}`,
+          url: url.href,
+          isM3U8,
+          quality: 'auto',
+          subtitles: [],
+          headers: link.headers,
+        })
+      } catch {
+        return value
+      }
+    }
+
+    return {
+      ...link,
+      url: proxyUrl(baseUrl, link),
+      subtitles: link.subtitles.map(subtitle => ({
+        ...subtitle,
+        file: proxySubtitleUrl(subtitle.file, subtitle.label),
+      })),
+    }
+  })
 }
 
 function rewritePlaylistUri(
@@ -205,7 +255,9 @@ function rewritePlaylistUri(
     return proxyUrl(baseUrl, {
       server: 'HLS segment',
       url,
-      isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
+      isM3U8:
+        /\.m3u8(?:$|[?#])/i.test(url) ||
+        new URL(url).pathname.toLowerCase().includes('/playlist/'),
       quality: 'auto',
       subtitles: [],
       headers,
@@ -255,46 +307,54 @@ export async function handleStreamProxy(
   try {
     const token = typeof req.query.token === 'string' ? req.query.token : ''
     const payload = decodeToken(token)
-    const headers = outboundHeaders(payload.headers, req)
-    const upstream = await fetchWithSafeRedirects(
-      payload.url,
-      req.method === 'HEAD' ? 'HEAD' : 'GET',
-      headers
-    )
+    await forwardProxyStorage.run(
+      payload.forwardProxy || { fProxyEnabled: false },
+      async () => {
+        const headers = outboundHeaders(payload.headers, req)
+        const upstream = await fetchWithSafeRedirects(
+          payload.url,
+          req.method === 'HEAD' ? 'HEAD' : 'GET',
+          headers
+        )
 
-    res.status(upstream.status)
-    for (const name of RESPONSE_HEADERS) {
-      const value = upstream.headers.get(name)
-      if (value) res.setHeader(name, value)
-    }
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+        res.status(upstream.status)
+        for (const name of RESPONSE_HEADERS) {
+          const value = upstream.headers.get(name)
+          if (value) res.setHeader(name, value)
+        }
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
 
-    if (req.method === 'HEAD' || !upstream.body) {
-      await upstream.body?.cancel()
-      res.end()
-      return
-    }
+        if (req.method === 'HEAD' || !upstream.body) {
+          await upstream.body?.cancel()
+          res.end()
+          return
+        }
 
-    const contentType = upstream.headers.get('content-type') || ''
-    if (
-      /mpegurl/i.test(contentType) ||
-      /\.m3u8(?:$|[?#])/i.test(upstream.url)
-    ) {
-      const playlist = rewritePlaylist(
-        await upstream.text(),
-        upstream.url,
-        payload.headers,
-        `${req.protocol}://${req.get('host')}`
-      )
-      res.removeHeader('content-length')
-      res.type('application/vnd.apple.mpegurl').send(playlist)
-      return
-    }
+        const contentType = upstream.headers.get('content-type') || ''
+        if (
+          payload.isM3U8 ||
+          /mpegurl/i.test(contentType) ||
+          /\.m3u8(?:$|[?#])/i.test(upstream.url)
+        ) {
+          const playlist = rewritePlaylist(
+            await upstream.text(),
+            payload.url,
+            payload.headers,
+            `${req.protocol}://${req.get('host')}`
+          )
+          res.removeHeader('content-length')
+          res.type('application/vnd.apple.mpegurl').send(playlist)
+          return
+        }
 
-    await pipeline(
-      Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]),
-      res
+        await pipeline(
+          Readable.fromWeb(
+            upstream.body as Parameters<typeof Readable.fromWeb>[0]
+          ),
+          res
+        )
+      }
     )
   } catch (error) {
     if (res.headersSent) {

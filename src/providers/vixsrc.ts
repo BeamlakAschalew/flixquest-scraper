@@ -24,6 +24,15 @@ const VIXSRC_HEADERS = {
   'Upgrade-Insecure-Requests': '1',
 }
 
+function playlistHeaders(embedUrl: string): Record<string, string> {
+  return {
+    'User-Agent': USER_AGENT,
+    Accept: '*/*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    Referer: embedUrl,
+  }
+}
+
 interface VixsrcApiResponse {
   src: string
 }
@@ -34,9 +43,14 @@ interface TokenData {
   playlist: string
 }
 
+interface VixsrcVariant {
+  url: string
+  quality: string
+}
+
 async function request(
   url: string,
-  headers = VIXSRC_HEADERS
+  headers: Record<string, string> = VIXSRC_HEADERS
 ): Promise<Response> {
   const response = await fetch(url, {
     headers,
@@ -132,13 +146,45 @@ function parseSubtitles(content: string, masterUrl: string): Subtitle[] {
     })
 }
 
-function getBestQuality(content: string): string {
-  const heights = Array.from(
-    content.matchAll(/#EXT-X-STREAM-INF:[^\n]*RESOLUTION=\d+x(\d+)/g),
-    match => Number.parseInt(match[1], 10)
-  ).filter(Number.isFinite)
+function parseVariants(content: string, masterUrl: string): VixsrcVariant[] {
+  const lines = content.split(/\r?\n/)
+  const variants: VixsrcVariant[] = []
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    if (!line.startsWith('#EXT-X-STREAM-INF:')) continue
+
+    const uri = lines
+      .slice(index + 1)
+      .find(candidate => candidate.trim() && !candidate.startsWith('#'))
+    if (!uri) continue
+
+    const resolution = line.match(/(?:^|[:,])RESOLUTION=([^,]+)/)?.[1]
+    const height = resolution?.match(/x(\d+)$/)?.[1]
+    variants.push({
+      url: new URL(uri, masterUrl).href,
+      quality: height ? `${height}p` : 'auto',
+    })
+  }
+
+  return variants
+}
+
+function getBestQuality(variants: VixsrcVariant[]): string {
+  const heights = variants
+    .map(variant => Number.parseInt(variant.quality, 10))
+    .filter(Number.isFinite)
 
   return heights.length > 0 ? `${Math.max(...heights)}p` : 'auto'
+}
+
+export function parseVixsrcPlaylist(content: string, masterUrl: string) {
+  const variants = parseVariants(content, masterUrl)
+  return {
+    quality: getBestQuality(variants),
+    subtitles: parseSubtitles(content, masterUrl),
+    variants,
+  }
 }
 
 async function getVixsrcStreams(
@@ -154,29 +200,41 @@ async function getVixsrcStreams(
     const embedUrl = await fetchEmbedUrl(apiUrl)
     const embedHtml = await fetchEmbedPage(embedUrl)
     const masterUrl = buildMasterUrl(extractTokenData(embedHtml))
-    const playlistResponse = await request(masterUrl, {
-      ...VIXSRC_HEADERS,
-      Referer: apiUrl,
-    })
+    const headers = playlistHeaders(embedUrl)
+    const playlistResponse = await request(masterUrl, headers)
     const playlist = await playlistResponse.text()
 
     if (!playlist.includes('#EXTM3U')) {
       throw new Error('Vixsrc returned an invalid HLS playlist')
     }
 
-    return [
-      {
-        server: 'vixsrc',
-        url: masterUrl,
-        isM3U8: true,
-        quality: getBestQuality(playlist),
-        subtitles: parseSubtitles(playlist, masterUrl),
-        headers: {
-          Referer: apiUrl,
-          'User-Agent': USER_AGENT,
+    const { variants, subtitles, quality } = parseVixsrcPlaylist(
+      playlist,
+      masterUrl
+    )
+    if (variants.length === 0) {
+      return [
+        {
+          server: 'vixsrc',
+          url: masterUrl,
+          isM3U8: true,
+          quality,
+          subtitles,
+          headers,
+          requiresProxy: true,
         },
-      },
-    ]
+      ]
+    }
+
+    return variants.map(variant => ({
+      server: `vixsrc | ${variant.quality}`,
+      url: variant.url,
+      isM3U8: true,
+      quality: variant.quality,
+      subtitles,
+      headers,
+      requiresProxy: true,
+    }))
   } catch (error) {
     console.error(
       `[Vixsrc] ${error instanceof Error ? error.message : 'Unknown provider error'}`

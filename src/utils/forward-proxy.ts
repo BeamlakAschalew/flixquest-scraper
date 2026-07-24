@@ -11,6 +11,82 @@ export const DEFAULT_FORWARD_PROXY_URL =
 export const forwardProxyStorage = new AsyncLocalStorage<ForwardProxyContext>()
 
 /**
+ * Vixsrc signs its manifests and CDN resources against the request context.
+ * Keep the complete Vixsrc playback chain on the same fProxy egress.
+ */
+export function mustUseForwardProxyUrl(urlStr: string): boolean {
+  try {
+    const hostname = new URL(urlStr).hostname.toLowerCase()
+    return (
+      hostname === 'vixsrc.to' ||
+      hostname.endsWith('.vixsrc.to') ||
+      hostname === 'vix-content.net' ||
+      hostname.endsWith('.vix-content.net')
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Determines if a target URL is a direct media call that should bypass
+ * forward proxying. Tokenized playlist endpoints remain on fProxy.
+ */
+export function isStreamOrPlaylistUrl(
+  urlStr: string,
+  init?: RequestInit
+): boolean {
+  if (mustUseForwardProxyUrl(urlStr)) return false
+
+  if (init?.headers) {
+    if (init.headers instanceof Headers) {
+      if (init.headers.get('x-skip-forward-proxy') === 'true') return true
+    } else if (Array.isArray(init.headers)) {
+      if (
+        init.headers.some(
+          ([k, v]) => k.toLowerCase() === 'x-skip-forward-proxy' && v === 'true'
+        )
+      ) {
+        return true
+      }
+    } else if (typeof init.headers === 'object') {
+      const headersObj = init.headers as Record<string, string>
+      if (
+        headersObj['x-skip-forward-proxy'] === 'true' ||
+        headersObj['X-Skip-Forward-Proxy'] === 'true'
+      ) {
+        return true
+      }
+    }
+  }
+
+  const lowerUrl = urlStr.toLowerCase()
+
+  // Other tokenized playlist endpoints also remain on fProxy.
+  if (lowerUrl.includes('/playlist/')) {
+    return false
+  }
+
+  // Common media file extensions
+  if (/\.(?:m3u8|mp4|mkv|webm|avi|mov|ts|mpd|key)(?:$|[?#])/i.test(urlStr)) {
+    return true
+  }
+
+  // Provider-specific stream path patterns
+  if (
+    lowerUrl.includes('/hls/') ||
+    lowerUrl.includes('/manifest/') ||
+    lowerUrl.includes('/stream/') ||
+    lowerUrl.includes('/chunks/') ||
+    lowerUrl.includes('/segment/')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+/**
  * Returns the proxied URL if forward proxying is enabled, or the original target URL.
  */
 export function getForwardProxyUrl(
@@ -52,8 +128,9 @@ export function getForwardProxyUrl(
 let isPatched = false
 
 /**
- * Patches globalThis.fetch so all outbound provider fetch requests are
- * automatically routed through the forward proxy when fProxy is active.
+ * Patches globalThis.fetch so outbound scraping & metadata requests are
+ * automatically routed through the forward proxy when fProxy is active,
+ * while direct media streams bypass fProxy.
  */
 export function setupForwardProxyPatch() {
   if (isPatched) return
@@ -88,6 +165,11 @@ export function setupForwardProxyPatch() {
 
       const proxyDomain = new URL(currentProxy.split('?')[0]).hostname
       if (targetUrlStr.includes(proxyDomain)) {
+        return originalFetch(input, init)
+      }
+
+      // Bypass fProxy for direct media and explicitly flagged requests
+      if (isStreamOrPlaylistUrl(targetUrlStr, init)) {
         return originalFetch(input, init)
       }
 
