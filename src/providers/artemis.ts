@@ -5,11 +5,12 @@ import {
   randomBytes,
 } from 'node:crypto'
 import type { Provider, ProviderLink } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 // Protocol and repair notes: ./ARTEMIS_MAINTENANCE.md
 const ARTEMIS_API_BASE = 'https://artemis.fontaine.lol'
 const ZSTREAM_ORIGIN = 'https://zstream.mov'
-const REQUEST_TIMEOUT_MS = 15_000
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const SIGNATURE_WINDOW_SECONDS = 90
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'

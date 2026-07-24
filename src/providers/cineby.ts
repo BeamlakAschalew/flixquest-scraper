@@ -1,10 +1,11 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 // Repair notes and protocol reference: ./CINEBY_MAINTENANCE.md
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 const CINEBY_API_BASE = 'https://api.speedracelight.com'
 const CINEBY_ORIGIN = 'https://www.cineby.at'
-const REQUEST_TIMEOUT_MS = 15_000
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 
