@@ -53,20 +53,63 @@ function proxyBaseUrl(req: Request): string {
   return `${req.protocol}://${req.get('host')}`
 }
 
+function isNoProxy(req: Request): boolean {
+  const proxyQuery = getQueryString(req.query.proxy)?.toLowerCase()
+  const noProxyQuery = getQueryString(req.query.noProxy)?.toLowerCase()
+
+  return (
+    noProxyQuery === 'true' ||
+    noProxyQuery === '1' ||
+    proxyQuery === 'false' ||
+    proxyQuery === '0'
+  )
+}
+
 function shouldProxy(req: Request): boolean {
   return getQueryString(req.query.proxy)?.toLowerCase() !== 'false'
+}
+
+function unwrapInnerProxyUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    const innerUrl =
+      parsed.searchParams.get('url') ||
+      parsed.searchParams.get('destination') ||
+      parsed.searchParams.get('src')
+
+    if (innerUrl && /^https?:\/\//i.test(innerUrl)) {
+      return innerUrl
+    }
+  } catch {
+    // Return original string if URL parsing fails
+  }
+  return url
 }
 
 async function responseStreamLinks(
   req: Request,
   links: ProviderLink[]
 ): Promise<ProviderLink[]> {
-  const proxyAll = shouldProxy(req)
+  const bypassProxy = isNoProxy(req)
+  const proxyAll = !bypassProxy && shouldProxy(req)
   const baseUrl = proxyBaseUrl(req)
-  const finalLinks = links.map(link =>
-    proxyAll || link.requiresProxy ? proxyStreamLinks([link], baseUrl)[0] : link
-  )
-  return validateStreamLinks(finalLinks)
+
+  const processedLinks = links.map(link => {
+    if (bypassProxy) {
+      const rawUrl = unwrapInnerProxyUrl(link.url)
+      return {
+        ...link,
+        url: rawUrl,
+        requiresProxy: false,
+      }
+    }
+
+    return proxyAll || link.requiresProxy
+      ? proxyStreamLinks([link], baseUrl)[0]
+      : link
+  })
+
+  return validateStreamLinks(processedLinks)
 }
 
 function getQueryString(value: unknown): string | undefined {

@@ -152,8 +152,8 @@ Get streaming links for a movie using TMDB ID from a specific provider.
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the movie
-- `provider` (string, required): Provider ID returned by `GET /v2/providers`
-- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly. Anti-hotlink-protected streams remain proxied so browser playback does not fail with 403.
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly.
+- `noProxy` (boolean, optional): Set `true` (or `proxy=false`) to bypass both the API stream proxy (`requiresProxy`) and provider-level inner proxies, returning raw unproxied upstream URLs directly.
 
 **Example:**
 
