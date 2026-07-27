@@ -32,6 +32,9 @@ export interface ProviderLink {
   hlsVariant?: string
   // Internal proxy instruction: mark this HLS audio language as the default.
   hlsAudioLanguage?: string
+  // Internal proxy instruction: expose only this DASH video height while
+  // retaining the manifest's audio representation.
+  dashVideoHeight?: number
   // Browser clients cannot set some anti-hotlink headers. Such links must
   // remain behind the API proxy even when raw upstream URLs are requested.
   requiresProxy?: boolean

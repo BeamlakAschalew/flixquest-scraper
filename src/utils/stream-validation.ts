@@ -19,6 +19,14 @@ export function normalizeStreamUrl(value: string): string {
   return url.href
 }
 
+function linkIdentity(link: ProviderLink): string {
+  return [
+    link.url,
+    link.hlsVariant || '',
+    link.dashVideoHeight?.toString() || '',
+  ].join('|')
+}
+
 async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
   let url: string
   try {
@@ -77,7 +85,7 @@ export async function validateStreamLinks(
   links: ProviderLink[]
 ): Promise<ProviderLink[]> {
   const unique = Array.from(
-    new Map(links.map(link => [link.url, link] as const)).values()
+    new Map(links.map(link => [linkIdentity(link), link] as const)).values()
   )
   const valid: ProviderLink[] = []
 
@@ -94,7 +102,9 @@ export async function validateStreamLinks(
     valid.push(...batch.filter((link): link is ProviderLink => link !== null))
   }
 
-  return Array.from(new Map(valid.map(link => [link.url, link])).values())
+  return Array.from(
+    new Map(valid.map(link => [linkIdentity(link), link])).values()
+  )
 }
 
 export function withStreamValidation(provider: Provider): Provider {

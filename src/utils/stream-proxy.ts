@@ -23,6 +23,7 @@ interface ProxyPayload {
   isDASH?: boolean
   hlsVariant?: string
   hlsAudioLanguage?: string
+  dashVideoHeight?: number
   forwardProxy?: ForwardProxyContext
 }
 
@@ -52,6 +53,7 @@ function createToken(link: ProviderLink): string {
       isDASH: link.isDASH,
       hlsVariant: link.hlsVariant,
       hlsAudioLanguage: link.hlsAudioLanguage,
+      dashVideoHeight: link.dashVideoHeight,
       forwardProxy: forwardProxy?.fProxyEnabled ? forwardProxy : undefined,
     } satisfies ProxyPayload)
   ).toString('base64url')
@@ -89,6 +91,9 @@ function decodeToken(token: string): ProxyPayload {
       typeof payload.hlsVariant !== 'string') ||
     (payload.hlsAudioLanguage !== undefined &&
       typeof payload.hlsAudioLanguage !== 'string') ||
+    (payload.dashVideoHeight !== undefined &&
+      (!Number.isSafeInteger(payload.dashVideoHeight) ||
+        payload.dashVideoHeight <= 0)) ||
     (payload.forwardProxy !== undefined &&
       (payload.forwardProxy.fProxyEnabled !== true ||
         (payload.forwardProxy.proxyUrl !== undefined &&
@@ -245,6 +250,7 @@ export function proxyStreamLinks(
     const publicLink = { ...link }
     delete publicLink.hlsVariant
     delete publicLink.hlsAudioLanguage
+    delete publicLink.dashVideoHeight
     const proxySubtitleUrl = (value: string, label: string): string => {
       try {
         const url = new URL(value)
@@ -441,9 +447,22 @@ function dashSegmentProxyUrl(
 function rewriteDashManifest(
   text: string,
   token: string,
-  baseUrl: string
+  baseUrl: string,
+  videoHeight?: number
 ): string {
-  return text
+  const selectedManifest = videoHeight
+    ? text.replace(
+        /<Representation\b([^>]*)>[\s\S]*?<\/Representation>/g,
+        (representation, attributes: string) => {
+          const height = Number(attributes.match(/\bheight="(\d+)"/)?.[1])
+          return Number.isFinite(height) && height !== videoHeight
+            ? ''
+            : representation
+        }
+      )
+    : text
+
+  return selectedManifest
     .replace(
       /\b(initialization|media|sourceURL)="([^"]+)"/g,
       (_match, attribute: string, value: string) =>
@@ -532,7 +551,8 @@ export async function handleStreamProxy(
           const manifest = rewriteDashManifest(
             await upstream.text(),
             token,
-            `${req.protocol}://${req.get('host')}`
+            `${req.protocol}://${req.get('host')}`,
+            payload.dashVideoHeight
           )
           res.status(200)
           res.removeHeader('content-length')

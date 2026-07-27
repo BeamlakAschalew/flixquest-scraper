@@ -13,11 +13,13 @@ const HEADERS = {
   Origin: BASE_URL,
 }
 const PLAYBACK_ENVIRONMENT_HEADER = 'X-Playback-Environment'
-const PLAYBACK_ENVIRONMENT = 'dash-hevc'
+const DASH_PLAYBACK_ENVIRONMENT = 'dash-hevc'
+const STANDARD_PLAYBACK_ENVIRONMENT = 'standard'
 
 interface VidlinkQuality {
   url?: string
   headers?: Record<string, string>
+  requiresProxy?: boolean
 }
 
 interface VidlinkSubtitle {
@@ -91,6 +93,13 @@ function isExpiredSignedUrl(value: string): boolean {
   }
 }
 
+function playbackHeaders(environment: string): Record<string, string> {
+  return {
+    ...HEADERS,
+    [PLAYBACK_ENVIRONMENT_HEADER]: environment,
+  }
+}
+
 async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
@@ -108,20 +117,26 @@ async function getStreams(
       mediaType === 'movie'
         ? `/api/b/movie/${encodeURIComponent(encrypted.result)}`
         : `/api/b/tv/${encodeURIComponent(encrypted.result)}/${season}/${episode}`
-    const payload = await requestJson<VidlinkResponse>(
-      `${BASE_URL}${path}?multiLang=0`,
-      {
-        ...HEADERS,
-        [PLAYBACK_ENVIRONMENT_HEADER]: PLAYBACK_ENVIRONMENT,
-      }
-    )
+    const apiUrl = `${BASE_URL}${path}?multiLang=0`
+    const [payload, standardPayload] = await Promise.all([
+      requestJson<VidlinkResponse>(
+        apiUrl,
+        playbackHeaders(DASH_PLAYBACK_ENVIRONMENT)
+      ),
+      requestJson<VidlinkResponse>(
+        apiUrl,
+        playbackHeaders(STANDARD_PLAYBACK_ENVIRONMENT)
+      ).catch(() => undefined),
+    ])
     const subtitles = subtitlesFrom(payload)
     const candidates = new Map<
       string,
       {
+        url: string
         quality: string
         headers: Record<string, string>
         isDASH: boolean
+        dashVideoHeight?: number
         requiresProxy: boolean
       }
     >()
@@ -130,41 +145,49 @@ async function getStreams(
         payload.stream.deliveryType === 'dash' ||
         payload.stream.type === 'dash' ||
         /\.mpd(?:$|[?#])/i.test(payload.stream.playlist)
-      const resolutions = payload.stream.playbackMetadata?.resolutions
-      candidates.set(payload.stream.playlist, {
-        quality: resolutions?.length
-          ? `${Math.max(
-              ...resolutions
-                .map(value => Number.parseInt(value, 10))
-                .filter(Number.isFinite)
-            )}p`
-          : 'auto',
-        headers: {
-          ...HEADERS,
-          ...(payload.stream.playlistHeaders || {}),
-        },
-        isDASH,
-        requiresProxy: payload.stream.requiresProxy === true,
-      })
+      const resolutions = Array.from(
+        new Set(
+          (payload.stream.playbackMetadata?.resolutions || [])
+            .map(value => Number.parseInt(value, 10))
+            .filter(value => Number.isFinite(value) && value > 0)
+        )
+      ).sort((left, right) => right - left)
+      const variants = isDASH && resolutions.length ? resolutions : [undefined]
+      for (const height of variants) {
+        candidates.set(`${payload.stream.playlist}|dash:${height || 'auto'}`, {
+          url: payload.stream.playlist,
+          quality: height ? `${height}p` : 'auto',
+          headers: {
+            ...HEADERS,
+            ...(payload.stream.playlistHeaders || {}),
+          },
+          isDASH,
+          dashVideoHeight: height,
+          requiresProxy: payload.stream.requiresProxy === true,
+        })
+      }
     }
     for (const [quality, value] of Object.entries(
-      payload.stream?.qualities || {}
+      standardPayload?.stream?.qualities || payload.stream?.qualities || {}
     )) {
       const url = typeof value === 'string' ? value : value?.url
       if (!url || isExpiredSignedUrl(url)) continue
       candidates.set(url, {
+        url,
         quality,
         headers: typeof value === 'string' ? HEADERS : value.headers || HEADERS,
         isDASH: false,
-        requiresProxy: false,
+        requiresProxy:
+          typeof value === 'string' ? false : value.requiresProxy === true,
       })
     }
 
-    const streams = Array.from(candidates, ([url, candidate], index) => ({
+    const streams = Array.from(candidates.values(), (candidate, index) => ({
       server: `vidlink-${payload.sourceId || 'default'}-${index + 1}`,
-      url,
-      isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
+      url: candidate.url,
+      isM3U8: /\.m3u8(?:$|[?#])/i.test(candidate.url),
       isDASH: candidate.isDASH,
+      dashVideoHeight: candidate.dashVideoHeight,
       quality: candidate.quality.toLowerCase().replace(/^(\d+)$/, '$1p'),
       subtitles,
       headers: candidate.headers,
