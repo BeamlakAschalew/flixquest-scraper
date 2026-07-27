@@ -6,6 +6,8 @@ import {
   getAllProviderIds,
   getAllProviders,
   getRawProvider,
+  isProviderEnabled,
+  setProviderEnabled,
 } from './providers/index.js'
 import type {
   ErrorResponse,
@@ -143,7 +145,7 @@ function resolveProvider(req: Request, res: Response) {
   if (!provider) {
     const error: ErrorResponse = {
       success: false,
-      error: `Provider '${providerId}' not found`,
+      error: `Provider '${providerId}' not found or disabled`,
       details: `Available providers: ${getAllProviderIds().join(', ')}`,
     }
     res.status(404).json(error)
@@ -163,18 +165,103 @@ app.get('/', (_req, res) => {
       streamTV:
         'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
       providers: 'GET /api/v2/providers',
+      toggleProvider:
+        'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
       proxy: 'GET /proxy?token={signedToken}',
     },
     availableProviders: getAllProviderIds(),
   })
 })
 
-api.get('/providers', (_req, res) => {
-  const providerList = getAllProviders().map(provider => ({
+api.get('/providers', (req: Request, res: Response) => {
+  const includeDisabled =
+    getQueryString(req.query.all)?.toLowerCase() === 'true' ||
+    getQueryString(req.query.includeDisabled)?.toLowerCase() === 'true'
+
+  const providerList = getAllProviders({ includeDisabled }).map(provider => ({
     id: provider.id,
     name: provider.name,
+    alias: provider.alias || provider.name,
+    enabled: isProviderEnabled(provider.id),
   }))
   res.json({ success: true, providers: providerList })
+})
+
+/**
+ * PATCH /api/v2/providers/:id
+ * Body: { "enabled": true | false }
+ */
+api.patch('/providers/:id', (req: Request, res: Response) => {
+  const providerId = req.params.id
+  const { enabled } = req.body
+
+  if (typeof enabled !== 'boolean') {
+    const error: ErrorResponse = {
+      success: false,
+      error: "Missing or invalid 'enabled' boolean field in request body",
+    }
+    res.status(400).json(error)
+    return
+  }
+
+  const success = setProviderEnabled(providerId, enabled)
+  if (!success) {
+    const error: ErrorResponse = {
+      success: false,
+      error: `Provider '${providerId}' not found`,
+    }
+    res.status(404).json(error)
+    return
+  }
+
+  const provider = getRawProvider(providerId, { includeDisabled: true })
+  res.json({
+    success: true,
+    message: `Provider '${providerId}' has been ${enabled ? 'enabled' : 'disabled'}`,
+    provider: {
+      id: provider!.id,
+      name: provider!.name,
+      alias: provider!.alias || provider!.name,
+      enabled,
+    },
+  })
+})
+
+/**
+ * POST /api/v2/providers/:id/toggle
+ * Body (optional): { "enabled": true | false }
+ */
+api.post('/providers/:id/toggle', (req: Request, res: Response) => {
+  const providerId = req.params.id
+  let enabled: boolean
+
+  if (typeof req.body?.enabled === 'boolean') {
+    enabled = req.body.enabled
+  } else {
+    enabled = !isProviderEnabled(providerId)
+  }
+
+  const success = setProviderEnabled(providerId, enabled)
+  if (!success) {
+    const error: ErrorResponse = {
+      success: false,
+      error: `Provider '${providerId}' not found`,
+    }
+    res.status(404).json(error)
+    return
+  }
+
+  const provider = getRawProvider(providerId, { includeDisabled: true })
+  res.json({
+    success: true,
+    message: `Provider '${providerId}' has been ${enabled ? 'enabled' : 'disabled'}`,
+    provider: {
+      id: provider!.id,
+      name: provider!.name,
+      alias: provider!.alias || provider!.name,
+      enabled,
+    },
+  })
 })
 
 /**

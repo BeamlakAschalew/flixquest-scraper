@@ -26,6 +26,11 @@ export interface ProviderLink {
   quality: string
   subtitles: Subtitle[]
   headers?: Record<string, string>
+  // Internal proxy instruction: expose only this variant from an HLS master
+  // while retaining its EXT-X-MEDIA audio and subtitle renditions.
+  hlsVariant?: string
+  // Internal proxy instruction: mark this HLS audio language as the default.
+  hlsAudioLanguage?: string
   // Browser clients cannot set some anti-hotlink headers. Such links must
   // remain behind the API proxy even when raw upstream URLs are requested.
   requiresProxy?: boolean
@@ -79,6 +84,7 @@ export interface ErrorResponse {
 // Provider interface for modular providers
 export interface Provider {
   name: string
+  alias?: string
   id: string
   streamMovie: (tmdbId: string) => Promise<ProviderLink[]>
   streamTV: (

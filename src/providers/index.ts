@@ -72,6 +72,51 @@ const rawProviders: Record<string, Provider> = {
   aether: aetherProvider,
 }
 
+// In-memory store for dynamic runtime provider toggle overrides
+const providerStateOverrides = new Map<string, boolean>()
+
+// Dynamically set provider enabled state at runtime
+export function setProviderEnabled(
+  providerId: string,
+  enabled: boolean
+): boolean {
+  const id = providerId.toLowerCase().trim()
+  if (!rawProviders[id]) {
+    return false
+  }
+  providerStateOverrides.set(id, enabled)
+  return true
+}
+
+// Check if a provider is enabled based on runtime state overrides
+export function isProviderEnabled(providerId: string): boolean {
+  const id = providerId.toLowerCase().trim()
+
+  if (providerStateOverrides.has(id)) {
+    return providerStateOverrides.get(id)!
+  }
+
+  return true
+}
+
+// Get resolved provider alias (environment variable override -> provider.alias -> provider.name)
+export function getProviderAlias(provider: Provider): string {
+  const envVarKey = provider.id.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()
+  const envAlias = process.env[`PROVIDER_ALIAS_${envVarKey}`]
+  if (envAlias && envAlias.trim()) {
+    return envAlias.trim()
+  }
+  return provider.alias || provider.name
+}
+
+// Helper to attach resolved alias to a provider object
+function withResolvedAlias(provider: Provider): Provider {
+  return {
+    ...provider,
+    alias: getProviderAlias(provider),
+  }
+}
+
 // Every public provider result is checked with a one-byte ranged request. This
 // removes expired/forbidden URLs and HTML landing pages before they reach users.
 export const providers: Record<string, Provider> = Object.fromEntries(
@@ -81,23 +126,46 @@ export const providers: Record<string, Provider> = Object.fromEntries(
   ])
 )
 
+// Options for querying providers
+export interface ProviderQueryOptions {
+  includeDisabled?: boolean
+}
+
 // Get a provider by ID
-export function getProvider(providerId: string): Provider | undefined {
-  return providers[providerId]
+export function getProvider(
+  providerId: string,
+  options?: ProviderQueryOptions
+): Provider | undefined {
+  if (!options?.includeDisabled && !isProviderEnabled(providerId)) {
+    return undefined
+  }
+  const provider = providers[providerId]
+  return provider ? withResolvedAlias(provider) : undefined
 }
 
 // API routes choose the final direct/proxied URL before validation. Other
 // consumers keep using getProvider() for direct upstream validation.
-export function getRawProvider(providerId: string): Provider | undefined {
-  return rawProviders[providerId]
+export function getRawProvider(
+  providerId: string,
+  options?: ProviderQueryOptions
+): Provider | undefined {
+  if (!options?.includeDisabled && !isProviderEnabled(providerId)) {
+    return undefined
+  }
+  const provider = rawProviders[providerId]
+  return provider ? withResolvedAlias(provider) : undefined
 }
 
 // Get all provider IDs
-export function getAllProviderIds(): string[] {
-  return Object.keys(providers)
+export function getAllProviderIds(options?: ProviderQueryOptions): string[] {
+  return Object.keys(providers).filter(
+    id => options?.includeDisabled || isProviderEnabled(id)
+  )
 }
 
 // Get all providers
-export function getAllProviders(): Provider[] {
-  return Object.values(providers)
+export function getAllProviders(options?: ProviderQueryOptions): Provider[] {
+  return Object.entries(providers)
+    .filter(([id]) => options?.includeDisabled || isProviderEnabled(id))
+    .map(([, provider]) => withResolvedAlias(provider))
 }

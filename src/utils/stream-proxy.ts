@@ -20,6 +20,8 @@ interface ProxyPayload {
   headers: Record<string, string>
   expires: number
   isM3U8?: boolean
+  hlsVariant?: string
+  hlsAudioLanguage?: string
   forwardProxy?: ForwardProxyContext
 }
 
@@ -46,6 +48,8 @@ function createToken(link: ProviderLink): string {
       headers: link.headers || {},
       expires: Date.now() + TOKEN_TTL_MS,
       isM3U8: link.isM3U8,
+      hlsVariant: link.hlsVariant,
+      hlsAudioLanguage: link.hlsAudioLanguage,
       forwardProxy: forwardProxy?.fProxyEnabled ? forwardProxy : undefined,
     } satisfies ProxyPayload)
   ).toString('base64url')
@@ -78,6 +82,10 @@ function decodeToken(token: string): ProxyPayload {
     !payload.headers ||
     typeof payload.headers !== 'object' ||
     (payload.isM3U8 !== undefined && typeof payload.isM3U8 !== 'boolean') ||
+    (payload.hlsVariant !== undefined &&
+      typeof payload.hlsVariant !== 'string') ||
+    (payload.hlsAudioLanguage !== undefined &&
+      typeof payload.hlsAudioLanguage !== 'string') ||
     (payload.forwardProxy !== undefined &&
       (payload.forwardProxy.fProxyEnabled !== true ||
         (payload.forwardProxy.proxyUrl !== undefined &&
@@ -137,7 +145,8 @@ async function assertSafeDestination(value: string): Promise<URL> {
 
 function outboundHeaders(
   payloadHeaders: Record<string, string>,
-  req: Request
+  req: Request,
+  includeRange: boolean
 ): Record<string, string> {
   const headers = { ...payloadHeaders }
   for (const key of [
@@ -154,10 +163,12 @@ function outboundHeaders(
     ]
   }
 
-  const range = req.get('range')
-  if (range) headers.Range = range
-  const ifRange = req.get('if-range')
-  if (ifRange) headers['If-Range'] = ifRange
+  if (includeRange) {
+    const range = req.get('range')
+    if (range) headers.Range = range
+    const ifRange = req.get('if-range')
+    if (ifRange) headers['If-Range'] = ifRange
+  }
   return headers
 }
 
@@ -208,6 +219,9 @@ export function proxyStreamLinks(
   baseUrl: string
 ): ProviderLink[] {
   return links.map(link => {
+    const publicLink = { ...link }
+    delete publicLink.hlsVariant
+    delete publicLink.hlsAudioLanguage
     const proxySubtitleUrl = (value: string, label: string): string => {
       try {
         const url = new URL(value)
@@ -234,7 +248,7 @@ export function proxyStreamLinks(
     }
 
     return {
-      ...link,
+      ...publicLink,
       url: proxyUrl(baseUrl, link),
       subtitles: link.subtitles.map(subtitle => ({
         ...subtitle,
@@ -242,6 +256,101 @@ export function proxyStreamLinks(
       })),
     }
   })
+}
+
+export function selectHlsVariant(
+  text: string,
+  upstreamUrl: string,
+  selectedVariant: string
+): string {
+  const lines = text.split(/\r?\n/)
+  const selectedUrl = new URL(selectedVariant, upstreamUrl).href
+  const output: string[] = []
+  let matched = false
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index]
+    if (!line.startsWith('#EXT-X-STREAM-INF:')) {
+      output.push(line)
+      continue
+    }
+
+    let uriIndex = index + 1
+    while (
+      uriIndex < lines.length &&
+      (!lines[uriIndex].trim() || lines[uriIndex].startsWith('#'))
+    ) {
+      uriIndex++
+    }
+
+    if (uriIndex >= lines.length) {
+      output.push(line)
+      continue
+    }
+
+    const variantUrl = new URL(lines[uriIndex].trim(), upstreamUrl).href
+    if (variantUrl === selectedUrl) {
+      output.push(...lines.slice(index, uriIndex + 1))
+      matched = true
+    }
+    index = uriIndex
+  }
+
+  if (!matched) {
+    throw new Error('Requested HLS variant is no longer available')
+  }
+
+  return output.join('\n')
+}
+
+export function setPreferredHlsAudio(
+  text: string,
+  preferredAudioLanguage: string
+): string {
+  const lines = text.split(/\r?\n/)
+  const preferred = preferredAudioLanguage.toLowerCase()
+  const preferredAudioIndex = lines.findIndex(line => {
+    if (!line.startsWith('#EXT-X-MEDIA:TYPE=AUDIO')) return false
+
+    const language = line.match(/(?:^|,)LANGUAGE="([^"]+)"/)?.[1]
+    const name = line.match(/(?:^|,)NAME="([^"]+)"/)?.[1]
+    return (
+      language?.toLowerCase() === preferred ||
+      language?.toLowerCase().split('-')[0] === preferred.split('-')[0] ||
+      (preferred === 'eng' && name?.toLowerCase().includes('english'))
+    )
+  })
+
+  if (preferredAudioIndex < 0) return text
+
+  return lines
+    .map((line, index) => {
+      if (!line.startsWith('#EXT-X-MEDIA:TYPE=AUDIO')) return line
+
+      const isPreferred = index === preferredAudioIndex
+      const withDefault = setHlsAttribute(
+        line,
+        'DEFAULT',
+        isPreferred ? 'YES' : 'NO'
+      )
+      return setHlsAttribute(
+        withDefault,
+        'AUTOSELECT',
+        isPreferred ? 'YES' : 'NO'
+      )
+    })
+    .join('\n')
+}
+
+function setHlsAttribute(
+  line: string,
+  attribute: string,
+  value: string
+): string {
+  const pattern = new RegExp(`(${attribute}=)(?:"[^"]*"|[^,]*)`)
+  return pattern.test(line)
+    ? line.replace(pattern, `$1${value}`)
+    : `${line},${attribute}=${value}`
 }
 
 function rewritePlaylistUri(
@@ -310,7 +419,7 @@ export async function handleStreamProxy(
     await forwardProxyStorage.run(
       payload.forwardProxy || { fProxyEnabled: false },
       async () => {
-        const headers = outboundHeaders(payload.headers, req)
+        const headers = outboundHeaders(payload.headers, req, !payload.isM3U8)
         const upstream = await fetchWithSafeRedirects(
           payload.url,
           req.method === 'HEAD' ? 'HEAD' : 'GET',
@@ -337,13 +446,31 @@ export async function handleStreamProxy(
           /mpegurl/i.test(contentType) ||
           /\.m3u8(?:$|[?#])/i.test(upstream.url)
         ) {
+          const upstreamPlaylist = await upstream.text()
+          let selectedPlaylist = payload.hlsVariant
+            ? selectHlsVariant(
+                upstreamPlaylist,
+                payload.url,
+                payload.hlsVariant
+              )
+            : upstreamPlaylist
+          if (payload.hlsAudioLanguage) {
+            selectedPlaylist = setPreferredHlsAudio(
+              selectedPlaylist,
+              payload.hlsAudioLanguage
+            )
+          }
           const playlist = rewritePlaylist(
-            await upstream.text(),
+            selectedPlaylist,
             payload.url,
             payload.headers,
             `${req.protocol}://${req.get('host')}`
           )
+          res.status(200)
           res.removeHeader('content-length')
+          res.removeHeader('content-range')
+          res.removeHeader('accept-ranges')
+          res.removeHeader('content-disposition')
           res.type('application/vnd.apple.mpegurl').send(playlist)
           return
         }

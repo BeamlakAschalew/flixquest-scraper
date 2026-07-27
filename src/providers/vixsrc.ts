@@ -221,18 +221,25 @@ async function getVixsrcStreams(
           quality,
           subtitles,
           headers,
+          hlsAudioLanguage: 'eng',
           requiresProxy: true,
         },
       ]
     }
 
+    // Each response entry still points at the master playlist so its separate
+    // audio renditions remain available. The stream proxy filters that master
+    // to the selected video variant instead of returning the silent type=video
+    // media playlist directly.
     return variants.map(variant => ({
       server: `vixsrc | ${variant.quality}`,
-      url: variant.url,
+      url: masterUrl,
       isM3U8: true,
       quality: variant.quality,
       subtitles,
       headers,
+      hlsVariant: variant.url,
+      hlsAudioLanguage: 'eng',
       requiresProxy: true,
     }))
   } catch (error) {
@@ -245,6 +252,7 @@ async function getVixsrcStreams(
 
 export const vixsrcProvider: Provider = {
   name: 'Vixsrc',
+  alias: 'Axum',
   id: 'vixsrc',
   streamMovie: tmdbId => getVixsrcStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
