@@ -20,6 +20,7 @@ interface ProxyPayload {
   headers: Record<string, string>
   expires: number
   isM3U8?: boolean
+  isDASH?: boolean
   hlsVariant?: string
   hlsAudioLanguage?: string
   forwardProxy?: ForwardProxyContext
@@ -48,6 +49,7 @@ function createToken(link: ProviderLink): string {
       headers: link.headers || {},
       expires: Date.now() + TOKEN_TTL_MS,
       isM3U8: link.isM3U8,
+      isDASH: link.isDASH,
       hlsVariant: link.hlsVariant,
       hlsAudioLanguage: link.hlsAudioLanguage,
       forwardProxy: forwardProxy?.fProxyEnabled ? forwardProxy : undefined,
@@ -82,6 +84,7 @@ function decodeToken(token: string): ProxyPayload {
     !payload.headers ||
     typeof payload.headers !== 'object' ||
     (payload.isM3U8 !== undefined && typeof payload.isM3U8 !== 'boolean') ||
+    (payload.isDASH !== undefined && typeof payload.isDASH !== 'boolean') ||
     (payload.hlsVariant !== undefined &&
       typeof payload.hlsVariant !== 'string') ||
     (payload.hlsAudioLanguage !== undefined &&
@@ -214,6 +217,26 @@ function proxyUrl(baseUrl: string, link: ProviderLink): string {
   return url.href
 }
 
+function headersForDestination(
+  headers: Record<string, string> | undefined,
+  sourceUrl: string,
+  destinationUrl: string
+): Record<string, string> | undefined {
+  if (!headers) return undefined
+
+  try {
+    if (new URL(sourceUrl).origin === new URL(destinationUrl).origin) {
+      return headers
+    }
+  } catch {
+    return headers
+  }
+
+  return Object.fromEntries(
+    Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'cookie')
+  )
+}
+
 export function proxyStreamLinks(
   links: ProviderLink[],
   baseUrl: string
@@ -240,7 +263,7 @@ export function proxyStreamLinks(
           isM3U8,
           quality: 'auto',
           subtitles: [],
-          headers: link.headers,
+          headers: headersForDestination(link.headers, link.url, url.href),
         })
       } catch {
         return value
@@ -397,6 +420,42 @@ function rewritePlaylist(
     .join('\n')
 }
 
+function dashSegmentProxyUrl(
+  value: string,
+  token: string,
+  baseUrl: string
+): string {
+  if (
+    !value ||
+    /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(value) ||
+    /[<>"'&#?]/.test(value)
+  ) {
+    return value
+  }
+
+  const url = new URL('/proxy', baseUrl)
+  url.searchParams.set('token', token)
+  return `${url.href.replace(/&/g, '&amp;')}&amp;dashPath=${value}`
+}
+
+function rewriteDashManifest(
+  text: string,
+  token: string,
+  baseUrl: string
+): string {
+  return text
+    .replace(
+      /\b(initialization|media|sourceURL)="([^"]+)"/g,
+      (_match, attribute: string, value: string) =>
+        `${attribute}="${dashSegmentProxyUrl(value, token, baseUrl)}"`
+    )
+    .replace(
+      /<BaseURL>([^<]+)<\/BaseURL>/g,
+      (_match, value: string) =>
+        `<BaseURL>${dashSegmentProxyUrl(value.trim(), token, baseUrl)}</BaseURL>`
+    )
+}
+
 const RESPONSE_HEADERS = [
   'accept-ranges',
   'cache-control',
@@ -416,12 +475,35 @@ export async function handleStreamProxy(
   try {
     const token = typeof req.query.token === 'string' ? req.query.token : ''
     const payload = decodeToken(token)
+    const dashPath =
+      typeof req.query.dashPath === 'string' ? req.query.dashPath : undefined
+    let upstreamUrl = payload.url
+    if (dashPath !== undefined) {
+      if (!payload.isDASH || !dashPath || /[?#]/.test(dashPath)) {
+        throw new Error('Invalid DASH segment path')
+      }
+
+      const manifestUrl = new URL(payload.url)
+      const baseUrl = new URL('.', manifestUrl)
+      const segmentUrl = new URL(dashPath, baseUrl)
+      if (
+        segmentUrl.origin !== baseUrl.origin ||
+        !segmentUrl.pathname.startsWith(baseUrl.pathname)
+      ) {
+        throw new Error('Invalid DASH segment destination')
+      }
+      upstreamUrl = segmentUrl.href
+    }
     await forwardProxyStorage.run(
       payload.forwardProxy || { fProxyEnabled: false },
       async () => {
-        const headers = outboundHeaders(payload.headers, req, !payload.isM3U8)
+        const headers = outboundHeaders(
+          payload.headers,
+          req,
+          !payload.isM3U8 && !payload.isDASH
+        )
         const upstream = await fetchWithSafeRedirects(
-          payload.url,
+          upstreamUrl,
           req.method === 'HEAD' ? 'HEAD' : 'GET',
           headers
         )
@@ -441,6 +523,25 @@ export async function handleStreamProxy(
         }
 
         const contentType = upstream.headers.get('content-type') || ''
+        if (
+          payload.isDASH &&
+          dashPath === undefined &&
+          (/dash\+xml/i.test(contentType) ||
+            /\.mpd(?:$|[?#])/i.test(upstream.url))
+        ) {
+          const manifest = rewriteDashManifest(
+            await upstream.text(),
+            token,
+            `${req.protocol}://${req.get('host')}`
+          )
+          res.status(200)
+          res.removeHeader('content-length')
+          res.removeHeader('content-range')
+          res.removeHeader('accept-ranges')
+          res.removeHeader('content-disposition')
+          res.type('application/dash+xml').send(manifest)
+          return
+        }
         if (
           payload.isM3U8 ||
           /mpegurl/i.test(contentType) ||

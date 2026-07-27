@@ -138,7 +138,9 @@ async function getStreams(
         ? `${BASE_URL}/movie/${encodeURIComponent(tmdbId)}/`
         : `${BASE_URL}/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}/`
     const page = await fetchText(pageUrl, { headers: HEADERS })
-    const encoded = page.match(/\\"en\\":\\"(.*?)\\"/)?.[1]
+    const encoded =
+      page.match(/"en":"([^"]+)"/)?.[1] ||
+      page.match(/\\"en\\":\\"([^"\\]+)\\"/)?.[1]
     if (!encoded) return []
 
     const configResponse = await fetch(
@@ -148,16 +150,11 @@ async function getStreams(
     if (!configResponse.ok) return []
     const config =
       (await configResponse.json()) as CryptoResponse<VidFastConfig>
-    if (
-      !config.result?.servers ||
-      !config.result.stream ||
-      !config.result.token
-    )
-      return []
+    if (!config.result?.servers || !config.result.stream) return []
 
     const requestHeaders = {
       ...HEADERS,
-      'X-CSRF-Token': config.result.token,
+      ...(config.result.token ? { 'X-CSRF-Token': config.result.token } : {}),
     }
     const encryptedServers = await fetchText(config.result.servers, {
       method: 'POST',

@@ -23,6 +23,7 @@ export interface ProviderLink {
   server: string
   url: string
   isM3U8: boolean
+  isDASH?: boolean
   quality: string
   subtitles: Subtitle[]
   headers?: Record<string, string>

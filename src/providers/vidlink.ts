@@ -12,6 +12,8 @@ const HEADERS = {
   Referer: `${BASE_URL}/`,
   Origin: BASE_URL,
 }
+const PLAYBACK_ENVIRONMENT_HEADER = 'X-Playback-Environment'
+const PLAYBACK_ENVIRONMENT = 'dash-hevc'
 
 interface VidlinkQuality {
   url?: string
@@ -27,10 +29,18 @@ interface VidlinkSubtitle {
 }
 
 interface VidlinkResponse {
+  sourceId?: string
   stream?: {
+    type?: string
+    deliveryType?: string
     playlist?: string
+    playlistHeaders?: Record<string, string>
     qualities?: Record<string, string | VidlinkQuality>
     captions?: VidlinkSubtitle[]
+    requiresProxy?: boolean
+    playbackMetadata?: {
+      resolutions?: string[]
+    }
   }
   subtitles?: VidlinkSubtitle[]
 }
@@ -70,6 +80,17 @@ function subtitlesFrom(payload: VidlinkResponse): Subtitle[] {
   })
 }
 
+function isExpiredSignedUrl(value: string): boolean {
+  try {
+    const expires = Number(new URL(value).searchParams.get('t'))
+    return (
+      Number.isFinite(expires) && expires > 0 && expires * 1000 <= Date.now()
+    )
+  } catch {
+    return false
+  }
+}
+
 async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
@@ -89,36 +110,65 @@ async function getStreams(
         : `/api/b/tv/${encodeURIComponent(encrypted.result)}/${season}/${episode}`
     const payload = await requestJson<VidlinkResponse>(
       `${BASE_URL}${path}?multiLang=0`,
-      HEADERS
+      {
+        ...HEADERS,
+        [PLAYBACK_ENVIRONMENT_HEADER]: PLAYBACK_ENVIRONMENT,
+      }
     )
     const subtitles = subtitlesFrom(payload)
     const candidates = new Map<
       string,
-      { quality: string; headers: Record<string, string> }
+      {
+        quality: string
+        headers: Record<string, string>
+        isDASH: boolean
+        requiresProxy: boolean
+      }
     >()
-    if (payload.stream?.playlist)
+    if (payload.stream?.playlist) {
+      const isDASH =
+        payload.stream.deliveryType === 'dash' ||
+        payload.stream.type === 'dash' ||
+        /\.mpd(?:$|[?#])/i.test(payload.stream.playlist)
+      const resolutions = payload.stream.playbackMetadata?.resolutions
       candidates.set(payload.stream.playlist, {
-        quality: 'auto',
-        headers: HEADERS,
+        quality: resolutions?.length
+          ? `${Math.max(
+              ...resolutions
+                .map(value => Number.parseInt(value, 10))
+                .filter(Number.isFinite)
+            )}p`
+          : 'auto',
+        headers: {
+          ...HEADERS,
+          ...(payload.stream.playlistHeaders || {}),
+        },
+        isDASH,
+        requiresProxy: payload.stream.requiresProxy === true,
       })
+    }
     for (const [quality, value] of Object.entries(
       payload.stream?.qualities || {}
     )) {
       const url = typeof value === 'string' ? value : value?.url
-      if (!url) continue
+      if (!url || isExpiredSignedUrl(url)) continue
       candidates.set(url, {
         quality,
         headers: typeof value === 'string' ? HEADERS : value.headers || HEADERS,
+        isDASH: false,
+        requiresProxy: false,
       })
     }
 
     const streams = Array.from(candidates, ([url, candidate], index) => ({
-      server: `vidlink-${index + 1}`,
+      server: `vidlink-${payload.sourceId || 'default'}-${index + 1}`,
       url,
       isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
+      isDASH: candidate.isDASH,
       quality: candidate.quality.toLowerCase().replace(/^(\d+)$/, '$1p'),
       subtitles,
       headers: candidate.headers,
+      requiresProxy: candidate.requiresProxy,
     })).filter(link => /^https?:\/\//i.test(link.url))
     console.log(
       `[Vidlink] Extracted ${streams.length} candidate stream(s); response fields: ${Object.keys(payload).join(', ') || 'none'}`

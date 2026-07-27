@@ -3,9 +3,9 @@ import { DEFAULT_REQUEST_TIMEOUT_MS } from './config.js'
 
 const VALIDATION_TIMEOUT_MS = Math.max(15_000, DEFAULT_REQUEST_TIMEOUT_MS)
 const VALIDATION_CONCURRENCY = 8
-const MEDIA_EXTENSION = /\.(?:m3u8|mp4|mkv|webm|avi|mov|ts)(?:$|[?#])/i
+const MEDIA_EXTENSION = /\.(?:m3u8|mpd|mp4|mkv|webm|avi|mov|ts)(?:$|[?#])/i
 const MEDIA_CONTENT_TYPE =
-  /^(?:video|audio)\/|mpegurl|application\/(?:octet-stream|x-mpegurl)/i
+  /^(?:video|audio)\/|mpegurl|dash\+xml|application\/(?:octet-stream|x-mpegurl)/i
 
 export function normalizeStreamUrl(value: string): string {
   const url = new URL(value)
@@ -32,7 +32,7 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
       ...link.headers,
       Accept: '*/*',
     }
-    if (!link.isM3U8) headers.Range = 'bytes=0-0'
+    if (!link.isM3U8 && !link.isDASH) headers.Range = 'bytes=0-0'
     if (!new URL(url).pathname.toLowerCase().includes('/playlist/')) {
       headers['x-skip-forward-proxy'] = 'true'
     }
@@ -52,6 +52,7 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
     )
     const looksLikeMedia =
       link.isM3U8 ||
+      link.isDASH ||
       MEDIA_CONTENT_TYPE.test(contentType) ||
       MEDIA_EXTENSION.test(finalUrl) ||
       /filename\s*=.*\.(?:mp4|mkv|webm|avi|mov|ts)/i.test(disposition)
