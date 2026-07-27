@@ -1,511 +1,269 @@
-import { createDecipheriv, createHash } from 'node:crypto'
+/* eslint-disable no-unused-vars */
+import { readFile } from 'node:fs/promises'
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 
 const VIDZEE_CORE_URL = 'https://core.vidzee.wtf'
 const VIDZEE_PLAYER_URL = 'https://player.vidzee.wtf'
-const VIDZEE_API_URL = `${VIDZEE_PLAYER_URL}/api/server`
-const API_KEY_URL = `${VIDZEE_CORE_URL}/api-key`
-const API_KEY_SECRET = '4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c'
-const API_KEY_CACHE_TTL_MS = 60 * 60 * 1000
-const REQUEST_TIMEOUT_MS = 10_000
-const FRONTEND_SCAN_LIMIT = 20
-const FRONTEND_TEXT_LIMIT = 5_000_000
-const SERVERS = Array.from({ length: 14 }, (_value, index) => index)
+const VIDZEE_PLAYER_HOSTNAME = new URL(VIDZEE_PLAYER_URL).hostname
+const REQUEST_TIMEOUT_MS = 20_000
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
 
-const API_HEADERS = {
-  'User-Agent': USER_AGENT,
-  Accept: 'application/json, text/javascript, */*; q=0.01',
-  'Accept-Language': 'en-US,en;q=0.9',
-  Referer: `${VIDZEE_PLAYER_URL}/`,
+const REQUEST_HEADERS = {
+  Accept: 'application/json, text/plain, */*',
   Origin: VIDZEE_PLAYER_URL,
+  Referer: `${VIDZEE_PLAYER_URL}/`,
+  'User-Agent': USER_AGENT,
 }
 
-interface VidZeeSourceItem {
-  link?: string
-  name?: string
-  type?: string
+const SERVERS = [
+  { id: 'tik', label: 'TCloud' },
+  { id: 'ipcloud', label: 'IPcloud' },
+  { id: 'v6:Hindi', label: 'Hindi v3' },
+] as const
+
+interface VidZeeStreamPayload {
+  c?: string
+  error?: string
+  headers?: Record<string, string>
   language?: string
-  lang?: string
-  flag?: string
-}
-
-interface VidZeeTrack {
-  lang?: string
   url?: string
 }
 
-interface VidZeeApiResponse {
-  error?: string
-  headers?: Record<string, string>
-  url?: VidZeeSourceItem[]
-  link?: string
-  tracks?: VidZeeTrack[]
-  name?: string
-  type?: string
-  language?: string
+interface VidZeeSubtitle {
+  file?: string
+  label?: string
   lang?: string
+  language?: string
+  url?: string
 }
 
-interface EncryptedKeyEnvelope {
-  iv?: unknown
-  tag?: unknown
-  authTag?: unknown
-  ciphertext?: unknown
-  cipherText?: unknown
-  encrypted?: unknown
-  encryptedKey?: unknown
-  payload?: unknown
-  result?: unknown
-  key?: unknown
-  apiKey?: unknown
-  api_key?: unknown
-  data?: unknown
-  value?: unknown
+interface VidZeeWasmExports extends WebAssembly.Exports {
+  memory: WebAssembly.Memory
+  decrypt: (ciphertextPointer: number, hostnamePointer: number) => number
+  __new: (size: number, id: number) => number
+  __pin: (pointer: number) => number
+  __unpin: (pointer: number) => void
 }
 
-let apiKeyCache: { value: string; timestamp: number } | undefined
+let wasmPromise: Promise<VidZeeWasmExports> | undefined
 
-async function request(url: URL | string): Promise<Response> {
+async function requestJson<T>(url: URL): Promise<T> {
   const response = await fetch(url, {
-    headers: API_HEADERS,
+    headers: REQUEST_HEADERS,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} from ${new URL(url).hostname}`)
+    throw new Error(`HTTP ${response.status} from ${url.hostname}`)
   }
-  return response
+  return (await response.json()) as T
 }
 
-function decodeBase64(value: string): Buffer {
-  const normalized = value
-    .trim()
-    .replace(/^data:[^,]+,/, '')
-    .replace(/\s+/g, '')
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) return Buffer.alloc(0)
+async function loadWasm(): Promise<VidZeeWasmExports> {
+  if (wasmPromise) return wasmPromise
+
+  wasmPromise = (async () => {
+    const encoded = await readFile(
+      new URL('./vidzee.wasm.b64', import.meta.url),
+      'utf8'
+    )
+    const bytes = Buffer.from(encoded.trim(), 'base64')
+    if (!bytes.length) throw new Error('VidZee decoder is empty')
+
+    const { instance } = await WebAssembly.instantiate(bytes, {
+      env: {
+        abort: () => {
+          throw new Error('VidZee decoder aborted')
+        },
+      },
+    })
+    return instance.exports as VidZeeWasmExports
+  })()
+
+  try {
+    return await wasmPromise
+  } catch (error) {
+    wasmPromise = undefined
+    throw error
+  }
+}
+
+function writeAssemblyScriptString(
+  exports: VidZeeWasmExports,
+  value: string
+): number {
+  const pointer = exports.__new(value.length << 1, 2) >>> 0
+  const memory = new Uint16Array(exports.memory.buffer)
+  for (let index = 0; index < value.length; index++) {
+    memory[(pointer >>> 1) + index] = value.charCodeAt(index)
+  }
+  return pointer
+}
+
+function writeAssemblyScriptUint8Array(
+  exports: VidZeeWasmExports,
+  value: Uint8Array
+): number {
+  const dataPointer = exports.__pin(exports.__new(value.length, 1)) >>> 0
+  const arrayPointer = exports.__new(12, 6) >>> 0
+  const view = new DataView(exports.memory.buffer)
+
+  view.setUint32(arrayPointer, dataPointer, true)
+  view.setUint32(arrayPointer + 4, dataPointer, true)
+  view.setUint32(arrayPointer + 8, value.length, true)
+  new Uint8Array(exports.memory.buffer, dataPointer, value.length).set(value)
+  exports.__unpin(dataPointer)
+
+  return arrayPointer
+}
+
+function readAssemblyScriptUint8Array(
+  exports: VidZeeWasmExports,
+  pointer: number
+): Uint8Array | null {
+  pointer >>>= 0
+  if (!pointer) return null
+
+  const view = new DataView(exports.memory.buffer)
+  const dataPointer = view.getUint32(pointer + 4, true)
+  const byteLength = view.getUint32(pointer + 8, true)
+  if (!dataPointer || !byteLength) return null
+  return new Uint8Array(exports.memory.buffer, dataPointer, byteLength).slice()
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const normalized = value.trim().replace(/\s+/g, '')
+  if (
+    !normalized ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized) ||
+    normalized.length % 4 !== 0
+  ) {
+    throw new Error('Invalid encrypted stream payload')
+  }
   return Buffer.from(normalized, 'base64')
 }
 
-function decryptGcm(
-  iv: Buffer,
-  authTag: Buffer,
-  ciphertext: Buffer,
-  secret: string
-): string {
-  if (
-    ![12, 16].includes(iv.length) ||
-    authTag.length !== 16 ||
-    ciphertext.length === 0
-  ) {
-    return ''
-  }
-
-  const encryptionKeys = [createHash('sha256').update(secret).digest()]
-  const utf8Secret = Buffer.from(secret, 'utf8')
-  if (utf8Secret.length === 32) encryptionKeys.push(utf8Secret)
-  if (/^[A-Fa-f0-9]{64}$/.test(secret)) {
-    encryptionKeys.push(Buffer.from(secret, 'hex'))
-  }
-
-  for (const key of encryptionKeys) {
-    try {
-      const decipher = createDecipheriv('aes-256-gcm', key, iv, {
-        authTagLength: 16,
-      })
-      decipher.setAuthTag(authTag)
-      return Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final(),
-      ]).toString('utf8')
-    } catch {
-      // Try the next key derivation used by current/older player bundles.
-    }
-  }
-  return ''
-}
-
-function isPlausibleApiKey(value: string): boolean {
-  return (
-    value.length >= 16 &&
-    value.length <= 64 &&
-    /^[\x21-\x7e]+$/.test(value) &&
-    !/^https?:\/\//i.test(value)
+async function decryptStreamPayload(
+  ciphertext: string
+): Promise<VidZeeStreamPayload> {
+  const exports = await loadWasm()
+  const arrayPointer = exports.__pin(
+    writeAssemblyScriptUint8Array(exports, decodeBase64(ciphertext))
   )
-}
-
-function decryptPackedApiKey(
-  value: string,
-  secrets: string[] = [API_KEY_SECRET]
-): string {
-  const encrypted = decodeBase64(value)
-  if (encrypted.length <= 28) return ''
-
-  for (const secret of secrets) {
-    for (const ivLength of [12, 16]) {
-      // Original VidZee layout: IV + auth tag + ciphertext.
-      const original = decryptGcm(
-        encrypted.subarray(0, ivLength),
-        encrypted.subarray(ivLength, ivLength + 16),
-        encrypted.subarray(ivLength + 16),
-        secret
-      )
-      if (isPlausibleApiKey(original)) return original
-
-      // Standard WebCrypto layout: IV + ciphertext + auth tag.
-      const standard = decryptGcm(
-        encrypted.subarray(0, ivLength),
-        encrypted.subarray(-16),
-        encrypted.subarray(ivLength, -16),
-        secret
-      )
-      if (isPlausibleApiKey(standard)) return standard
-    }
-  }
-  return ''
-}
-
-function decryptKeyCandidate(value: string, secrets: string[]): string {
-  const decrypted = decryptPackedApiKey(value, secrets)
-  if (decrypted) return decrypted
-  return isPlausibleApiKey(value) && value.length <= 32 ? value : ''
-}
-
-function decryptKeyEnvelope(
-  envelope: EncryptedKeyEnvelope,
-  secrets: string[]
-): string {
-  const iv = typeof envelope.iv === 'string' ? decodeBase64(envelope.iv) : null
-  const tagValue = envelope.authTag ?? envelope.tag
-  const cipherValue =
-    envelope.ciphertext ?? envelope.cipherText ?? envelope.encrypted
-  if (iv && typeof tagValue === 'string' && typeof cipherValue === 'string') {
-    for (const secret of secrets) {
-      const decrypted = decryptGcm(
-        iv,
-        decodeBase64(tagValue),
-        decodeBase64(cipherValue),
-        secret
-      )
-      if (isPlausibleApiKey(decrypted)) return decrypted
-    }
-  }
-
-  for (const candidate of [
-    envelope.encryptedKey,
-    envelope.encrypted,
-    envelope.key,
-    envelope.apiKey,
-    envelope.api_key,
-    envelope.data,
-    envelope.payload,
-    envelope.result,
-    envelope.value,
-  ]) {
-    if (typeof candidate === 'string') {
-      const decrypted = decryptKeyCandidate(candidate, secrets)
-      if (decrypted) return decrypted
-    } else if (candidate && typeof candidate === 'object') {
-      const decrypted = decryptKeyEnvelope(
-        candidate as EncryptedKeyEnvelope,
-        secrets
-      )
-      if (decrypted) return decrypted
-    }
-  }
-  return ''
-}
-
-export function decryptApiKey(
-  responseBody: string,
-  additionalSecrets: string[] = []
-): string {
-  const body = responseBody.trim()
-  if (!body) return ''
-  const secrets = Array.from(new Set([API_KEY_SECRET, ...additionalSecrets]))
 
   try {
-    const parsed = JSON.parse(body) as unknown
-    if (typeof parsed === 'string') {
-      return decryptKeyCandidate(parsed, secrets)
-    }
-    if (parsed && typeof parsed === 'object') {
-      return decryptKeyEnvelope(parsed as EncryptedKeyEnvelope, secrets)
-    }
-  } catch {
-    // The original endpoint returns the encrypted payload as plain text.
-  }
-
-  return decryptKeyCandidate(body, secrets)
-}
-
-function describeKeyResponse(body: string, contentType: string): string {
-  const value = body.trim()
-  if (/^\s*</.test(value)) return `HTML, ${value.length} bytes`
-  try {
-    const parsed = JSON.parse(value) as unknown
-    if (typeof parsed === 'string') {
-      return `JSON string, ${parsed.length} characters`
-    }
-    if (parsed && typeof parsed === 'object') {
-      return `JSON object with fields: ${Object.keys(parsed).slice(0, 8).join(', ') || '(none)'}`
-    }
-  } catch {
-    // Plain text is the legacy response format.
-  }
-  return `${contentType || 'plain text'}, ${value.length} characters`
-}
-
-export function decryptStreamUrl(
-  encryptedLink: string,
-  apiKey: string
-): string {
-  // VidZee used plaintext URLs before introducing encryption. Keeping this
-  // fallback makes the adapter compatible during server-by-server rollouts.
-  if (/^https?:\/\//i.test(encryptedLink)) return encryptedLink
-
-  try {
-    const decoded = Buffer.from(encryptedLink, 'base64').toString('utf8')
-    const separator = decoded.indexOf(':')
-    if (separator < 1) return ''
-
-    const iv = Buffer.from(decoded.slice(0, separator), 'base64')
-    const ciphertext = Buffer.from(decoded.slice(separator + 1), 'base64')
-    if (iv.length !== 16 || ciphertext.length === 0) return ''
-
-    const key = Buffer.alloc(32)
-    key.write(apiKey, 'utf8')
-    const decipher = createDecipheriv('aes-256-cbc', key, iv)
-    return Buffer.concat([
-      decipher.update(ciphertext),
-      decipher.final(),
-    ]).toString('utf8')
-  } catch {
-    return ''
-  }
-}
-
-function extractCandidateSecrets(text: string): string[] {
-  const candidates = new Set<string>()
-  for (const match of text.matchAll(/["'`]([^"'`\r\n\\]{20,96})["'`]/g)) {
-    const value = match[1]?.trim()
-    if (
-      value &&
-      !/\s/.test(value) &&
-      !/\.(?:js|css|json|png|jpe?g|svg|woff2?)$/i.test(value)
-    ) {
-      candidates.add(value)
-    }
-  }
-  for (const match of text.matchAll(/\b[A-Fa-f0-9]{32,64}\b/g)) {
-    if (match[0]) candidates.add(match[0])
-  }
-  return Array.from(candidates).slice(0, 5_000)
-}
-
-function extractFrontendUrls(text: string, baseUrl: string): string[] {
-  const urls = new Set<string>()
-  const patterns = [
-    /<script[^>]+src=["']([^"']+)["']/gi,
-    /["']([^"']+\.js(?:\?[^"']*)?)["']/gi,
-  ]
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      try {
-        const url = new URL(match[1] || '', baseUrl)
-        if (
-          url.protocol === 'https:' &&
-          (url.hostname === 'vidzee.wtf' ||
-            url.hostname.endsWith('.vidzee.wtf'))
-        ) {
-          urls.add(url.href)
-        }
-      } catch {
-        // Ignore malformed asset references.
-      }
-    }
-  }
-  return Array.from(urls)
-}
-
-async function discoverRotatingApiKey(
-  responseBody: string,
-  tmdbId: string,
-  season?: number,
-  episode?: number
-): Promise<string> {
-  const embedPath =
-    season !== undefined && episode !== undefined
-      ? `/v2/embed/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}?sr=4`
-      : `/v2/embed/movie/${encodeURIComponent(tmdbId)}?sr=4`
-  const queue = [
-    new URL(embedPath, VIDZEE_PLAYER_URL).href,
-    `${VIDZEE_PLAYER_URL}/`,
-    `${VIDZEE_CORE_URL}/`,
-  ]
-  const visited = new Set<string>()
-
-  while (queue.length > 0 && visited.size < FRONTEND_SCAN_LIMIT) {
-    const url = queue.shift()
-    if (!url || visited.has(url)) continue
-    visited.add(url)
-
-    try {
-      const response = await fetch(url, {
-        headers: {
-          ...API_HEADERS,
-          Accept: 'text/html,application/javascript,*/*;q=0.8',
-        },
-        redirect: 'follow',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
-      if (!response.ok) {
-        await response.body?.cancel()
-        continue
-      }
-
-      const text = (await response.text()).slice(0, FRONTEND_TEXT_LIMIT)
-      const key = decryptApiKey(responseBody, extractCandidateSecrets(text))
-      if (key) return key
-
-      for (const discoveredUrl of extractFrontendUrls(
-        text,
-        response.url || url
-      )) {
-        if (!visited.has(discoveredUrl) && queue.length < FRONTEND_SCAN_LIMIT) {
-          queue.push(discoveredUrl)
-        }
-      }
-    } catch {
-      // A missing optional bundle should not abort the remaining candidates.
-    }
-  }
-  return ''
-}
-
-async function getApiKey(
-  tmdbId: string,
-  season?: number,
-  episode?: number
-): Promise<string> {
-  if (
-    apiKeyCache &&
-    Date.now() - apiKeyCache.timestamp < API_KEY_CACHE_TTL_MS
-  ) {
-    return apiKeyCache.value
-  }
-
-  const response = await request(API_KEY_URL)
-  const responseBody = await response.text()
-  const key =
-    decryptApiKey(responseBody) ||
-    (await discoverRotatingApiKey(responseBody, tmdbId, season, episode))
-  if (!key) {
-    throw new Error(
-      `VidZee returned an unsupported API-key response (${describeKeyResponse(responseBody, response.headers.get('content-type') || '')})`
+    const output = readAssemblyScriptUint8Array(
+      exports,
+      exports.decrypt(
+        arrayPointer,
+        writeAssemblyScriptString(exports, VIDZEE_PLAYER_HOSTNAME)
+      )
     )
-  }
-  apiKeyCache = { value: key, timestamp: Date.now() }
-  return key
-}
+    if (!output) throw new Error('VidZee decoder returned no data')
 
-function playbackHeaders(
-  url: string,
-  responseHeaders?: Record<string, string>
-): Record<string, string> | undefined {
-  if (/serversicuro\.cc/i.test(url)) return undefined
-
-  const responseUserAgent = Object.entries(responseHeaders || {}).find(
-    ([name]) => name.toLowerCase() === 'user-agent'
-  )?.[1]
-  if (/fast33lane/i.test(url)) {
-    return {
-      Referer: 'https://rapidairmax.site/',
-      Origin: 'https://rapidairmax.site',
-      'User-Agent': responseUserAgent || USER_AGENT,
+    const payload = JSON.parse(
+      new TextDecoder().decode(output)
+    ) as VidZeeStreamPayload
+    if (!payload || typeof payload !== 'object') {
+      throw new Error('VidZee decoder returned an invalid payload')
     }
-  }
-
-  return {
-    Referer: `${VIDZEE_CORE_URL}/`,
-    Origin: VIDZEE_CORE_URL,
-    'User-Agent': responseUserAgent || USER_AGENT,
+    return payload
+  } finally {
+    exports.__unpin(arrayPointer)
   }
 }
 
-function mapSubtitles(tracks: VidZeeTrack[] | undefined): Subtitle[] {
-  return (tracks || []).flatMap((track, index) => {
-    if (!track.url) return []
-    return [
-      {
-        file: track.url,
-        label:
-          track.lang?.replace(/\d+/g, '').trim() || `Subtitle ${index + 1}`,
-        kind: 'captions',
-      },
-    ]
-  })
+function streamPath(tmdbId: string, season?: number, episode?: number): string {
+  return season !== undefined && episode !== undefined
+    ? `/streams/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}`
+    : `/streams/movie/${encodeURIComponent(tmdbId)}`
 }
 
-async function getStreamsFromServer(
+function subtitlePath(
   tmdbId: string,
-  server: number,
-  apiKey: string,
   season?: number,
   episode?: number
-): Promise<ProviderLink[]> {
-  const apiUrl = new URL(VIDZEE_API_URL)
-  apiUrl.searchParams.set('id', tmdbId)
-  apiUrl.searchParams.set('sr', String(server))
-  if (season !== undefined && episode !== undefined) {
-    apiUrl.searchParams.set('ss', String(season))
-    apiUrl.searchParams.set('ep', String(episode))
-  }
+): string {
+  return season !== undefined && episode !== undefined
+    ? `/subs/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}`
+    : `/subs/movie/${encodeURIComponent(tmdbId)}`
+}
 
+async function getSubtitles(
+  tmdbId: string,
+  season?: number,
+  episode?: number
+): Promise<Subtitle[]> {
   try {
-    const data = (await (await request(apiUrl)).json()) as VidZeeApiResponse
-    if (data.error) return []
+    const url = new URL(subtitlePath(tmdbId, season, episode), VIDZEE_CORE_URL)
+    const subtitles = await requestJson<VidZeeSubtitle[]>(url)
+    if (!Array.isArray(subtitles)) return []
 
-    const sources = Array.isArray(data.url)
-      ? data.url
-      : data.link
-        ? [
-            {
-              link: data.link,
-              name: data.name,
-              type: data.type,
-              language: data.language || data.lang,
-            },
-          ]
-        : []
-    const subtitles = mapSubtitles(data.tracks)
-
-    return sources.flatMap(source => {
-      if (!source.link) return []
-      const url = decryptStreamUrl(source.link, apiKey)
-      if (!/^https?:\/\//i.test(url)) return []
-
-      const language = source.lang || source.language
-      const details = [source.name, source.flag, language]
-        .filter(Boolean)
-        .join(' | ')
-      const headers = playbackHeaders(url, data.headers)
+    return subtitles.flatMap((subtitle, index) => {
+      const file = subtitle.file || subtitle.url
+      if (!file || !/^https?:\/\//i.test(file)) return []
       return [
         {
-          server: `VidZee S${server}${details ? ` | ${details}` : ''}`,
-          url,
-          isM3U8: source.type === 'hls' || /\.m3u8(?:$|[?#])/i.test(url),
-          quality: source.name?.match(/\b\d{3,4}p?\b/i)?.[0] || 'auto',
-          subtitles,
-          ...(headers && { headers }),
-        } satisfies ProviderLink,
+          file,
+          label:
+            subtitle.label ||
+            subtitle.language ||
+            subtitle.lang ||
+            `Subtitle ${index + 1}`,
+          kind: 'captions',
+        },
       ]
     })
   } catch (error) {
     console.warn(
-      `[VidZee S${server}] Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidZee] Subtitle request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+    return []
+  }
+}
+
+function detectQuality(url: string): string {
+  const match = url.match(
+    /(?:^|[/_.-])(2160|1440|1080|720|480|360)(?:p|[/_.-]|$)/i
+  )
+  return match?.[1] ? `${match[1]}p` : 'auto'
+}
+
+async function getStreamFromServer(
+  server: (typeof SERVERS)[number],
+  tmdbId: string,
+  subtitles: Subtitle[],
+  season?: number,
+  episode?: number
+): Promise<ProviderLink[]> {
+  const url = new URL(streamPath(tmdbId, season, episode), VIDZEE_CORE_URL)
+  url.searchParams.set('s', server.id)
+  url.searchParams.set('e', '1')
+
+  try {
+    let payload = await requestJson<VidZeeStreamPayload>(url)
+    if (payload.c && !payload.url) {
+      payload = await decryptStreamPayload(payload.c)
+    }
+    if (!payload.url || !/^https?:\/\//i.test(payload.url)) return []
+
+    const headers =
+      payload.headers && Object.keys(payload.headers).length
+        ? payload.headers
+        : undefined
+    return [
+      {
+        server: `VidZee | ${server.label}${payload.language ? ` | ${payload.language}` : ''}`,
+        url: payload.url,
+        isM3U8: /\.m3u8(?:$|[?#])/i.test(payload.url),
+        quality: detectQuality(payload.url),
+        subtitles,
+        ...(headers && { headers }),
+      },
+    ]
+  } catch (error) {
+    console.warn(
+      `[VidZee | ${server.label}] Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
     return []
   }
@@ -516,22 +274,27 @@ async function getVidZeeStreams(
   season?: number,
   episode?: number
 ): Promise<ProviderLink[]> {
-  try {
-    const apiKey = await getApiKey(tmdbId, season, episode)
-    const results = await Promise.all(
-      SERVERS.map(server =>
-        getStreamsFromServer(tmdbId, server, apiKey, season, episode)
-      )
-    )
-    return Array.from(
-      new Map(results.flat().map(link => [link.url, link])).values()
-    )
-  } catch (error) {
-    console.error(
-      `[VidZee] Request failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+  if (!/^\d+$/.test(tmdbId)) {
+    console.warn('[VidZee] TMDB ID must be numeric')
     return []
   }
+  if (
+    (season !== undefined && (!Number.isInteger(season) || season < 1)) ||
+    (episode !== undefined && (!Number.isInteger(episode) || episode < 1))
+  ) {
+    console.warn('[VidZee] Season and episode must be positive integers')
+    return []
+  }
+
+  const subtitles = await getSubtitles(tmdbId, season, episode)
+  const results = await Promise.all(
+    SERVERS.map(server =>
+      getStreamFromServer(server, tmdbId, subtitles, season, episode)
+    )
+  )
+  return Array.from(
+    new Map(results.flat().map(link => [link.url, link])).values()
+  )
 }
 
 export const vidzeeProvider: Provider = {

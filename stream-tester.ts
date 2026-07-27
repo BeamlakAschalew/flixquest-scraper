@@ -57,12 +57,20 @@ interface TestShow {
 
 const MOVIES: TestMovie[] = [
   // Hollywood / General
-  { tmdbId: '278', title: 'The Shawshank Redemption', tags: ['hollywood', 'popular'] },
+  {
+    tmdbId: '278',
+    title: 'The Shawshank Redemption',
+    tags: ['hollywood', 'popular'],
+  },
   { tmdbId: '550', title: 'Fight Club', tags: ['hollywood', 'popular'] },
   { tmdbId: '27205', title: 'Inception', tags: ['hollywood', 'popular'] },
   { tmdbId: '155', title: 'The Dark Knight', tags: ['hollywood', 'popular'] },
   { tmdbId: '157336', title: 'Interstellar', tags: ['hollywood', 'popular'] },
-  { tmdbId: '299536', title: 'Avengers: Infinity War', tags: ['hollywood', 'popular'] },
+  {
+    tmdbId: '299536',
+    title: 'Avengers: Infinity War',
+    tags: ['hollywood', 'popular'],
+  },
   { tmdbId: '603', title: 'The Matrix', tags: ['hollywood', 'popular'] },
   { tmdbId: '556574', title: 'Hamilton', tags: ['hollywood'] },
 
@@ -71,43 +79,99 @@ const MOVIES: TestMovie[] = [
   { tmdbId: '20453', title: 'Lagaan', tags: ['bollywood', 'indian'] },
   { tmdbId: '614933', title: 'KGF: Chapter 2', tags: ['bollywood', 'indian'] },
   { tmdbId: '439079', title: 'Dangal', tags: ['bollywood', 'indian'] },
-  { tmdbId: '348350', title: 'Baahubali 2: The Conclusion', tags: ['bollywood', 'indian'] },
+  {
+    tmdbId: '348350',
+    title: 'Baahubali 2: The Conclusion',
+    tags: ['bollywood', 'indian'],
+  },
   { tmdbId: '961268', title: 'Jawan', tags: ['bollywood', 'indian'] },
-  { tmdbId: '1011985', title: 'Kung Fu Panda 4', tags: ['hollywood', 'popular'] },
+  {
+    tmdbId: '1011985',
+    title: 'Kung Fu Panda 4',
+    tags: ['hollywood', 'popular'],
+  },
 
   // Korean
   { tmdbId: '496243', title: 'Parasite', tags: ['korean', 'asian'] },
-  { tmdbId: '677179', title: 'Escape from Mogadishu', tags: ['korean', 'asian'] },
-  { tmdbId: '800158', title: 'The Gangster, the Cop, the Devil', tags: ['korean', 'asian'] },
+  {
+    tmdbId: '677179',
+    title: 'Escape from Mogadishu',
+    tags: ['korean', 'asian'],
+  },
+  {
+    tmdbId: '800158',
+    title: 'The Gangster, the Cop, the Devil',
+    tags: ['korean', 'asian'],
+  },
 
   // Japanese / Anime Movies
-  { tmdbId: '372058', title: 'Your Name', tags: ['anime', 'japanese', 'asian'] },
-  { tmdbId: '129', title: 'Spirited Away', tags: ['anime', 'japanese', 'asian'] },
-  { tmdbId: '508883', title: 'Dragon Ball Super: Broly', tags: ['anime', 'japanese'] },
-  { tmdbId: '635302', title: 'Demon Slayer: Mugen Train', tags: ['anime', 'japanese', 'asian'] },
+  {
+    tmdbId: '372058',
+    title: 'Your Name',
+    tags: ['anime', 'japanese', 'asian'],
+  },
+  {
+    tmdbId: '129',
+    title: 'Spirited Away',
+    tags: ['anime', 'japanese', 'asian'],
+  },
+  {
+    tmdbId: '508883',
+    title: 'Dragon Ball Super: Broly',
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '635302',
+    title: 'Demon Slayer: Mugen Train',
+    tags: ['anime', 'japanese', 'asian'],
+  },
 
   // Chinese
-  { tmdbId: '346364', title: 'It\'s a Mad, Mad, Mad, Mad World (2016)', tags: ['chinese', 'asian'] },
+  {
+    tmdbId: '346364',
+    title: "It's a Mad, Mad, Mad, Mad World (2016)",
+    tags: ['chinese', 'asian'],
+  },
 
   // Turkish
   { tmdbId: '65754', title: 'Recep Ivedik', tags: ['turkish'] },
-  { tmdbId: '464111', title: 'Miracle in Cell No. 7 (2019 Turkish)', tags: ['turkish'] },
+  {
+    tmdbId: '464111',
+    title: 'Miracle in Cell No. 7 (2019 Turkish)',
+    tags: ['turkish'],
+  },
 
   // Spanish / Latin
-  { tmdbId: '17473', title: 'El Secreto de Sus Ojos', tags: ['spanish', 'latin'] },
-  { tmdbId: '1690', title: 'Pan\'s Labyrinth', tags: ['spanish'] },
+  {
+    tmdbId: '17473',
+    title: 'El Secreto de Sus Ojos',
+    tags: ['spanish', 'latin'],
+  },
+  { tmdbId: '1690', title: "Pan's Labyrinth", tags: ['spanish'] },
   { tmdbId: '11338', title: 'Y Tu Mamá También', tags: ['spanish', 'latin'] },
 
   // Animation / Cartoon Movies
-  { tmdbId: '862', title: 'Toy Story', tags: ['animation', 'cartoon', 'hollywood'] },
-  { tmdbId: '150540', title: 'Inside Out', tags: ['animation', 'cartoon', 'hollywood'] },
+  {
+    tmdbId: '862',
+    title: 'Toy Story',
+    tags: ['animation', 'cartoon', 'hollywood'],
+  },
+  {
+    tmdbId: '150540',
+    title: 'Inside Out',
+    tags: ['animation', 'cartoon', 'hollywood'],
+  },
 
   // French
   { tmdbId: '194', title: 'Amélie', tags: ['french'] },
   { tmdbId: '11216', title: 'The Intouchables', tags: ['french'] },
 
   // Arabic / Middle Eastern
-  { tmdbId: '872585', title: 'Oppenheimer', tags: ['arabic', 'hollywood', 'popular'] },
+  {
+    tmdbId: '872585',
+    title: 'Oppenheimer',
+    tags: ['arabic', 'hollywood', 'popular'],
+  },
   { tmdbId: '579974', title: 'RRR', tags: ['indian', 'bollywood', 'arabic'] },
   { tmdbId: '949229', title: 'Leo', tags: ['indian', 'bollywood'] },
 ]
@@ -116,56 +180,236 @@ const MOVIES: TestMovie[] = [
 
 const TV_SHOWS: TestShow[] = [
   // Hollywood / General
-  { tmdbId: '1396', title: 'Breaking Bad', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '1399', title: 'Game of Thrones', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '2316', title: 'The Office (US)', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '66732', title: 'Stranger Things', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '82856', title: 'The Mandalorian', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '94997', title: 'House of the Dragon', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
-  { tmdbId: '76479', title: 'The Boys', season: 1, episode: 1, tags: ['hollywood', 'popular'] },
+  {
+    tmdbId: '1396',
+    title: 'Breaking Bad',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '1399',
+    title: 'Game of Thrones',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '2316',
+    title: 'The Office (US)',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '66732',
+    title: 'Stranger Things',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '82856',
+    title: 'The Mandalorian',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '94997',
+    title: 'House of the Dragon',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
+  {
+    tmdbId: '76479',
+    title: 'The Boys',
+    season: 1,
+    episode: 1,
+    tags: ['hollywood', 'popular'],
+  },
 
   // Korean Drama
-  { tmdbId: '100088', title: 'All of Us Are Dead', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama'] },
-  { tmdbId: '93405', title: 'Squid Game', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama'] },
-  { tmdbId: '67915', title: 'Goblin', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama'] },
-  { tmdbId: '110316', title: 'Alchemy of Souls', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama'] },
-  { tmdbId: '96316', title: 'Crash Landing on You', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama'] },
+  {
+    tmdbId: '100088',
+    title: 'All of Us Are Dead',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama'],
+  },
+  {
+    tmdbId: '93405',
+    title: 'Squid Game',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama'],
+  },
+  {
+    tmdbId: '67915',
+    title: 'Goblin',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama'],
+  },
+  {
+    tmdbId: '110316',
+    title: 'Alchemy of Souls',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama'],
+  },
+  {
+    tmdbId: '96316',
+    title: 'Crash Landing on You',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama'],
+  },
 
   // Japanese Drama / Asian
-  { tmdbId: '83095', title: 'Alice in Borderland', season: 1, episode: 1, tags: ['japanese', 'asian'] },
+  {
+    tmdbId: '83095',
+    title: 'Alice in Borderland',
+    season: 1,
+    episode: 1,
+    tags: ['japanese', 'asian'],
+  },
 
   // Chinese Drama
-  { tmdbId: '91759', title: 'Word of Honor', season: 1, episode: 1, tags: ['chinese', 'asian', 'cdrama'] },
+  {
+    tmdbId: '91759',
+    title: 'Word of Honor',
+    season: 1,
+    episode: 1,
+    tags: ['chinese', 'asian', 'cdrama'],
+  },
 
   // Indian TV
-  { tmdbId: '79744', title: 'Sacred Games', season: 1, episode: 1, tags: ['indian', 'bollywood'] },
-  { tmdbId: '121750', title: 'The Family Man', season: 1, episode: 1, tags: ['indian', 'bollywood'] },
+  {
+    tmdbId: '79744',
+    title: 'Sacred Games',
+    season: 1,
+    episode: 1,
+    tags: ['indian', 'bollywood'],
+  },
+  {
+    tmdbId: '121750',
+    title: 'The Family Man',
+    season: 1,
+    episode: 1,
+    tags: ['indian', 'bollywood'],
+  },
 
   // Turkish
-  { tmdbId: '75219', title: 'Diriliş: Ertuğrul', season: 1, episode: 1, tags: ['turkish'] },
+  {
+    tmdbId: '75219',
+    title: 'Diriliş: Ertuğrul',
+    season: 1,
+    episode: 1,
+    tags: ['turkish'],
+  },
 
   // Spanish / Latin
-  { tmdbId: '71446', title: 'Money Heist (La Casa de Papel)', season: 1, episode: 1, tags: ['spanish', 'latin', 'popular'] },
-  { tmdbId: '73021', title: 'Cable Girls (Las Chicas del Cable)', season: 1, episode: 1, tags: ['spanish', 'latin'] },
+  {
+    tmdbId: '71446',
+    title: 'Money Heist (La Casa de Papel)',
+    season: 1,
+    episode: 1,
+    tags: ['spanish', 'latin', 'popular'],
+  },
+  {
+    tmdbId: '73021',
+    title: 'Cable Girls (Las Chicas del Cable)',
+    season: 1,
+    episode: 1,
+    tags: ['spanish', 'latin'],
+  },
 
   // Anime Series
-  { tmdbId: '85937', title: 'Demon Slayer', season: 1, episode: 1, tags: ['anime', 'japanese'] },
-  { tmdbId: '46260', title: 'Naruto', season: 1, episode: 1, tags: ['anime', 'japanese'] },
-  { tmdbId: '37854', title: 'One Piece', season: 1, episode: 1, tags: ['anime', 'japanese'] },
-  { tmdbId: '31911', title: 'Dragon Ball Z', season: 1, episode: 1, tags: ['anime', 'japanese'] },
-  { tmdbId: '95557', title: 'Jujutsu Kaisen', season: 1, episode: 1, tags: ['anime', 'japanese'] },
-  { tmdbId: '1429', title: 'Attack on Titan', season: 1, episode: 1, tags: ['anime', 'japanese'] },
+  {
+    tmdbId: '85937',
+    title: 'Demon Slayer',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '46260',
+    title: 'Naruto',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '37854',
+    title: 'One Piece',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '31911',
+    title: 'Dragon Ball Z',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '95557',
+    title: 'Jujutsu Kaisen',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
+  {
+    tmdbId: '1429',
+    title: 'Attack on Titan',
+    season: 1,
+    episode: 1,
+    tags: ['anime', 'japanese'],
+  },
 
   // Animation / Cartoon Series
-  { tmdbId: '246', title: 'Avatar: The Last Airbender', season: 1, episode: 1, tags: ['cartoon', 'animation'] },
-  { tmdbId: '456', title: 'The Simpsons', season: 1, episode: 1, tags: ['cartoon', 'animation'] },
-  { tmdbId: '60625', title: 'Rick and Morty', season: 1, episode: 1, tags: ['cartoon', 'animation'] },
+  {
+    tmdbId: '246',
+    title: 'Avatar: The Last Airbender',
+    season: 1,
+    episode: 1,
+    tags: ['cartoon', 'animation'],
+  },
+  {
+    tmdbId: '456',
+    title: 'The Simpsons',
+    season: 1,
+    episode: 1,
+    tags: ['cartoon', 'animation'],
+  },
+  {
+    tmdbId: '60625',
+    title: 'Rick and Morty',
+    season: 1,
+    episode: 1,
+    tags: ['cartoon', 'animation'],
+  },
 
   // French
-  { tmdbId: '1418', title: 'The Big Bang Theory', season: 1, episode: 1, tags: ['french', 'hollywood', 'popular'] },
+  {
+    tmdbId: '1418',
+    title: 'The Big Bang Theory',
+    season: 1,
+    episode: 1,
+    tags: ['french', 'hollywood', 'popular'],
+  },
 
   // Arabic / International
-  { tmdbId: '215720', title: 'Queen of Tears', season: 1, episode: 1, tags: ['korean', 'asian', 'kdrama', 'arabic'] },
+  {
+    tmdbId: '215720',
+    title: 'Queen of Tears',
+    season: 1,
+    episode: 1,
+    tags: ['korean', 'asian', 'kdrama', 'arabic'],
+  },
 ]
 
 // ─── Provider → Content Mapping ─────────────────────────────────────────
@@ -175,58 +419,58 @@ const TV_SHOWS: TestShow[] = [
 
 const PROVIDER_TAG_AFFINITY: Record<string, string[]> = {
   // Indian / Bollywood
-  bollyflix:      ['bollywood', 'indian'],
-  netmirror:     ['bollywood', 'indian', 'hollywood'],
-  tamilian:      ['bollywood', 'indian'],
-  uhdmovies:     ['bollywood', 'indian', 'hollywood'],
-  '4khdhub':     ['bollywood', 'indian', 'hollywood'],
-  '4khdhubnew':  ['bollywood', 'indian', 'hollywood'],
-  movieblast:    ['bollywood', 'indian', 'hollywood'],
+  bollyflix: ['bollywood', 'indian'],
+  netmirror: ['bollywood', 'indian', 'hollywood'],
+  tamilian: ['bollywood', 'indian'],
+  uhdmovies: ['bollywood', 'indian', 'hollywood'],
+  '4khdhub': ['bollywood', 'indian', 'hollywood'],
+  '4khdhubnew': ['bollywood', 'indian', 'hollywood'],
+  movieblast: ['bollywood', 'indian', 'hollywood'],
 
   // Korean / Asian Drama
-  kisskh:        ['korean', 'asian', 'kdrama', 'cdrama', 'japanese'],
-  dramafull:     ['korean', 'asian', 'kdrama', 'cdrama'],
+  kisskh: ['korean', 'asian', 'kdrama', 'cdrama', 'japanese'],
+  dramafull: ['korean', 'asian', 'kdrama', 'cdrama'],
 
   // Anime / Cartoons
-  toonhub:       ['anime', 'cartoon', 'animation'],
+  toonhub: ['anime', 'cartoon', 'animation'],
 
   // Spanish / Latin
-  cuevana:       ['spanish', 'latin', 'hollywood'],
+  cuevana: ['spanish', 'latin', 'hollywood'],
 
   // Turkish
-  jetfilmizle:   ['turkish', 'hollywood'],
+  jetfilmizle: ['turkish', 'hollywood'],
 
   // Spanish + English
-  notorrent:     ['spanish', 'latin', 'hollywood', 'popular'],
+  notorrent: ['spanish', 'latin', 'hollywood', 'popular'],
 
   // French
-  movix:         ['french', 'hollywood', 'popular'],
-  purstream:     ['french', 'hollywood', 'popular'],
+  movix: ['french', 'hollywood', 'popular'],
+  purstream: ['french', 'hollywood', 'popular'],
 
   // Arabic / International
-  cineby:        ['arabic', 'hollywood', 'popular'],
+  cineby: ['arabic', 'hollywood', 'popular'],
 
   // Indian (broader)
-  playimdb:      ['bollywood', 'indian', 'hollywood'],
-  peachify:      ['bollywood', 'indian', 'hollywood'],
-  xpass:         ['bollywood', 'indian', 'hollywood'],
+  playimdb: ['bollywood', 'indian', 'hollywood'],
+  peachify: ['bollywood', 'indian', 'hollywood'],
+  xpass: ['bollywood', 'indian', 'hollywood'],
 
   // General providers — test with popular/hollywood
-  vixsrc:        ['hollywood', 'popular'],
-  vidsrc:        ['hollywood', 'popular'],
-  vidzee:        ['hollywood', 'popular'],
-  showbox:       ['hollywood', 'popular'],
-  dahmermovies:  ['hollywood', 'popular'],
+  vixsrc: ['hollywood', 'popular'],
+  vidsrc: ['hollywood', 'popular'],
+  vidzee: ['hollywood', 'popular'],
+  showbox: ['hollywood', 'popular'],
+  dahmermovies: ['hollywood', 'popular'],
   'dahmermovies-tv': ['hollywood', 'popular'],
-  streamflix:    ['hollywood', 'popular'],
-  videasy:       ['hollywood', 'popular'],
-  videasy2:      ['hollywood', 'popular'],
-  vidlink:       ['hollywood', 'popular'],
-  vidfast:       ['hollywood', 'popular'],
-  castle:        ['hollywood', 'popular'],
-  artemis:       ['hollywood', 'popular'],
-  watchflux:     ['hollywood', 'popular'],
-  aether:        ['hollywood', 'popular'],
+  streamflix: ['hollywood', 'popular'],
+  videasy: ['hollywood', 'popular'],
+  videasy2: ['hollywood', 'popular'],
+  vidlink: ['hollywood', 'popular'],
+  vidfast: ['hollywood', 'popular'],
+  castle: ['hollywood', 'popular'],
+  artemis: ['hollywood', 'popular'],
+  watchflux: ['hollywood', 'popular'],
+  aether: ['hollywood', 'popular'],
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
@@ -430,26 +674,46 @@ function statusBadge(success: boolean): string {
     : `${c.bgRed}${c.bold} FAIL ${c.reset}`
 }
 
-function pad(str: string, len: number): string {
-  return str.length >= len ? str.slice(0, len) : str + ' '.repeat(len - str.length)
+function fit(str: string, len: number): string {
+  if (str.length > len) {
+    return len <= 1 ? str.slice(0, len) : `${str.slice(0, len - 1)}…`
+  }
+  return str + ' '.repeat(len - str.length)
 }
 
-function printResultLine(r: TestResult) {
+function formatResultLine(r: TestResult): string {
   const badge = statusBadge(r.success)
-  const type = r.type === 'movie' ? `${c.blue}🎬 MOV${c.reset}` : `${c.magenta}📺 TV ${c.reset}`
-  const links = r.success
-    ? `${c.green}${r.linkCount} link(s)${c.reset}`
-    : `${c.red}0 links${c.reset}`
-  const quals = r.qualities.length
-    ? `${c.cyan}[${r.qualities.join(', ')}]${c.reset}`
-    : `${c.dim}—${c.reset}`
-  const subs = r.hasSubtitles ? `${c.yellow}🗨 subs${c.reset}` : `${c.dim}no subs${c.reset}`
+  const type =
+    r.type === 'movie'
+      ? `${c.blue}🎬 MOV${c.reset}`
+      : `${c.magenta}📺 TV ${c.reset}`
+  const linksText = r.success ? `${r.linkCount} link(s)` : '0 links'
+  const linksColor = r.success ? c.green : c.red
+  const qualitiesText = r.qualities.length ? `[${r.qualities.join(', ')}]` : '—'
+  const qualitiesColor = r.qualities.length ? c.cyan : c.dim
+  const subs = r.hasSubtitles
+    ? `${c.yellow}🗨 subs${c.reset}`
+    : `${c.dim}no subs${c.reset}`
   const time = `${c.dim}${r.timeMs}ms${c.reset}`
   const err = r.error ? `  ${c.red}↳ ${r.error}${c.reset}` : ''
 
-  console.log(
-    `  ${badge} ${type} ${pad(r.title, 42)} ${pad(links, 18)} ${pad(quals, 30)} ${subs}  ${time}${err}`
-  )
+  return `  ${badge} ${type} ${fit(r.title, 42)} ${linksColor}${fit(linksText, 18)}${c.reset} ${qualitiesColor}${fit(qualitiesText, 30)}${c.reset} ${subs}  ${time}${err}`
+}
+
+function formatProviderBlock(
+  provider: string,
+  movieCount: number,
+  showCount: number,
+  results: TestResult[]
+): string {
+  const passed = results.filter(r => r.success).length
+  const icon = passed === results.length ? '✅' : passed > 0 ? '⚠️' : '❌'
+
+  return [
+    `${c.bold}${c.cyan}┌─ ${provider} ${c.reset}${c.dim}(${movieCount} movies, ${showCount} shows)${c.reset}`,
+    ...results.map(formatResultLine),
+    `${c.bold}${c.cyan}└─ ${provider}${c.reset} ${icon} ${passed}/${results.length} passed`,
+  ].join('\n')
 }
 
 // ─── Summary Table ──────────────────────────────────────────────────────
@@ -506,7 +770,7 @@ function printSummary(results: TestResult[]) {
   console.log(`${c.bold}${c.cyan}  PROVIDER SUMMARY${c.reset}`)
   console.log(`${c.bold}${'═'.repeat(110)}${c.reset}`)
 
-  const hdr = `  ${pad('Provider', 20)} ${pad('Status', 10)} ${pad('Pass Rate', 12)} ${pad('Movies', 12)} ${pad('TV', 12)} ${pad('Avg Time', 10)} ${pad('Subs', 6)}`
+  const hdr = `  ${fit('Provider', 20)} ${fit('Status', 10)} ${fit('Pass Rate', 12)} ${fit('Movies', 12)} ${fit('TV', 12)} ${fit('Avg Time', 10)} ${fit('Subs', 6)}`
   console.log(`${c.bold}${hdr}${c.reset}`)
   console.log(`  ${'─'.repeat(106)}`)
 
@@ -518,7 +782,7 @@ function printSummary(results: TestResult[]) {
     const subs = s.hasSubtitles ? '✓' : '—'
 
     console.log(
-      `  ${pad(s.provider, 20)} ${statusColor}${pad(status, 10)}${c.reset} ${statusColor}${pad(rateStr, 12)}${c.reset} ${pad(`${s.moviePassed}/${s.movieTotal}`, 12)} ${pad(`${s.tvPassed}/${s.tvTotal}`, 12)} ${c.dim}${pad(`${s.avgTimeMs}ms`, 10)}${c.reset} ${pad(subs, 6)}`
+      `  ${fit(s.provider, 20)} ${statusColor}${fit(status, 10)}${c.reset} ${statusColor}${fit(rateStr, 12)}${c.reset} ${fit(`${s.moviePassed}/${s.movieTotal}`, 12)} ${fit(`${s.tvPassed}/${s.tvTotal}`, 12)} ${c.dim}${fit(`${s.avgTimeMs}ms`, 10)}${c.reset} ${fit(subs, 6)}`
     )
   }
 
@@ -526,13 +790,20 @@ function printSummary(results: TestResult[]) {
 
   const totalPassed = results.filter(r => r.success).length
   const totalFailed = results.filter(r => !r.success).length
-  const overallRate = results.length > 0 ? ((totalPassed / results.length) * 100).toFixed(1) : '0'
+  const overallRate =
+    results.length > 0 ? ((totalPassed / results.length) * 100).toFixed(1) : '0'
   const providersUp = summaries.filter(s => s.passed > 0).length
   const providersDown = summaries.filter(s => s.passed === 0).length
 
-  console.log(`\n  ${c.bold}Total:${c.reset} ${results.length} tests across ${summaries.length} providers`)
-  console.log(`  ${c.green}Passed: ${totalPassed}${c.reset}  ${c.red}Failed: ${totalFailed}${c.reset}  ${c.cyan}Rate: ${overallRate}%${c.reset}`)
-  console.log(`  ${c.green}Providers responding: ${providersUp}${c.reset}  ${c.red}Providers down: ${providersDown}${c.reset}`)
+  console.log(
+    `\n  ${c.bold}Total:${c.reset} ${results.length} tests across ${summaries.length} providers`
+  )
+  console.log(
+    `  ${c.green}Passed: ${totalPassed}${c.reset}  ${c.red}Failed: ${totalFailed}${c.reset}  ${c.cyan}Rate: ${overallRate}%${c.reset}`
+  )
+  console.log(
+    `  ${c.green}Providers responding: ${providersUp}${c.reset}  ${c.red}Providers down: ${providersDown}${c.reset}`
+  )
   console.log()
 }
 
@@ -540,7 +811,9 @@ function printSummary(results: TestResult[]) {
 
 async function main() {
   console.log(`\n${c.bold}${c.cyan}╔${'═'.repeat(58)}╗${c.reset}`)
-  console.log(`${c.bold}${c.cyan}║  🧪  FlixQuest Stream Tester                             ║${c.reset}`)
+  console.log(
+    `${c.bold}${c.cyan}║  🧪  FlixQuest Stream Tester                             ║${c.reset}`
+  )
   console.log(`${c.bold}${c.cyan}╚${'═'.repeat(58)}╝${c.reset}\n`)
 
   console.log(`${c.dim}  Base URL:    ${BASE_URL}`)
@@ -557,9 +830,7 @@ async function main() {
     if (!healthRes.ok) throw new Error(`HTTP ${healthRes.status}`)
     console.log(`${c.green}✓ Server is running at ${BASE_URL}${c.reset}\n`)
   } catch (err) {
-    console.error(
-      `${c.red}✗ Cannot reach server at ${BASE_URL}${c.reset}`
-    )
+    console.error(`${c.red}✗ Cannot reach server at ${BASE_URL}${c.reset}`)
     console.error(
       `${c.dim}  Make sure the server is running (pnpm dev)${c.reset}\n`
     )
@@ -591,9 +862,7 @@ async function main() {
       console.error(
         `${c.red}✗ Unknown provider(s): ${invalid.join(', ')}${c.reset}`
       )
-      console.error(
-        `${c.dim}  Available: ${providerIds.join(', ')}${c.reset}`
-      )
+      console.error(`${c.dim}  Available: ${providerIds.join(', ')}${c.reset}`)
       process.exit(1)
     }
     providerIds = ONLY_PROVIDERS
@@ -627,42 +896,47 @@ async function main() {
   )
 
   // 5. Execute tests with concurrency limiting at the provider level
-  const allResults: TestResult[] = []
   const startTime = performance.now()
 
-  await mapWithConcurrency(testPlan, CONCURRENCY, async plan => {
-    console.log(
-      `${c.bold}${c.cyan}┌─ ${plan.provider} ${c.reset}${c.dim}(${plan.movies.length} movies, ${plan.shows.length} shows)${c.reset}`
-    )
+  const providerResults = await mapWithConcurrency(
+    testPlan,
+    CONCURRENCY,
+    async plan => {
+      const results: TestResult[] = []
 
-    // Run movie tests sequentially within a provider to avoid overwhelming it
-    for (const movie of plan.movies) {
-      const result = await testMovieStream(plan.provider, movie)
-      allResults.push(result)
-      printResultLine(result)
+      // Run movie tests sequentially within a provider to avoid overwhelming it
+      for (const movie of plan.movies) {
+        const result = await testMovieStream(plan.provider, movie)
+        results.push(result)
+      }
+
+      // Run TV tests
+      for (const show of plan.shows) {
+        const result = await testTVStream(plan.provider, show)
+        results.push(result)
+      }
+
+      console.log(
+        `${formatProviderBlock(
+          plan.provider,
+          plan.movies.length,
+          plan.shows.length,
+          results
+        )}\n`
+      )
+
+      return results
     }
+  )
 
-    // Run TV tests
-    for (const show of plan.shows) {
-      const result = await testTVStream(plan.provider, show)
-      allResults.push(result)
-      printResultLine(result)
-    }
-
-    const provResults = allResults.filter(r => r.provider === plan.provider)
-    const passed = provResults.filter(r => r.success).length
-    const total = provResults.length
-    const icon = passed === total ? '✅' : passed > 0 ? '⚠️' : '❌'
-    console.log(
-      `${c.bold}${c.cyan}└─ ${plan.provider}${c.reset} ${icon} ${passed}/${total} passed\n`
-    )
-  })
-
+  const allResults = providerResults.flat()
   const totalTime = Math.round(performance.now() - startTime)
 
   // 6. Print summary
   printSummary(allResults)
-  console.log(`${c.dim}  Total execution time: ${(totalTime / 1000).toFixed(1)}s${c.reset}\n`)
+  console.log(
+    `${c.dim}  Total execution time: ${(totalTime / 1000).toFixed(1)}s${c.reset}\n`
+  )
 }
 
 main().catch(err => {
