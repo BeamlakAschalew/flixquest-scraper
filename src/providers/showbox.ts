@@ -1,231 +1,64 @@
-import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import axios from 'axios'
+import { load } from 'cheerio'
+import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import {
+  generateMovieMedia,
+  generateShowMedia,
+  type MovieMedia,
+  type ShowMedia,
+} from '../utils/tmdb.js'
 
-/**
- * ShowBox/FebBox streaming provider integration
- * Uses the FebAPI to fetch high-quality streams with multiple server options
- */
-
-// API Configuration
-const FEBAPI_BASE_URL = 'https://febapi.nuvioapp.space/api/media'
-const DEFAULT_OSS_REGION = 'USA7'
-
-// Supported OSS regions for load balancing
-const OSS_REGIONS = ['USA7', 'USA6', 'USA5', 'IN1', 'EU1'] as const
-type OSSRegion = (typeof OSS_REGIONS)[number]
-
-// Default headers for requests
-const DEFAULT_HEADERS = {
-  'User-Agent': 'FlixQuestScraper/1.0',
-  Accept: 'application/json',
+const SHOWBOX_BASE_URL = 'https://www.showbox.media'
+const FEBBOX_BASE_URL = 'https://www.febbox.com'
+const REQUEST_TIMEOUT_MS = 30_000
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+const PUBLIC_HEADERS = {
+  Accept: 'text/html,application/json,*/*',
+  'User-Agent': USER_AGENT,
 }
+const PLAYBACK_HEADERS = {
+  Accept: '*/*',
+  Referer: `${FEBBOX_BASE_URL}/`,
+  'User-Agent': USER_AGENT,
+}
+const VIDEO_EXTENSION = /\.(?:avi|m2ts|m4v|mkv|mov|mp4|mpeg|mpg|ts|webm)$/i
 
-// Cookie storage for quota management
 let cookiePool: string[] = []
 let currentCookieIndex = 0
 
-// Proxy pool for load balancing
-let proxyPool: string[] = []
-let currentProxyIndex = 0
-
-/**
- * Quality parsing and normalization
- */
 interface QualityInfo {
   quality: string
   priority: number
 }
 
-function parseQualityFromLabel(label: string | null | undefined): QualityInfo {
-  if (!label) return { quality: 'ORG', priority: 0 }
-
-  const labelLower = String(label).toLowerCase()
-
-  if (
-    labelLower.includes('2160p') ||
-    labelLower.includes('2160') ||
-    labelLower.includes('4k') ||
-    labelLower.includes('uhd')
-  ) {
-    return { quality: '2160p', priority: 5 }
-  } else if (labelLower.includes('1080p') || labelLower.includes('1080')) {
-    return { quality: '1080p', priority: 4 }
-  } else if (labelLower.includes('720p') || labelLower.includes('720')) {
-    return { quality: '720p', priority: 3 }
-  } else if (labelLower.includes('480p') || labelLower.includes('480')) {
-    return { quality: '480p', priority: 2 }
-  } else if (labelLower.includes('360p') || labelLower.includes('360')) {
-    return { quality: '360p', priority: 1 }
-  } else if (labelLower.includes('hd')) {
-    return { quality: '720p', priority: 3 }
-  } else if (labelLower.includes('sd')) {
-    return { quality: '480p', priority: 2 }
+interface ShowBoxShareResponse {
+  code?: number
+  msg?: string
+  data?: {
+    link?: string
   }
-
-  return { quality: 'ORG', priority: 0 }
 }
 
-/**
- * Extract codec/format details from version name
- */
-function extractCodecDetails(text: string | null | undefined): string[] {
-  if (!text || typeof text !== 'string') return []
-
-  const details: Set<string> = new Set()
-  const lowerText = text.toLowerCase()
-
-  // Video Technologies (HDR, Dolby Vision)
-  if (
-    lowerText.includes('dolby vision') ||
-    lowerText.includes('dovi') ||
-    lowerText.includes('.dv.')
-  ) {
-    details.add('DV')
-  }
-  if (lowerText.includes('hdr10+') || lowerText.includes('hdr10plus')) {
-    details.add('HDR10+')
-  } else if (lowerText.includes('hdr')) {
-    details.add('HDR')
-  }
-
-  // Video Codecs
-  if (lowerText.includes('av1')) {
-    details.add('AV1')
-  } else if (
-    lowerText.includes('h265') ||
-    lowerText.includes('x265') ||
-    lowerText.includes('hevc')
-  ) {
-    details.add('HEVC')
-  } else if (
-    lowerText.includes('h264') ||
-    lowerText.includes('x264') ||
-    lowerText.includes('avc')
-  ) {
-    details.add('H.264')
-  }
-
-  // Audio Technologies
-  if (lowerText.includes('atmos')) {
-    details.add('Atmos')
-  }
-  if (lowerText.includes('truehd') || lowerText.includes('true-hd')) {
-    details.add('TrueHD')
-  }
-  if (
-    lowerText.includes('dts-hd ma') ||
-    lowerText.includes('dtshdma') ||
-    lowerText.includes('dts-hdhr')
-  ) {
-    details.add('DTS-HD MA')
-  } else if (lowerText.includes('dts-hd')) {
-    details.add('DTS-HD')
-  } else if (lowerText.includes('dts') && !lowerText.includes('dts-hd')) {
-    details.add('DTS')
-  }
-
-  // Audio Codecs
-  if (
-    lowerText.includes('eac3') ||
-    lowerText.includes('e-ac-3') ||
-    lowerText.includes('dd+') ||
-    lowerText.includes('ddplus')
-  ) {
-    details.add('EAC3')
-  } else if (
-    lowerText.includes('ac3') ||
-    (lowerText.includes('dd') &&
-      !lowerText.includes('dd+') &&
-      !lowerText.includes('ddp'))
-  ) {
-    details.add('AC3')
-  }
-
-  if (lowerText.includes('aac')) details.add('AAC')
-  if (lowerText.includes('opus')) details.add('Opus')
-
-  // Bit depth
-  if (lowerText.includes('10bit') || lowerText.includes('10-bit')) {
-    details.add('10-bit')
-  }
-
-  return Array.from(details)
+interface FebBoxFile {
+  fid: number
+  file_name: string
+  file_size?: string
+  is_dir: number
 }
 
-/**
- * Parse file size string to bytes for comparison
- */
-function parseSizeToBytes(sizeString: string | null | undefined): number {
-  if (!sizeString || typeof sizeString !== 'string') {
-    return Number.MAX_SAFE_INTEGER
+interface FebBoxListResponse {
+  code?: number
+  msg?: string
+  data?: {
+    file_list?: FebBoxFile[]
   }
-
-  const sizeLower = sizeString.toLowerCase()
-  if (sizeLower.includes('unknown') || sizeLower.includes('n/a')) {
-    return Number.MAX_SAFE_INTEGER
-  }
-
-  const units: Record<string, number> = {
-    gb: 1024 * 1024 * 1024,
-    mb: 1024 * 1024,
-    kb: 1024,
-    b: 1,
-  }
-
-  const match = sizeString.match(/([\d.]+)\s*(gb|mb|kb|b)/i)
-  if (match && match[1] && match[2]) {
-    const value = parseFloat(match[1])
-    const unit = match[2].toLowerCase()
-    if (!isNaN(value) && units[unit]) {
-      return Math.floor(value * units[unit])
-    }
-  }
-
-  return Number.MAX_SAFE_INTEGER
 }
 
-/**
- * Build quality string with codec details
- */
-function buildQualityString(
-  baseQuality: string,
-  codecs: string[],
-  size?: string
-): string {
-  const parts: string[] = [baseQuality]
-
-  if (codecs.length > 0) {
-    parts.push(codecs.slice(0, 3).join(' | ')) // Limit to 3 codecs for readability
-  }
-
-  if (size && size !== 'Unknown' && size !== 'Unknown size') {
-    parts.push(`[${size}]`)
-  }
-
-  return parts.join(' ')
-}
-
-/**
- * API Response Interfaces
- */
-interface ShowBoxLink {
-  url: string
-  name?: string
-  quality?: string
-  size?: string
-}
-
-interface ShowBoxVersion {
-  name?: string
-  size?: string
-  links?: ShowBoxLink[]
-}
-
-interface ShowBoxApiResponse {
-  success: boolean
-  versions?: ShowBoxVersion[]
-  error?: string
-  message?: string
+interface FebBoxPlayerSource {
+  file?: string
+  label?: string
+  type?: string
 }
 
 interface CookieQuotaResult {
@@ -234,294 +67,526 @@ interface CookieQuotaResult {
   cookie: string
 }
 
-/**
- * Check quota for a FebBox cookie
- */
+type MediaMetadata = MovieMedia | ShowMedia
+
+function parseQualityFromLabel(label: string | null | undefined): QualityInfo {
+  if (!label) return { quality: 'ORG', priority: 0 }
+
+  const value = String(label).toLowerCase()
+  if (
+    value.includes('2160p') ||
+    value.includes('2160') ||
+    value.includes('4k') ||
+    value.includes('uhd')
+  ) {
+    return { quality: '2160p', priority: 5 }
+  }
+  if (value.includes('1080p') || value.includes('1080')) {
+    return { quality: '1080p', priority: 4 }
+  }
+  if (value.includes('720p') || value.includes('720')) {
+    return { quality: '720p', priority: 3 }
+  }
+  if (value.includes('480p') || value.includes('480')) {
+    return { quality: '480p', priority: 2 }
+  }
+  if (value.includes('360p') || value.includes('360')) {
+    return { quality: '360p', priority: 1 }
+  }
+  if (value.includes('hd')) return { quality: '720p', priority: 3 }
+  if (value.includes('sd')) return { quality: '480p', priority: 2 }
+  return { quality: 'ORG', priority: 0 }
+}
+
+function extractCodecDetails(text: string | null | undefined): string[] {
+  if (!text) return []
+
+  const details = new Set<string>()
+  const value = text.toLowerCase()
+
+  if (
+    value.includes('dolby vision') ||
+    value.includes('dovi') ||
+    value.includes('.dv.')
+  ) {
+    details.add('DV')
+  }
+  if (value.includes('hdr10+') || value.includes('hdr10plus')) {
+    details.add('HDR10+')
+  } else if (value.includes('hdr')) {
+    details.add('HDR')
+  }
+
+  if (value.includes('av1')) {
+    details.add('AV1')
+  } else if (
+    value.includes('h265') ||
+    value.includes('x265') ||
+    value.includes('hevc')
+  ) {
+    details.add('HEVC')
+  } else if (
+    value.includes('h264') ||
+    value.includes('x264') ||
+    value.includes('avc')
+  ) {
+    details.add('H.264')
+  }
+
+  if (value.includes('atmos')) details.add('Atmos')
+  if (value.includes('truehd') || value.includes('true-hd')) {
+    details.add('TrueHD')
+  }
+  if (
+    value.includes('dts-hd ma') ||
+    value.includes('dtshdma') ||
+    value.includes('dts-hdhr')
+  ) {
+    details.add('DTS-HD MA')
+  } else if (value.includes('dts-hd')) {
+    details.add('DTS-HD')
+  } else if (value.includes('dts')) {
+    details.add('DTS')
+  }
+
+  if (
+    value.includes('eac3') ||
+    value.includes('e-ac-3') ||
+    value.includes('dd+') ||
+    value.includes('ddplus')
+  ) {
+    details.add('EAC3')
+  } else if (
+    value.includes('ac3') ||
+    (value.includes('dd') && !value.includes('dd+') && !value.includes('ddp'))
+  ) {
+    details.add('AC3')
+  }
+
+  if (value.includes('aac')) details.add('AAC')
+  if (value.includes('opus')) details.add('Opus')
+  if (value.includes('10bit') || value.includes('10-bit')) {
+    details.add('10-bit')
+  }
+
+  return Array.from(details)
+}
+
+function parseSizeToBytes(size: string | null | undefined): number {
+  if (!size) return Number.MAX_SAFE_INTEGER
+
+  const match = size.match(/([\d.]+)\s*(gb|mb|kb|b)/i)
+  if (!match?.[1] || !match[2]) return Number.MAX_SAFE_INTEGER
+
+  const multipliers: Record<string, number> = {
+    gb: 1024 ** 3,
+    mb: 1024 ** 2,
+    kb: 1024,
+    b: 1,
+  }
+  return Number.parseFloat(match[1]) * multipliers[match[2].toLowerCase()]
+}
+
+function buildQualityString(
+  quality: string,
+  codecs: string[],
+  size?: string
+): string {
+  const parts = [quality]
+  if (codecs.length) parts.push(codecs.slice(0, 3).join(' | '))
+  if (size) parts.push(`[${size}]`)
+  return parts.join(' ')
+}
+
+function normalizeTitle(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function normalizeCookieHeader(cookie: string): string {
+  return /(?:^|;\s*)ui=/.test(cookie) ? cookie : `ui=${cookie}`
+}
+
+function loadEnvironmentCookies(): void {
+  if (cookiePool.length) return
+
+  const configured =
+    process.env.SHOWBOX_COOKIES || process.env.FEBBOX_COOKIE || ''
+  cookiePool = configured
+    .split(',')
+    .map(cookie => cookie.trim())
+    .filter(Boolean)
+
+  if (cookiePool.length) {
+    console.log(
+      `[ShowBox] Loaded ${cookiePool.length} cookie(s) from environment`
+    )
+  }
+}
+
 async function checkCookieQuota(cookie: string): Promise<CookieQuotaResult> {
   try {
-    const cookieValue = cookie.startsWith('ui=') ? cookie : `ui=${cookie}`
-
-    const response = await axios.get(
-      'https://www.febbox.com/console/user_cards',
-      {
-        headers: {
-          Cookie: cookieValue,
-          Accept: 'application/json, text/javascript, */*; q=0.01',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        timeout: 8000,
-        validateStatus: () => true,
-      }
-    )
-
-    if (response.status === 200 && response.data?.data?.flow) {
-      const flow = response.data.data.flow
-      const remaining =
+    const response = await axios.get(`${FEBBOX_BASE_URL}/console/user_cards`, {
+      headers: {
+        ...PUBLIC_HEADERS,
+        Cookie: normalizeCookieHeader(cookie),
+      },
+      timeout: 8_000,
+      validateStatus: () => true,
+    })
+    const flow = response.data?.data?.flow
+    if (response.status === 200 && flow) {
+      const remainingMB =
         (Number(flow.traffic_limit_mb) || 0) -
         (Number(flow.traffic_usage_mb) || 0)
-
-      console.log(`[ShowBox] Cookie quota check: ${remaining} MB remaining`)
-      return { ok: true, remainingMB: remaining, cookie }
+      console.log(`[ShowBox] Cookie quota check: ${remainingMB} MB remaining`)
+      return { ok: true, remainingMB, cookie }
     }
   } catch (error) {
     console.warn(
       `[ShowBox] Quota check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
   }
-
   return { ok: false, remainingMB: -1, cookie }
 }
 
-/**
- * Select the best cookie from the pool based on remaining quota
- */
 async function selectBestCookie(): Promise<string | null> {
-  // Always check environment variables first (in case they changed or weren't loaded initially)
-  if (cookiePool.length === 0) {
-    const envCookies = process.env.SHOWBOX_COOKIES || process.env.FEBBOX_COOKIE
+  loadEnvironmentCookies()
 
-    if (envCookies) {
-      // Support comma-separated cookies
-      cookiePool = envCookies
-        .split(',')
-        .map(c => c.trim())
-        .filter(c => c.length > 0)
-
-      if (cookiePool.length > 0) {
-        console.log(
-          `[ShowBox] Loaded ${cookiePool.length} cookie(s) from environment`
-        )
-      }
-    }
-  }
-
-  if (cookiePool.length === 0) {
+  if (!cookiePool.length) {
     console.warn(
-      '[ShowBox] No cookies configured - API requires authentication!'
+      '[ShowBox] No cookies configured - FebBox requires a ui cookie'
     )
     return null
   }
-
   if (cookiePool.length === 1) {
     console.log('[ShowBox] Using single configured cookie')
     return cookiePool[0]
   }
 
-  // For multiple cookies, check quotas and select best
   console.log(`[ShowBox] Checking quota for ${cookiePool.length} cookies...`)
-
-  const quotaResults = await Promise.all(cookiePool.map(checkCookieQuota))
-  const validResults = quotaResults.filter(r => r.ok && r.remainingMB > 0)
-
-  if (validResults.length > 0) {
-    // Sort by remaining quota descending
-    validResults.sort((a, b) => b.remainingMB - a.remainingMB)
-    const best = validResults[0]
+  const results = await Promise.all(cookiePool.map(checkCookieQuota))
+  const valid = results
+    .filter(result => result.ok && result.remainingMB > 0)
+    .sort((left, right) => right.remainingMB - left.remainingMB)
+  if (valid[0]) {
     console.log(
-      `[ShowBox] Selected cookie with ${best.remainingMB} MB remaining`
+      `[ShowBox] Selected cookie with ${valid[0].remainingMB} MB remaining`
     )
-    return best.cookie
+    return valid[0].cookie
   }
 
-  // Fallback: round-robin if all quota checks failed
   const cookie = cookiePool[currentCookieIndex % cookiePool.length]
   currentCookieIndex++
   console.log('[ShowBox] Quota checks failed, using round-robin selection')
   return cookie
 }
 
-/**
- * Load and select a proxy from the pool (round-robin)
- */
-function selectProxy(): string | null {
-  // Load proxies from environment if not already loaded
-  if (proxyPool.length === 0) {
-    const envProxies =
-      process.env.SHOWBOX_PROXY_URLS || process.env.SHOWBOX_PROXY_URL_VALUE
-
-    if (envProxies) {
-      proxyPool = envProxies
-        .split(',')
-        .map(p => p.trim())
-        .filter(p => p.length > 0)
-        .map(p => {
-          // Ensure proxy ends with ?destination= or appropriate query param
-          if (!p.includes('destination=')) {
-            return p.endsWith('?') ? `${p}destination=` : `${p}?destination=`
-          }
-          return p
-        })
-
-      if (proxyPool.length > 0) {
-        console.log(`[ShowBox] Loaded ${proxyPool.length} proxy(ies)`)
-      }
-    }
-  }
-
-  if (proxyPool.length === 0) {
-    return null
-  }
-
-  // Round-robin selection
-  const proxy = proxyPool[currentProxyIndex % proxyPool.length]
-  currentProxyIndex++
-  return proxy
-}
-
-/**
- * Fetch streams from the FebAPI
- */
-async function fetchShowBoxStreams(
+async function getMetadata(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number,
-  region: OSSRegion = DEFAULT_OSS_REGION
-): Promise<ProviderLink[]> {
-  // Build API URL
-  let apiUrl: string
-
-  if (mediaType === 'tv') {
-    if (season === undefined || episode === undefined) {
-      console.error('[ShowBox] TV shows require season and episode numbers')
-      return []
-    }
-    apiUrl = `${FEBAPI_BASE_URL}/tv/${tmdbId}/oss=${region}/${season}/${episode}`
-  } else {
-    apiUrl = `${FEBAPI_BASE_URL}/movie/${tmdbId}/oss=${region}`
+  episode?: number
+): Promise<MediaMetadata> {
+  if (mediaType === 'movie') return generateMovieMedia(tmdbId)
+  if (season === undefined || episode === undefined) {
+    throw new Error('TV shows require season and episode numbers')
   }
-
-  // Get best cookie
-  const selectedCookie = await selectBestCookie()
-
-  if (!selectedCookie) {
-    console.error('[ShowBox] No cookie available - cannot proceed')
-    return []
-  }
-
-  // Add cookie to URL
-  const cookieValue = selectedCookie.startsWith('ui=')
-    ? selectedCookie.substring(3)
-    : selectedCookie
-  apiUrl += `?cookie=${encodeURIComponent(cookieValue)}`
-
-  // Get proxy if configured
-  const proxy = selectProxy()
-  const finalUrl = proxy ? `${proxy}${encodeURIComponent(apiUrl)}` : apiUrl
-
-  console.log(
-    `[ShowBox] Fetching from: ${proxy ? 'proxy → ' : ''}${apiUrl.replace(/\?cookie=.*/, '?cookie=***')}`
-  )
-
-  try {
-    const response = await axios.get<ShowBoxApiResponse>(finalUrl, {
-      headers: {
-        ...DEFAULT_HEADERS,
-        ...(selectedCookie && {
-          Cookie: selectedCookie.startsWith('ui=')
-            ? selectedCookie
-            : `ui=${selectedCookie}`,
-        }),
-      },
-      timeout: 30000,
-    })
-
-    if (!response.data?.success) {
-      console.log(
-        `[ShowBox] API returned unsuccessful: ${response.data?.message || response.data?.error || 'Unknown error'}`
-      )
-      return []
-    }
-
-    // Debug: Log raw response structure
-    if (process.env.SHOWBOX_DEBUG === 'true') {
-      console.log(
-        '[ShowBox] Raw API response:',
-        JSON.stringify(response.data, null, 2).substring(0, 1000)
-      )
-    }
-
-    const streams: ProviderLink[] = []
-
-    // Process versions array
-    if (response.data.versions && Array.isArray(response.data.versions)) {
-      console.log(
-        `[ShowBox] Processing ${response.data.versions.length} version(s)`
-      )
-
-      for (const version of response.data.versions) {
-        const versionName = version.name || 'Unknown'
-        const versionSize = version.size || 'Unknown'
-        const codecs = extractCodecDetails(versionName)
-
-        console.log(
-          `[ShowBox]   Version: "${versionName}" (${versionSize}) - ${version.links?.length || 0} link(s)`
-        )
-
-        // Process links for each version
-        if (version.links && Array.isArray(version.links)) {
-          for (const link of version.links) {
-            if (!link.url) continue
-
-            const { quality } = parseQualityFromLabel(
-              link.quality || link.name || versionName
-            )
-            const linkSize = link.size || versionSize
-            const serverName = link.name || 'Auto'
-
-            // Build descriptive quality string
-            const qualityString = buildQualityString(quality, codecs, linkSize)
-
-            // Determine if URL is M3U8/HLS
-            const isM3U8 =
-              link.url.includes('.m3u8') ||
-              link.url.includes('/hls/') ||
-              link.url.includes('playlist')
-
-            console.log(
-              `[ShowBox]     → Added: ${serverName} - ${qualityString}`
-            )
-
-            streams.push({
-              server: `ShowBox ${serverName}`,
-              url: link.url,
-              isM3U8,
-              quality: qualityString,
-              subtitles: [] as Subtitle[],
-            })
-          }
-        }
-      }
-    } else {
-      console.log('[ShowBox] No versions array in API response')
-    }
-
-    console.log(`[ShowBox] Extracted ${streams.length} stream(s)`)
-    return streams
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error(
-        `[ShowBox] API error: ${error.message}${error.response ? ` (Status: ${error.response.status})` : ''}`
-      )
-      if (error.response?.data) {
-        console.error(
-          `[ShowBox] Response: ${JSON.stringify(error.response.data).substring(0, 200)}`
-        )
-      }
-    } else {
-      console.error(
-        `[ShowBox] Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
-    }
-    return []
-  }
+  return generateShowMedia(tmdbId, season, episode)
 }
 
-/**
- * Get streams with region fallback
- * Tries multiple OSS regions if the primary fails
- */
+async function findDetailPath(
+  metadata: MediaMetadata,
+  mediaType: 'movie' | 'tv'
+): Promise<string> {
+  const response = await axios.get(`${SHOWBOX_BASE_URL}/search`, {
+    params: { keyword: metadata.title },
+    headers: PUBLIC_HEADERS,
+    timeout: REQUEST_TIMEOUT_MS,
+  })
+  const $ = load(String(response.data))
+  const expectedPrefix = mediaType === 'movie' ? '/movie/' : '/tv/'
+  const expectedTitle = normalizeTitle(metadata.title)
+  const candidates: Array<{
+    path: string
+    score: number
+    title: string
+  }> = []
+
+  $('.flw-item').each((_index, element) => {
+    const card = $(element)
+    const anchor = card
+      .find(`a[href^="${expectedPrefix}"]`)
+      .filter((_anchorIndex, item) => Boolean($(item).attr('title')))
+      .first()
+    const path = anchor.attr('href')
+    const title =
+      anchor.attr('title') || card.find('.film-name').text().trim() || ''
+    if (!path || !title) return
+
+    const normalized = normalizeTitle(title)
+    const year = Number(path.match(/-(\d{4})(?:\/)?$/)?.[1])
+    let score = 0
+    if (normalized === expectedTitle) score += 100
+    else if (
+      normalized.includes(expectedTitle) ||
+      expectedTitle.includes(normalized)
+    ) {
+      score += 20
+    }
+    if (year === metadata.releaseYear) score += 25
+    else if (Math.abs(year - metadata.releaseYear) === 1) score += 5
+    candidates.push({ path, score, title })
+  })
+
+  candidates.sort((left, right) => right.score - left.score)
+  const best = candidates[0]
+  if (!best || best.score < 100) {
+    throw new Error(
+      `No matching ShowBox ${mediaType} result for "${metadata.title}" (${metadata.releaseYear})`
+    )
+  }
+  console.log(`[ShowBox] Matched ShowBox title: ${best.title}`)
+  return best.path
+}
+
+function parseShareRequest(
+  html: string,
+  mediaType: 'movie' | 'tv'
+): { id: string; type: number } {
+  const expectedType = mediaType === 'movie' ? 1 : 2
+  const shareBlockPattern =
+    /\/index\/share_link[\s\S]{0,500}?data\s*:\s*\{([\s\S]{0,250}?)\}/g
+
+  for (const match of html.matchAll(shareBlockPattern)) {
+    const block = match[1] || ''
+    const id = block.match(/['"]?id['"]?\s*:\s*['"]?(\d+)/)?.[1]
+    const type = Number(block.match(/['"]?type['"]?\s*:\s*['"]?(\d+)/)?.[1])
+    if (id && type === expectedType) return { id, type }
+  }
+  throw new Error('ShowBox detail page did not expose a FebBox share ID')
+}
+
+async function getShareKey(
+  detailPath: string,
+  mediaType: 'movie' | 'tv'
+): Promise<string> {
+  const detailUrl = new URL(detailPath, SHOWBOX_BASE_URL).href
+  const detailResponse = await axios.get(detailUrl, {
+    headers: PUBLIC_HEADERS,
+    timeout: REQUEST_TIMEOUT_MS,
+  })
+  const request = parseShareRequest(String(detailResponse.data), mediaType)
+  const shareResponse = await axios.get<ShowBoxShareResponse>(
+    `${SHOWBOX_BASE_URL}/index/share_link`,
+    {
+      params: request,
+      headers: { ...PUBLIC_HEADERS, Referer: detailUrl },
+      timeout: REQUEST_TIMEOUT_MS,
+    }
+  )
+  const shareUrl = shareResponse.data?.data?.link
+  const shareKey = shareUrl?.match(/\/share\/([^/?#]+)/)?.[1]
+  if (shareResponse.data?.code !== 1 || !shareKey) {
+    throw new Error(
+      `ShowBox share lookup failed: ${shareResponse.data?.msg || 'missing FebBox share URL'}`
+    )
+  }
+  return shareKey
+}
+
+async function listShareFiles(
+  shareKey: string,
+  parentId = 0
+): Promise<FebBoxFile[]> {
+  const response = await axios.get<FebBoxListResponse>(
+    `${FEBBOX_BASE_URL}/file/file_share_list`,
+    {
+      params: {
+        share_key: shareKey,
+        pwd: '',
+        parent_id: parentId,
+      },
+      headers: {
+        ...PUBLIC_HEADERS,
+        Referer: `${FEBBOX_BASE_URL}/share/${shareKey}`,
+      },
+      timeout: REQUEST_TIMEOUT_MS,
+    }
+  )
+  if (response.data?.code !== 1) {
+    throw new Error(
+      `FebBox file listing failed: ${response.data?.msg || 'unknown response'}`
+    )
+  }
+  return response.data.data?.file_list || []
+}
+
+function matchesSeason(name: string, season: number): boolean {
+  const value = name.toLowerCase()
+  const number = String(season)
+  return (
+    new RegExp(`(?:^|\\b)season[ ._-]*0*${number}(?:\\b|$)`, 'i').test(value) ||
+    new RegExp(`(?:^|\\b)s0*${number}(?:\\b|$)`, 'i').test(value)
+  )
+}
+
+function matchesEpisode(
+  name: string,
+  season: number,
+  episode: number,
+  insideSeasonDirectory: boolean
+): boolean {
+  const seasonNumber = String(season)
+  const episodeNumber = String(episode)
+  if (
+    new RegExp(
+      `(?:^|\\W)s0*${seasonNumber}[ ._-]*e0*${episodeNumber}(?:\\W|$)`,
+      'i'
+    ).test(name)
+  ) {
+    return true
+  }
+  if (
+    new RegExp(
+      `season[ ._-]*0*${seasonNumber}[ ._-]*(?:episode|ep|e)[ ._-]*0*${episodeNumber}(?:\\W|$)`,
+      'i'
+    ).test(name)
+  ) {
+    return true
+  }
+  return (
+    insideSeasonDirectory &&
+    new RegExp(
+      `(?:^|\\W)(?:episode|ep|e)[ ._-]*0*${episodeNumber}(?:\\W|$)`,
+      'i'
+    ).test(name)
+  )
+}
+
+async function collectVideoFiles(
+  shareKey: string,
+  entries: FebBoxFile[],
+  depth = 0
+): Promise<FebBoxFile[]> {
+  const files = entries.filter(
+    entry => entry.is_dir !== 1 && VIDEO_EXTENSION.test(entry.file_name)
+  )
+  if (depth >= 3) return files
+
+  const directories = entries.filter(entry => entry.is_dir === 1).slice(0, 30)
+  const children = await Promise.all(
+    directories.map(async directory =>
+      collectVideoFiles(
+        shareKey,
+        await listShareFiles(shareKey, directory.fid),
+        depth + 1
+      )
+    )
+  )
+  return files.concat(...children)
+}
+
+async function selectMediaFiles(
+  shareKey: string,
+  mediaType: 'movie' | 'tv',
+  season?: number,
+  episode?: number
+): Promise<FebBoxFile[]> {
+  const root = await listShareFiles(shareKey)
+  if (mediaType === 'movie') return collectVideoFiles(shareKey, root)
+  if (season === undefined || episode === undefined) return []
+
+  const seasonDirectories = root.filter(
+    entry => entry.is_dir === 1 && matchesSeason(entry.file_name, season)
+  )
+  if (seasonDirectories.length) {
+    const seasonFiles = (
+      await Promise.all(
+        seasonDirectories.map(async directory =>
+          collectVideoFiles(
+            shareKey,
+            await listShareFiles(shareKey, directory.fid)
+          )
+        )
+      )
+    ).flat()
+    return seasonFiles.filter(file =>
+      matchesEpisode(file.file_name, season, episode, true)
+    )
+  }
+
+  const allFiles = await collectVideoFiles(shareKey, root)
+  return allFiles.filter(file =>
+    matchesEpisode(file.file_name, season, episode, false)
+  )
+}
+
+function parsePlayerSources(html: string): FebBoxPlayerSource[] {
+  const sourceJson = html.match(/\bvar\s+sources\s*=\s*(\[[\s\S]*?\])\s*;/)?.[1]
+  if (!sourceJson) {
+    const errorMessage = html.match(/"msg"\s*:\s*"([^"]+)"/)?.[1]
+    throw new Error(errorMessage || 'FebBox player returned no sources')
+  }
+
+  const sources = JSON.parse(sourceJson) as FebBoxPlayerSource[]
+  const explicit = sources.filter(
+    source => source.file && source.label?.toUpperCase() !== 'AUTO'
+  )
+  return explicit.length ? explicit : sources.filter(source => source.file)
+}
+
+async function resolveFileStreams(
+  shareKey: string,
+  file: FebBoxFile,
+  cookie: string,
+  fileIndex: number
+): Promise<ProviderLink[]> {
+  const body = new URLSearchParams({
+    fid: String(file.fid),
+    share_key: shareKey,
+  })
+  const response = await axios.post<string>(
+    `${FEBBOX_BASE_URL}/file/player`,
+    body.toString(),
+    {
+      headers: {
+        ...PUBLIC_HEADERS,
+        Cookie: normalizeCookieHeader(cookie),
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: `${FEBBOX_BASE_URL}/share/${shareKey}`,
+      },
+      timeout: REQUEST_TIMEOUT_MS,
+    }
+  )
+  const sources = parsePlayerSources(String(response.data))
+  const codecs = extractCodecDetails(file.file_name)
+
+  return sources.flatMap(source => {
+    if (!source.file || !/^https?:\/\//i.test(source.file)) return []
+    const { quality } = parseQualityFromLabel(source.label || file.file_name)
+    return [
+      {
+        server: `ShowBox ${fileIndex + 1}`,
+        url: source.file,
+        isM3U8:
+          /\.m3u8(?:$|[?#])/i.test(source.file) ||
+          source.file.includes('/hls/'),
+        quality: buildQualityString(quality, codecs, file.file_size),
+        subtitles: [] as Subtitle[],
+        headers: PLAYBACK_HEADERS,
+        requiresProxy: true,
+      },
+    ]
+  })
+}
+
 async function getShowBoxStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
@@ -534,120 +599,87 @@ async function getShowBoxStreams(
     }${episode !== undefined ? `E${episode}` : ''}`
   )
 
-  // Try primary region first
-  let streams = await fetchShowBoxStreams(
-    tmdbId,
-    mediaType,
-    season,
-    episode,
-    DEFAULT_OSS_REGION
-  )
+  try {
+    const cookie = await selectBestCookie()
+    if (!cookie) return []
 
-  // If no streams found, try alternative regions
-  if (streams.length === 0) {
-    const alternativeRegions = OSS_REGIONS.filter(r => r !== DEFAULT_OSS_REGION)
+    const metadata = await getMetadata(tmdbId, mediaType, season, episode)
+    const detailPath = await findDetailPath(metadata, mediaType)
+    const shareKey = await getShareKey(detailPath, mediaType)
+    const files = await selectMediaFiles(shareKey, mediaType, season, episode)
+    if (!files.length) {
+      console.log('[ShowBox] No matching FebBox video files found')
+      return []
+    }
 
-    for (const region of alternativeRegions.slice(0, 2)) {
-      // Try up to 2 alternatives
-      console.log(`[ShowBox] Trying alternative region: ${region}`)
-      streams = await fetchShowBoxStreams(
-        tmdbId,
-        mediaType,
-        season,
-        episode,
-        region
+    console.log(`[ShowBox] Resolving ${files.length} FebBox file(s)`)
+    const results = await Promise.allSettled(
+      files.map((file, index) =>
+        resolveFileStreams(shareKey, file, cookie, index)
       )
+    )
+    const streams = results.flatMap((result, index) => {
+      if (result.status === 'fulfilled') return result.value
+      console.warn(
+        `[ShowBox] Could not resolve "${files[index]?.file_name}": ${
+          result.reason instanceof Error
+            ? result.reason.message
+            : 'unknown error'
+        }`
+      )
+      return []
+    })
 
-      if (streams.length > 0) {
-        console.log(`[ShowBox] Found streams using region: ${region}`)
-        break
-      }
-    }
+    const unique = Array.from(
+      new Map(
+        streams.map(stream => [
+          `${new URL(stream.url).pathname}|${stream.quality}|${stream.server}`,
+          stream,
+        ])
+      ).values()
+    )
+    unique.sort((left, right) => {
+      const qualityDifference =
+        parseQualityFromLabel(right.quality).priority -
+        parseQualityFromLabel(left.quality).priority
+      if (qualityDifference) return qualityDifference
+      return parseSizeToBytes(right.quality) - parseSizeToBytes(left.quality)
+    })
+
+    console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
+    return unique
+  } catch (error) {
+    console.error(
+      `[ShowBox] ${error instanceof Error ? error.message : 'Unknown provider error'}`
+    )
+    return []
   }
-
-  // Sort streams by quality (highest first)
-  streams.sort((a, b) => {
-    const qualityA = parseQualityFromLabel(a.quality)
-    const qualityB = parseQualityFromLabel(b.quality)
-
-    // Primary sort: quality priority (descending)
-    if (qualityA.priority !== qualityB.priority) {
-      return qualityB.priority - qualityA.priority
-    }
-
-    // Secondary sort: file size (descending - larger files typically better quality)
-    const sizeA = parseSizeToBytes(a.quality)
-    const sizeB = parseSizeToBytes(b.quality)
-    return sizeB - sizeA
-  })
-
-  console.log(`[ShowBox] Returning ${streams.length} sorted stream(s)`)
-  return streams
 }
 
-/**
- * Configure ShowBox cookies
- * Call this to set up cookies for authenticated access with higher quotas
- */
 export function configureShowBoxCookies(cookies: string | string[]): void {
-  if (typeof cookies === 'string') {
-    cookiePool = cookies
-      .split(',')
-      .map(c => c.trim())
-      .filter(c => c.length > 0)
-  } else if (Array.isArray(cookies)) {
-    cookiePool = cookies.filter(c => c && typeof c === 'string' && c.trim())
-  }
+  cookiePool = (typeof cookies === 'string' ? cookies.split(',') : cookies)
+    .map(cookie => cookie.trim())
+    .filter(Boolean)
   currentCookieIndex = 0
   console.log(`[ShowBox] Configured ${cookiePool.length} cookie(s)`)
 }
 
 /**
- * Configure ShowBox proxies
- * Call this to set up proxy URLs for routing requests
+ * Retained for source compatibility. The retired Nuvio wrapper used these URL
+ * proxies; the direct first-party flow intentionally does not send FebBox
+ * authentication cookies through them.
  */
-export function configureShowBoxProxies(proxies: string | string[]): void {
-  if (typeof proxies === 'string') {
-    proxyPool = proxies
-      .split(',')
-      .map(p => p.trim())
-      .filter(p => p.length > 0)
-      .map(p => {
-        if (!p.includes('destination=')) {
-          return p.endsWith('?') ? `${p}destination=` : `${p}?destination=`
-        }
-        return p
-      })
-  } else if (Array.isArray(proxies)) {
-    proxyPool = proxies
-      .filter(p => p && typeof p === 'string' && p.trim())
-      .map(p => {
-        if (!p.includes('destination=')) {
-          return p.endsWith('?') ? `${p}destination=` : `${p}?destination=`
-        }
-        return p
-      })
-  }
-  currentProxyIndex = 0
-  console.log(`[ShowBox] Configured ${proxyPool.length} proxy(ies)`)
+export function configureShowBoxProxies(_proxies: string | string[]): void {
+  void _proxies
+  console.warn(
+    '[ShowBox] Custom URL proxies are ignored by the direct ShowBox/FebBox integration'
+  )
 }
 
-/**
- * ShowBox Provider Export
- */
 export const showboxProvider: Provider = {
   name: 'ShowBox',
   id: 'showbox',
-
-  async streamMovie(tmdbId: string): Promise<ProviderLink[]> {
-    return getShowBoxStreams(tmdbId, 'movie')
-  },
-
-  async streamTV(
-    tmdbId: string,
-    season: number,
-    episode: number
-  ): Promise<ProviderLink[]> {
-    return getShowBoxStreams(tmdbId, 'tv', season, episode)
-  },
+  streamMovie: tmdbId => getShowBoxStreams(tmdbId, 'movie'),
+  streamTV: (tmdbId, season, episode) =>
+    getShowBoxStreams(tmdbId, 'tv', season, episode),
 }
