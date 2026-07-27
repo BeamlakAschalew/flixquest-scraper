@@ -1,16 +1,15 @@
 import * as cheerio from 'cheerio'
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 
-const BASE_URLS = ['https://dramafull.rest', 'https://dramafull.rest']
-const BASE_URL = BASE_URLS[0]
+const BASE_URL = 'https://dramafull.rest'
 const TMDB_URL = 'https://api.themoviedb.org/3'
 const REQUEST_TIMEOUT_MS = 12_000
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 const HEADERS = {
   Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
   'Accept-Language': 'en-US,en;q=0.9',
-  Referer: `${BASE_URL}/`,
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'User-Agent': USER_AGENT,
 }
 
 interface TmdbDetails {
@@ -21,27 +20,22 @@ interface TmdbDetails {
 }
 
 interface SearchItem {
-  name?: string
-  slug?: string
-  themoviedb_id?: number
-  baseUrl?: string
+  name: string
+  url: string
 }
 
-interface SearchResponse {
-  success?: boolean
-  data?: SearchItem[]
+interface MediaCandidate {
+  url: string
+  referer: string
+  subtitles: Subtitle[]
 }
 
-interface VideoResponse {
-  success?: boolean
-  video_source?: Record<string, string>
-  sub?: Record<string, string[]>
-}
-
-async function request(url: string): Promise<Response> {
-  const target = new URL(url)
+async function request(
+  url: string,
+  referer = `${BASE_URL}/`
+): Promise<Response> {
   const response = await fetch(url, {
-    headers: { ...HEADERS, Referer: `${target.origin}/` },
+    headers: { ...HEADERS, Referer: referer },
     redirect: 'follow',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
@@ -89,214 +83,289 @@ function similarity(left: string, right: string): number {
   return overlap / Math.max(aw.size, bw.size)
 }
 
-function itemsFromHtml(html: string, baseUrl: string): SearchItem[] {
+function searchItems(html: string): SearchItem[] {
   const $ = cheerio.load(html)
   const items: SearchItem[] = []
-  $('a[href*="/film/"]').each((_index, element) => {
+
+  // The current WordPress theme keeps actual search results in #list-1.
+  // Limiting the selector prevents unrelated "latest" sidebar entries from
+  // being mistaken for a title match.
+  $('#list-1 ul.items h2 a, #list-1 .item h2 a').each((_index, element) => {
     const anchor = $(element)
     const href = anchor.attr('href')
-    if (!href) return
-    const url = new URL(href, baseUrl)
-    const slug = url.pathname.match(/^\/film\/(.+?)\/?$/)?.[1]
-    if (!slug) return
-    const name = (
-      anchor.attr('title') ||
-      anchor.find('.film-name, .film-title, .title, h2, h3').first().text() ||
-      anchor.text()
-    )
+    const name = (anchor.attr('title') || anchor.text())
       .replace(/\s+/g, ' ')
       .trim()
-    if (name) items.push({ name, slug, baseUrl })
+    if (!href || !name) return
+    items.push({ name, url: new URL(href, BASE_URL).href })
   })
+
+  return Array.from(new Map(items.map(item => [item.url, item])).values())
+}
+
+async function search(title: string): Promise<SearchItem[]> {
+  const response = await request(`${BASE_URL}/?s=${encodeURIComponent(title)}`)
+  return searchItems(await response.text())
+}
+
+function encode(value: number, radix: number): string {
+  if (radix <= 36) return value.toString(radix)
+  const alphabet =
+    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let result = ''
+  do {
+    result = alphabet[value % radix] + result
+    value = Math.floor(value / radix)
+  } while (value > 0)
+  return result
+}
+
+function unpack(
+  source: string,
+  radix: number,
+  count: number,
+  keywords: string[]
+): string {
+  while (count--) {
+    if (!keywords[count]) continue
+    source = source.replace(
+      new RegExp(`\\b${encode(count, radix)}\\b`, 'g'),
+      keywords[count]
+    )
+  }
+  return source
+}
+
+function unpackScripts(html: string): string {
+  let output = html
+  for (const match of html.matchAll(
+    /return p\}\('((?:\\.|[^'])*)',\s*(\d+),\s*(\d+),\s*'((?:\\.|[^'])*)'\.split\(/gs
+  )) {
+    output += `\n${unpack(
+      match[1].replace(/\\\//g, '/'),
+      Number(match[2]),
+      Number(match[3]),
+      match[4].split('|')
+    )}`
+  }
+  return output
+}
+
+function mediaUrls(value: string, baseUrl: string): string[] {
+  const decoded = value
+    .replace(/\\\//g, '/')
+    .replace(/&amp;|&#038;/g, '&')
+    .replace(/\\u0026/g, '&')
+  const matches = [
+    ...decoded.matchAll(
+      /(?:https?:\/\/[^\s"'\\<>]+|\/[^\s"'\\<>]+)\.(?:m3u8|mp4)(?:\?[^\s"'\\<>]*)?/gi
+    ),
+  ]
   return Array.from(
-    new Map(items.map(item => [`${item.baseUrl}/${item.slug}`, item])).values()
+    new Set(
+      matches.flatMap(match => {
+        try {
+          return [new URL(match[0], baseUrl).href]
+        } catch {
+          return []
+        }
+      })
+    )
   )
 }
 
-async function searchBase(
-  baseUrl: string,
-  title: string
-): Promise<SearchItem[]> {
-  try {
-    const response = await request(
-      `${baseUrl}/api/live-search/${encodeURIComponent(title)}`
-    )
-    const payload = (await response.json()) as SearchResponse
-    if (payload.success && payload.data?.length) {
-      return payload.data.map(item => ({ ...item, baseUrl }))
+function subtitlesFrom(value: string, baseUrl: string): Subtitle[] {
+  const decoded = value.replace(/\\\//g, '/')
+  const urls = [
+    ...decoded.matchAll(
+      /(?:https?:\/\/[^\s"'\\<>]+|\/[^\s"'\\<>]+)\.(?:vtt|srt)(?:\?[^\s"'\\<>]*)?/gi
+    ),
+  ].flatMap(match => {
+    try {
+      return [new URL(match[0], baseUrl).href]
+    } catch {
+      return []
     }
-  } catch {
-    // The JSON route sometimes fails while normal catalog pages remain live.
+  })
+  return Array.from(new Set(urls)).map((file, index) => ({
+    file,
+    label: index === 0 ? 'English' : `Subtitle ${index + 1}`,
+    kind: 'captions',
+  }))
+}
+
+function iframeUrls(html: string, baseUrl: string): string[] {
+  const $ = cheerio.load(html)
+  const urls: string[] = []
+  $('iframe').each((_index, element) => {
+    const src = $(element).attr('src') || $(element).attr('data-src')
+    if (!src) return
+    try {
+      urls.push(new URL(src, baseUrl).href)
+    } catch {
+      // Ignore malformed advertisement frames.
+    }
+  })
+  return Array.from(new Set(urls))
+}
+
+function episodeUrl(
+  html: string,
+  detailUrl: string,
+  mediaType: 'movie' | 'tv',
+  season: number,
+  episode: number
+): string | undefined {
+  const $ = cheerio.load(html)
+  const candidates: Array<{
+    url: string
+    episode?: number
+    season?: number
+  }> = []
+
+  $('a[href]').each((_index, element) => {
+    const anchor = $(element)
+    const href = anchor.attr('href')
+    if (!href) return
+    const value = `${href} ${anchor.text()} ${anchor.attr('title') || ''}`
+    const episodeMatch = value.match(/(?:episode|ep)[-_\s]*(\d+)/i)
+    if (!episodeMatch) return
+    const seasonMatch = value.match(/season[-_\s]*(\d+)/i)
+    candidates.push({
+      url: new URL(href, detailUrl).href,
+      episode: Number(episodeMatch[1]),
+      season: seasonMatch ? Number(seasonMatch[1]) : undefined,
+    })
+  })
+
+  const exact = candidates.find(
+    item =>
+      item.episode === episode &&
+      (item.season === undefined || item.season === season)
+  )
+  if (exact) return exact.url
+  if (mediaType === 'movie') return candidates[0]?.url
+  return undefined
+}
+
+async function resolveMedia(
+  pageUrl: string,
+  referer: string,
+  visited = new Set<string>(),
+  depth = 0
+): Promise<MediaCandidate[]> {
+  if (visited.has(pageUrl) || depth > 4) return []
+  visited.add(pageUrl)
+
+  const response = await request(pageUrl, referer)
+  const contentType = response.headers.get('content-type') || ''
+  if (/mpegurl|video\//i.test(contentType)) {
+    return [
+      {
+        url: response.url,
+        referer,
+        subtitles: [],
+      },
+    ]
   }
 
-  const encoded = encodeURIComponent(title)
-  for (const url of [
-    `${baseUrl}/search/${encoded}`,
-    `${baseUrl}/search?keyword=${encoded}`,
-    `${baseUrl}/?s=${encoded}`,
-  ]) {
+  const html = await response.text()
+  const decoded = unpackScripts(html)
+  const subtitles = subtitlesFrom(decoded, response.url)
+  const direct = mediaUrls(decoded, response.url).map(url => ({
+    url,
+    referer: response.url,
+    subtitles,
+  }))
+  if (direct.length) return direct
+
+  for (const iframeUrl of iframeUrls(html, response.url)) {
     try {
-      const items = itemsFromHtml(await (await request(url)).text(), baseUrl)
-      if (items.length) return items
+      const nested = await resolveMedia(
+        iframeUrl,
+        response.url,
+        visited,
+        depth + 1
+      )
+      if (nested.length) return nested
     } catch {
-      // Try the next HTML route or mirror.
+      // Ad and backup frames frequently fail; continue to the next player.
     }
   }
   return []
 }
 
-async function search(title: string): Promise<SearchItem[]> {
-  const settled = await Promise.allSettled(
-    BASE_URLS.map(baseUrl => searchBase(baseUrl, title))
-  )
-  return Array.from(
-    new Map(
-      settled
-        .flatMap(result => (result.status === 'fulfilled' ? result.value : []))
-        .map(item => [
-          `${item.baseUrl || BASE_URL}/${item.slug || item.name}`,
-          item,
-        ])
-    ).values()
-  )
-}
-
-function findWatchUrl(
-  html: string,
-  mediaType: 'movie' | 'tv',
-  baseUrl: string,
-  season = 1,
-  episode = 1
-): string | undefined {
-  const $ = cheerio.load(html)
-  let watchUrl: string | undefined
-  $(
-    '.episode-item a, .film_list-wrap a, a[href*="/wsd/"], a[data-episode]'
-  ).each((_index, element) => {
-    const anchor = $(element)
-    const text = `${anchor.text()} ${anchor.attr('title') || ''} ${
-      anchor.attr('data-episode') || ''
-    }`
-    const seasonMatch = text.match(/season\s*(\d+)/i)
-    const episodeMatch =
-      text.match(/(?:episode|ep)\s*(\d+)/i) || text.trim().match(/^(\d+)/)
-    if (
-      episodeMatch &&
-      Number(episodeMatch[1]) === episode &&
-      (!seasonMatch || Number(seasonMatch[1]) === season)
-    ) {
-      watchUrl = anchor.attr('href')
-      return false
-    }
-  })
-  if (!watchUrl && (mediaType === 'movie' || episode === 1)) {
-    watchUrl = $('.btn-play').attr('href') || $('.last-episode a').attr('href')
-  }
-  return watchUrl ? new URL(watchUrl, baseUrl).href : undefined
-}
-
-function subtitlesFrom(payload: VideoResponse, baseUrl: string): Subtitle[] {
-  return Object.values(payload.sub || {})
-    .flat()
-    .flatMap(file =>
-      file
-        ? [
-            {
-              file: new URL(file, baseUrl).href,
-              label: 'English',
-              kind: 'captions',
-            },
-          ]
-        : []
-    )
+function qualityFromUrl(url: string): string {
+  const match = url.match(/\b(2160|1440|1080|720|480|360)p?\b/i)
+  return match ? `${match[1]}p` : 'Auto'
 }
 
 async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
-  _season?: number,
-  episode?: number
+  season = 1,
+  episode = 1
 ): Promise<ProviderLink[]> {
   try {
     const details = await tmdbDetails(tmdbId, mediaType)
     if (!details.title) return []
+
     let results = await search(details.title)
     if (!results.length && details.title.includes(':')) {
       results = await search(details.title.split(':')[0].trim())
     }
     const best = results
-      .filter(item => item.slug)
       .map(item => ({
         item,
         score:
-          (item.themoviedb_id === Number(tmdbId) ? 2 : 0) +
-          similarity(details.title, item.name || '') +
-          (details.year && item.name?.includes(details.year) ? 0.1 : 0),
+          similarity(details.title, item.name) +
+          (details.year && item.name.includes(details.year) ? 0.1 : 0),
       }))
       .sort((left, right) => right.score - left.score)[0]
-    if (!best || best.score < 0.45 || !best.item.slug) return []
 
-    const baseUrl = best.item.baseUrl || BASE_URL
-    const filmUrl = `${baseUrl}/film/${best.item.slug}`
-    const filmHtml = await (await request(filmUrl)).text()
-    const watchUrl = findWatchUrl(
-      filmHtml,
-      mediaType,
-      baseUrl,
-      _season,
-      episode
-    )
-    if (!watchUrl) return []
-    const watchResponse = await request(watchUrl)
-    const watchContentType = watchResponse.headers.get('content-type') || ''
-    if (/mpegurl|video\//i.test(watchContentType)) {
-      return [
-        {
-          server: 'DramaFull | Original Asian audio | 1',
-          url: watchResponse.url,
-          isM3U8:
-            /mpegurl/i.test(watchContentType) ||
-            /\.m3u8(?:$|[?#])/i.test(watchResponse.url),
-          quality: 'Auto',
-          subtitles: [],
-          requiresProxy: true,
-          headers: { ...HEADERS, Referer: filmUrl },
-        },
-      ]
+    if (!best || best.score < 0.65) {
+      console.log(`[DramaFull] No catalog match for "${details.title}"`)
+      return []
     }
-    const watchHtml = await watchResponse.text()
-    const signedUrl = watchHtml
-      .match(
-        /(?:window\.)?signedUrl\s*=\s*["'](.*?)["']|["']signedUrl["']\s*:\s*["'](.*?)["']/i
-      )
-      ?.slice(1)
-      .find(Boolean)
-      ?.replace(/\\\//g, '/')
-    if (!signedUrl) return []
 
-    const payload = (await (
-      await request(new URL(signedUrl, watchUrl).href)
-    ).json()) as VideoResponse
-    if (!payload.success || !payload.video_source) return []
-    const subtitles = subtitlesFrom(payload, baseUrl)
-    return Object.entries(payload.video_source).flatMap(
-      ([quality, url], index) => {
-        if (!/^https?:\/\//i.test(url)) return []
-        const normalizedQuality = /^\d+$/.test(quality)
-          ? `${quality}p`
-          : quality || 'HD'
-        return [
-          {
-            server: `DramaFull | Original Asian audio | EN subs | ${index + 1}`,
-            url,
-            isM3U8: /\.m3u8(?:$|[?#])/i.test(url),
-            quality: normalizedQuality,
-            subtitles,
-            headers: { ...HEADERS, Referer: watchUrl },
-          },
-        ]
+    const detailResponse = await request(best.item.url)
+    const detailHtml = await detailResponse.text()
+    let pageUrl = detailResponse.url
+    if (!iframeUrls(detailHtml, pageUrl).length) {
+      const selectedEpisode = episodeUrl(
+        detailHtml,
+        pageUrl,
+        mediaType,
+        season,
+        episode
+      )
+      if (!selectedEpisode) {
+        console.log(
+          `[DramaFull] Episode S${season}E${episode} was not found for "${details.title}"`
+        )
+        return []
       }
+      pageUrl = selectedEpisode
+    }
+
+    const candidates = await resolveMedia(pageUrl, best.item.url)
+    console.log(
+      `[DramaFull] Extracted ${candidates.length} playable candidate(s) for "${details.title}"`
     )
+    return Array.from(
+      new Map(candidates.map(item => [item.url, item])).values()
+    ).map((candidate, index) => ({
+      server: `DramaFull | Original Asian audio | ${index + 1}`,
+      url: candidate.url,
+      isM3U8: /\.m3u8(?:$|[?#])/i.test(candidate.url),
+      quality: qualityFromUrl(candidate.url),
+      subtitles: candidate.subtitles,
+      headers: {
+        ...HEADERS,
+        Referer: candidate.referer,
+      },
+      requiresProxy: true,
+    }))
   } catch (error) {
     console.error(
       `[DramaFull] ${error instanceof Error ? error.message : 'Unknown provider error'}`

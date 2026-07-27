@@ -371,7 +371,7 @@ interface Provider {
 - `videasy` - VidEasy multi-server provider
 - `videasy2` - VidEasy WASM-backed multi-server provider
 - `notorrent` - NoTorrent Stremio-addon provider
-- `bollyflix` - BollyFlix Stremio relay provider
+- `bollyflix` - BollyFlix live-catalog direct-file provider
 - `playimdb` - PlayIMDb direct-stream provider
 - `vidlink` - Vidlink multi-quality provider
 - `netmirror` - NetMirror multi-quality movie and episode provider

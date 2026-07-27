@@ -21,7 +21,7 @@ interface PlayImdbSubtitle {
 
 interface PlayImdbResponse {
   status?: string
-  status_code?: number
+  status_code?: number | string
   data?: {
     default_subs?: PlayImdbSubtitle[]
     file_name?: string
@@ -64,7 +64,7 @@ async function getStreams(
 ): Promise<ProviderLink[]> {
   try {
     const url = new URL(API_URL)
-    url.searchParams.set('id', tmdbId)
+    url.searchParams.set('tmdb', tmdbId)
     url.searchParams.set('type', mediaType)
     if (mediaType === 'tv') {
       url.searchParams.set('season', String(season))
@@ -79,7 +79,7 @@ async function getStreams(
 
     const payload = (await response.json()) as PlayImdbResponse
     if (
-      payload.status_code !== 200 &&
+      Number(payload.status_code) !== 200 &&
       payload.status?.toLowerCase() !== 'success'
     ) {
       console.log(
@@ -101,6 +101,7 @@ async function getStreams(
       quality: qualityFromName(fileName),
       subtitles,
       headers: HEADERS,
+      requiresProxy: true,
     }))
     console.log(`[PlayIMDb] Extracted ${streams.length} candidate stream(s)`)
     return streams
