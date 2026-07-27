@@ -43,7 +43,6 @@ interface ShowBoxShareResponse {
 interface FebBoxFile {
   fid: number
   file_name: string
-  file_size?: string
   is_dir: number
 }
 
@@ -59,6 +58,11 @@ interface FebBoxPlayerSource {
   file?: string
   label?: string
   type?: string
+}
+
+interface RenditionDetails {
+  codecs: string[]
+  estimatedSize?: string
 }
 
 interface CookieQuotaResult {
@@ -98,104 +102,156 @@ function parseQualityFromLabel(label: string | null | undefined): QualityInfo {
   return { quality: 'ORG', priority: 0 }
 }
 
-function extractCodecDetails(text: string | null | undefined): string[] {
-  if (!text) return []
+function parseHlsAttribute(line: string, name: string): string | undefined {
+  const value = line.match(new RegExp(`(?:^|[:,])${name}=("[^"]*"|[^,]*)`))?.[1]
+  return value?.replace(/^"|"$/g, '')
+}
 
+function codecDetailsFromVariant(line: string): string[] {
+  const codecs = parseHlsAttribute(line, 'CODECS')?.toLowerCase() || ''
+  const videoRange = parseHlsAttribute(line, 'VIDEO-RANGE')?.toUpperCase() || ''
   const details = new Set<string>()
-  const value = text.toLowerCase()
 
-  if (
-    value.includes('dolby vision') ||
-    value.includes('dovi') ||
-    value.includes('.dv.')
-  ) {
-    details.add('DV')
-  }
-  if (value.includes('hdr10+') || value.includes('hdr10plus')) {
-    details.add('HDR10+')
-  } else if (value.includes('hdr')) {
-    details.add('HDR')
-  }
-
-  if (value.includes('av1')) {
-    details.add('AV1')
-  } else if (
-    value.includes('h265') ||
-    value.includes('x265') ||
-    value.includes('hevc')
-  ) {
+  if (/(?:dvhe|dvh1)/.test(codecs)) details.add('DV')
+  if (videoRange === 'PQ' || videoRange === 'HLG') details.add('HDR')
+  if (/(?:hev1|hvc1|dvhe|dvh1)/.test(codecs)) {
     details.add('HEVC')
-  } else if (
-    value.includes('h264') ||
-    value.includes('x264') ||
-    value.includes('avc')
-  ) {
+  } else if (/(?:avc1|avc3)/.test(codecs)) {
     details.add('H.264')
+  } else if (/(?:av01)/.test(codecs)) {
+    details.add('AV1')
+  } else if (/(?:vp09|vp9)/.test(codecs)) {
+    details.add('VP9')
   }
 
-  if (value.includes('atmos')) details.add('Atmos')
-  if (value.includes('truehd') || value.includes('true-hd')) {
-    details.add('TrueHD')
-  }
-  if (
-    value.includes('dts-hd ma') ||
-    value.includes('dtshdma') ||
-    value.includes('dts-hdhr')
-  ) {
-    details.add('DTS-HD MA')
-  } else if (value.includes('dts-hd')) {
-    details.add('DTS-HD')
-  } else if (value.includes('dts')) {
-    details.add('DTS')
-  }
-
-  if (
-    value.includes('eac3') ||
-    value.includes('e-ac-3') ||
-    value.includes('dd+') ||
-    value.includes('ddplus')
-  ) {
+  if (codecs.includes('ec-3')) {
     details.add('EAC3')
-  } else if (
-    value.includes('ac3') ||
-    (value.includes('dd') && !value.includes('dd+') && !value.includes('ddp'))
-  ) {
+  } else if (codecs.includes('ac-3')) {
     details.add('AC3')
+  } else if (codecs.includes('mp4a')) {
+    details.add('AAC')
+  } else if (codecs.includes('opus')) {
+    details.add('Opus')
   }
-
-  if (value.includes('aac')) details.add('AAC')
-  if (value.includes('opus')) details.add('Opus')
-  if (value.includes('10bit') || value.includes('10-bit')) {
-    details.add('10-bit')
-  }
-
   return Array.from(details)
 }
 
-function parseSizeToBytes(size: string | null | undefined): number {
-  if (!size) return Number.MAX_SAFE_INTEGER
-
-  const match = size.match(/([\d.]+)\s*(gb|mb|kb|b)/i)
-  if (!match?.[1] || !match[2]) return Number.MAX_SAFE_INTEGER
-
-  const multipliers: Record<string, number> = {
-    gb: 1024 ** 3,
-    mb: 1024 ** 2,
-    kb: 1024,
-    b: 1,
-  }
-  return Number.parseFloat(match[1]) * multipliers[match[2].toLowerCase()]
+function formatBytes(bytes: number): string | undefined {
+  if (!Number.isFinite(bytes) || bytes <= 0) return undefined
+  const gibibytes = bytes / 1024 ** 3
+  if (gibibytes >= 1) return `${gibibytes.toFixed(2)} GB`
+  return `${Math.round(bytes / 1024 ** 2)} MB`
 }
 
 function buildQualityString(
   quality: string,
   codecs: string[],
-  size?: string
+  estimatedSize?: string
 ): string {
   const parts = [quality]
-  if (codecs.length) parts.push(codecs.slice(0, 3).join(' | '))
-  if (size) parts.push(`[${size}]`)
+  if (codecs.length) parts.push(codecs.join(' | '))
+  if (estimatedSize) parts.push(`[~${estimatedSize}]`)
   return parts.join(' ')
+}
+
+function firstVariant(master: string): {
+  info: string
+  url: string
+} | null {
+  const lines = master.split(/\r?\n/)
+  for (let index = 0; index < lines.length; index++) {
+    if (!lines[index].startsWith('#EXT-X-STREAM-INF:')) continue
+    const url = lines
+      .slice(index + 1)
+      .find(line => line && !line.startsWith('#'))
+    if (url) return { info: lines[index], url }
+  }
+  return null
+}
+
+function selectedAudioSize(master: string, variantInfo: string): number {
+  const audioGroup = parseHlsAttribute(variantInfo, 'AUDIO')
+  if (!audioGroup) return 0
+
+  const audioLine = master.split(/\r?\n/).find(line => {
+    return (
+      line.startsWith('#EXT-X-MEDIA:') &&
+      parseHlsAttribute(line, 'TYPE') === 'AUDIO' &&
+      parseHlsAttribute(line, 'GROUP-ID') === audioGroup &&
+      parseHlsAttribute(line, 'DEFAULT') === 'YES'
+    )
+  })
+  const audioUrl = audioLine && parseHlsAttribute(audioLine, 'URI')
+  if (!audioUrl) return 0
+
+  try {
+    return Number(new URL(audioUrl).searchParams.get('size')) || 0
+  } catch {
+    return 0
+  }
+}
+
+function estimateVideoBytes(
+  mediaPlaylist: string,
+  fallbackBandwidth: number
+): number {
+  const lines = mediaPlaylist.split(/\r?\n/)
+  let duration = 0
+  let totalDuration = 0
+  let estimatedBytes = 0
+
+  for (const line of lines) {
+    const durationMatch = line.match(/^#EXTINF:([\d.]+)/)
+    if (durationMatch?.[1]) {
+      duration = Number(durationMatch[1])
+      totalDuration += duration
+      continue
+    }
+
+    const bitrateMatch = line.match(/^#EXT-X-BITRATE:(\d+)/)
+    if (bitrateMatch?.[1] && duration > 0) {
+      estimatedBytes += (duration * Number(bitrateMatch[1]) * 1000) / 8
+      continue
+    }
+
+    if (line && !line.startsWith('#')) duration = 0
+  }
+
+  if (estimatedBytes > 0) return estimatedBytes
+  return fallbackBandwidth > 0 ? (totalDuration * fallbackBandwidth) / 8 : 0
+}
+
+async function inspectRendition(url: string): Promise<RenditionDetails> {
+  try {
+    const masterResponse = await axios.get<string>(url, {
+      headers: PLAYBACK_HEADERS,
+      timeout: REQUEST_TIMEOUT_MS,
+    })
+    const master = String(masterResponse.data)
+    const variant = firstVariant(master)
+    if (!variant) return { codecs: [] }
+
+    const mediaUrl = new URL(variant.url, url).href
+    const mediaResponse = await axios.get<string>(mediaUrl, {
+      headers: PLAYBACK_HEADERS,
+      timeout: REQUEST_TIMEOUT_MS,
+    })
+    const fallbackBandwidth =
+      Number(parseHlsAttribute(variant.info, 'AVERAGE-BANDWIDTH')) ||
+      Number(parseHlsAttribute(variant.info, 'BANDWIDTH')) ||
+      0
+    const videoBytes = estimateVideoBytes(
+      String(mediaResponse.data),
+      fallbackBandwidth
+    )
+    const totalBytes = videoBytes + selectedAudioSize(master, variant.info)
+    return {
+      codecs: codecDetailsFromVariant(variant.info),
+      estimatedSize: formatBytes(totalBytes),
+    }
+  } catch {
+    return { codecs: [] }
+  }
 }
 
 function normalizeTitle(value: string): string {
@@ -566,25 +622,34 @@ async function resolveFileStreams(
     }
   )
   const sources = parsePlayerSources(String(response.data))
-  const codecs = extractCodecDetails(file.file_name)
 
-  return sources.flatMap(source => {
-    if (!source.file || !/^https?:\/\//i.test(source.file)) return []
-    const { quality } = parseQualityFromLabel(source.label || file.file_name)
-    return [
-      {
-        server: `ShowBox ${fileIndex + 1}`,
-        url: source.file,
-        isM3U8:
-          /\.m3u8(?:$|[?#])/i.test(source.file) ||
-          source.file.includes('/hls/'),
-        quality: buildQualityString(quality, codecs, file.file_size),
-        subtitles: [] as Subtitle[],
-        headers: PLAYBACK_HEADERS,
-        requiresProxy: true,
-      },
-    ]
-  })
+  return Promise.all(
+    sources
+      .filter((source): source is FebBoxPlayerSource & { file: string } =>
+        Boolean(source.file && /^https?:\/\//i.test(source.file))
+      )
+      .map(async source => {
+        const details = await inspectRendition(source.file)
+        const { quality } = parseQualityFromLabel(
+          source.label || file.file_name
+        )
+        return {
+          server: `ShowBox ${fileIndex + 1}`,
+          url: source.file,
+          isM3U8:
+            /\.m3u8(?:$|[?#])/i.test(source.file) ||
+            source.file.includes('/hls/'),
+          quality: buildQualityString(
+            quality,
+            details.codecs,
+            details.estimatedSize
+          ),
+          subtitles: [] as Subtitle[],
+          headers: PLAYBACK_HEADERS,
+          requiresProxy: true,
+        }
+      })
+  )
 }
 
 async function getShowBoxStreams(
@@ -639,11 +704,10 @@ async function getShowBoxStreams(
       ).values()
     )
     unique.sort((left, right) => {
-      const qualityDifference =
+      return (
         parseQualityFromLabel(right.quality).priority -
         parseQualityFromLabel(left.quality).priority
-      if (qualityDifference) return qualityDifference
-      return parseSizeToBytes(right.quality) - parseSizeToBytes(left.quality)
+      )
     })
 
     console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
