@@ -33,8 +33,15 @@ app.use(express.json())
 app.use((req, _res, next) => {
   const fProxyQuery = req.query.fProxy || req.query.forwardProxy
   const fProxyStr = typeof fProxyQuery === 'string' ? fProxyQuery.trim() : ''
+  const providerId =
+    typeof req.query.provider === 'string'
+      ? req.query.provider.trim().toLowerCase()
+      : ''
+  const providerRequiresFProxy =
+    providerId === 'vixsrc' || providerId === 'videasy'
 
   const fProxyEnabled =
+    providerRequiresFProxy ||
     fProxyQuery === 'true' ||
     fProxyQuery === '1' ||
     fProxyStr.toLowerCase() === 'true' ||

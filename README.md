@@ -246,10 +246,11 @@ curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider
 ### Stream URLs
 
 Stream responses always contain raw upstream URLs. The API does not expose or
-return an internal stream proxy. An enabled `fProxy` may still be used
-server-side for provider discovery and validation, but its URL is removed from
-stream, HLS variant, and subtitle results. TMDB metadata calls bypass `fProxy`.
-Clients should apply any `headers` included with a link when requesting it.
+return an internal stream proxy. `fProxy` is always enabled server-side for
+Vixsrc and VidEasy discovery and validation, and may be enabled for other
+providers, but its URL is removed from stream, HLS variant, and subtitle
+results. TMDB metadata calls bypass `fProxy`. Clients should apply any `headers`
+included with a link when requesting it.
 
 ## Project Structure
 
