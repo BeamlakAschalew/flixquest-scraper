@@ -1,5 +1,11 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import {
+  formatRequestError,
+  redactUrl,
+  responseBodySnippet,
+  responseDiagnostics,
+} from '../utils/request-diagnostics.js'
 
 const BASE_URL = 'https://vixsrc.to'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
@@ -50,18 +56,34 @@ interface VixsrcVariant {
 
 async function request(
   url: string,
-  headers: Record<string, string> = VIXSRC_HEADERS
+  headers: Record<string, string> = VIXSRC_HEADERS,
+  stage = 'request'
 ): Promise<Response> {
-  const response = await fetch(url, {
-    headers,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
+  const startedAt = Date.now()
+  console.log(`[Vixsrc:${stage}] GET ${redactUrl(url)}`)
+  try {
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
 
-  if (!response.ok) {
-    throw new Error(`Request to ${url} failed with HTTP ${response.status}`)
+    console.log(
+      `[Vixsrc:${stage}] Completed in ${Date.now() - startedAt}ms: ${responseDiagnostics(response)}`
+    )
+    if (!response.ok) {
+      console.warn(
+        `[Vixsrc:${stage}] Non-2xx body: ${await responseBodySnippet(response)}`
+      )
+      throw new Error(`HTTP ${response.status} (${response.statusText})`)
+    }
+
+    return response
+  } catch (error) {
+    console.error(
+      `[Vixsrc:${stage}] Failed after ${Date.now() - startedAt}ms for ${redactUrl(url)}: ${formatRequestError(error)}`
+    )
+    throw error
   }
-
-  return response
 }
 
 function buildApiUrl(
@@ -76,7 +98,7 @@ function buildApiUrl(
 }
 
 async function fetchEmbedUrl(apiUrl: string): Promise<string> {
-  const response = await request(apiUrl)
+  const response = await request(apiUrl, VIXSRC_HEADERS, 'api')
   const data = (await response.json()) as Partial<VixsrcApiResponse>
 
   if (!data.src || typeof data.src !== 'string') {
@@ -87,10 +109,14 @@ async function fetchEmbedUrl(apiUrl: string): Promise<string> {
 }
 
 async function fetchEmbedPage(embedUrl: string): Promise<string> {
-  const response = await request(embedUrl, {
-    ...VIXSRC_HEADERS,
-    Accept: 'text/html,application/xhtml+xml,*/*',
-  })
+  const response = await request(
+    embedUrl,
+    {
+      ...VIXSRC_HEADERS,
+      Accept: 'text/html,application/xhtml+xml,*/*',
+    },
+    'embed'
+  )
   return response.text()
 }
 
@@ -201,7 +227,7 @@ async function getVixsrcStreams(
     const embedHtml = await fetchEmbedPage(embedUrl)
     const masterUrl = buildMasterUrl(extractTokenData(embedHtml))
     const headers = playlistHeaders(embedUrl)
-    const playlistResponse = await request(masterUrl, headers)
+    const playlistResponse = await request(masterUrl, headers, 'playlist')
     const playlist = await playlistResponse.text()
 
     if (!playlist.includes('#EXTM3U')) {
@@ -243,9 +269,7 @@ async function getVixsrcStreams(
       requiresProxy: true,
     }))
   } catch (error) {
-    console.error(
-      `[Vixsrc] ${error instanceof Error ? error.message : 'Unknown provider error'}`
-    )
+    console.error(`[Vixsrc] Provider failed: ${formatRequestError(error)}`)
     return []
   }
 }

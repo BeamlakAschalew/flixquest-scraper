@@ -1,5 +1,11 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import {
+  formatRequestError,
+  redactUrl,
+  responseBodySnippet,
+  responseDiagnostics,
+} from '../utils/request-diagnostics.js'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 const WINGS_API_BASE = 'https://api.speedracelight.com'
@@ -264,11 +270,18 @@ async function fetchMediaDetails(
 async function getSeed(tmdbId: string): Promise<string> {
   const seedUrl = `${WINGS_API_BASE}/seed?mediaId=${encodeURIComponent(tmdbId)}`
   console.log(`[VidEasy] Requesting seed: ${seedUrl}`)
+  const startedAt = Date.now()
   const response = await fetch(seedUrl, {
     headers: REQUEST_HEADERS,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
+  console.log(
+    `[VidEasy:seed] Completed in ${Date.now() - startedAt}ms: ${responseDiagnostics(response)}`
+  )
   if (!response.ok) {
+    console.warn(
+      `[VidEasy:seed] Non-2xx body: ${await responseBodySnippet(response)}`
+    )
     throw new Error(
       `Seed HTTP ${response.status} (${response.statusText}) from URL: ${seedUrl}`
     )
@@ -277,7 +290,7 @@ async function getSeed(tmdbId: string): Promise<string> {
   if (!data.seed) {
     throw new Error(`VidEasy response from ${seedUrl} did not include a seed`)
   }
-  console.log(`[VidEasy] Obtained seed: ${data.seed.substring(0, 15)}...`)
+  console.log(`[VidEasy:seed] Seed received (${data.seed.length} characters)`)
   return data.seed
 }
 
@@ -380,12 +393,19 @@ async function fetchServer(
   url.searchParams.set('seed', seed)
 
   try {
-    console.log(`[VidEasy] Server [${serverName}] requesting: ${url.href}`)
+    const startedAt = Date.now()
+    console.log(`[VidEasy:${serverName}] Requesting ${redactUrl(url.href)}`)
     const response = await fetch(url, {
       headers: REQUEST_HEADERS,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
+    console.log(
+      `[VidEasy:${serverName}] Completed in ${Date.now() - startedAt}ms: ${responseDiagnostics(response)}`
+    )
     if (!response.ok) {
+      console.warn(
+        `[VidEasy:${serverName}] Non-2xx body: ${await responseBodySnippet(response)}`
+      )
       throw new Error(`HTTP ${response.status} (${response.statusText})`)
     }
     const encryptedText = await response.text()
@@ -405,7 +425,7 @@ async function fetchServer(
     return links
   } catch (error) {
     console.warn(
-      `[VidEasy] Server [${serverName}] failed (${url.href}): ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidEasy:${serverName}] Failed for ${redactUrl(url.href)}: ${formatRequestError(error)}`
     )
     return []
   }
@@ -459,7 +479,7 @@ async function getVidEasyStreams(
     )
   } catch (error) {
     console.error(
-      `[VidEasy] Request failed for TMDB ${tmdbId}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidEasy] Request failed for TMDB ${tmdbId}: ${formatRequestError(error)}`
     )
     return []
   }

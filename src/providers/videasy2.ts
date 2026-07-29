@@ -3,6 +3,12 @@ import { createDecipheriv, createHash, webcrypto } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { generateMovieMedia, generateShowMedia } from '../utils/tmdb.js'
+import {
+  formatRequestError,
+  redactUrl,
+  responseBodySnippet,
+  responseDiagnostics,
+} from '../utils/request-diagnostics.js'
 
 const API_BASE = 'https://api.videasy.net'
 const REQUEST_TIMEOUT_MS = 20_000
@@ -326,11 +332,21 @@ async function fetchServer(
   url.searchParams.set('imdbId', details.imdbId)
   url.searchParams.set('_t', String(Date.now()))
 
+  const startedAt = Date.now()
+  console.log(`[VidEasy2:${server.name}] Requesting ${redactUrl(url.href)}`)
   const response = await fetch(url, {
     headers: HEADERS,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  console.log(
+    `[VidEasy2:${server.name}] Completed in ${Date.now() - startedAt}ms: ${responseDiagnostics(response)}`
+  )
+  if (!response.ok) {
+    console.warn(
+      `[VidEasy2:${server.name}] Non-2xx body: ${await responseBodySnippet(response)}`
+    )
+    throw new Error(`HTTP ${response.status} (${response.statusText})`)
+  }
 
   const ciphertext = (await response.text()).trim()
   if (!ciphertext) throw new Error('Empty encrypted response')
@@ -361,14 +377,12 @@ async function getStreams(
         console.warn(`[VidEasy2] ${server.name} returned no streams`)
       } catch (error) {
         console.warn(
-          `[VidEasy2] ${server.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `[VidEasy2] ${server.name} failed: ${formatRequestError(error)}`
         )
       }
     }
   } catch (error) {
-    console.error(
-      `[VidEasy2] ${error instanceof Error ? error.message : 'Unknown provider error'}`
-    )
+    console.error(`[VidEasy2] Provider failed: ${formatRequestError(error)}`)
   }
   return []
 }

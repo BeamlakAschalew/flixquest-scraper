@@ -1,4 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import {
+  formatRequestError,
+  redactUrl,
+  responseBodySnippet,
+  responseDiagnostics,
+} from './request-diagnostics.js'
 
 export interface ForwardProxyContext {
   fProxyEnabled: boolean
@@ -126,6 +132,7 @@ export function getForwardProxyUrl(
 }
 
 let isPatched = false
+let requestSequence = 0
 
 /**
  * Patches globalThis.fetch so outbound scraping & metadata requests are
@@ -176,13 +183,34 @@ export function setupForwardProxyPatch() {
       const proxiedUrl = getForwardProxyUrl(targetUrlStr, store)
 
       if (proxiedUrl !== targetUrlStr) {
+        const requestId = `${process.pid}-${++requestSequence}`
+        const startedAt = Date.now()
         console.log(
-          `🔀 [ForwardProxy] Routing request via proxy: ${targetUrlStr} -> ${proxiedUrl}`
+          `🔀 [ForwardProxy:${requestId}] Routing ${init?.method || (input instanceof Request ? input.method : 'GET')} ${redactUrl(targetUrlStr)} via ${redactUrl(proxiedUrl)}`
         )
-        if (input instanceof Request) {
-          return originalFetch(new Request(proxiedUrl, input), init)
+
+        try {
+          const response =
+            input instanceof Request
+              ? await originalFetch(new Request(proxiedUrl, input), init)
+              : await originalFetch(proxiedUrl, init)
+          const elapsedMs = Date.now() - startedAt
+
+          console.log(
+            `🔀 [ForwardProxy:${requestId}] Response after ${elapsedMs}ms: ${responseDiagnostics(response)}`
+          )
+          if (!response.ok) {
+            console.warn(
+              `🔀 [ForwardProxy:${requestId}] Non-2xx body: ${await responseBodySnippet(response)}`
+            )
+          }
+          return response
+        } catch (error) {
+          console.error(
+            `🔀 [ForwardProxy:${requestId}] Fetch threw after ${Date.now() - startedAt}ms; target=${redactUrl(targetUrlStr)} proxyHost=${new URL(proxiedUrl).host} error=${formatRequestError(error)}`
+          )
+          throw error
         }
-        return originalFetch(proxiedUrl, init)
       }
     }
 
