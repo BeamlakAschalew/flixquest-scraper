@@ -16,6 +16,19 @@ export const DEFAULT_FORWARD_PROXY_URL =
 
 export const forwardProxyStorage = new AsyncLocalStorage<ForwardProxyContext>()
 
+export function withForcedForwardProxy<T>(
+  callback: () => Promise<T>
+): Promise<T> {
+  const context = forwardProxyStorage.getStore()
+  return forwardProxyStorage.run(
+    {
+      fProxyEnabled: true,
+      proxyUrl: context?.proxyUrl,
+    },
+    callback
+  )
+}
+
 /**
  * Vixsrc signs its manifests and CDN resources against the request context.
  * Keep the complete Vixsrc playback chain on the same fProxy egress.

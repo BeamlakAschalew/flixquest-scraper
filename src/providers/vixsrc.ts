@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 import {
   formatRequestError,
   redactUrl,
@@ -278,7 +279,10 @@ export const vixsrcProvider: Provider = {
   name: 'Vixsrc',
   alias: 'Axum',
   id: 'vixsrc',
-  streamMovie: tmdbId => getVixsrcStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getVixsrcStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getVixsrcStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() =>
+      getVixsrcStreams(tmdbId, 'tv', season, episode)
+    ),
 }

@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 import {
   formatRequestError,
   redactUrl,
@@ -488,7 +489,10 @@ async function getVidEasyStreams(
 export const vidEasyProvider: Provider = {
   name: 'VidEasy',
   id: 'videasy',
-  streamMovie: tmdbId => getVidEasyStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getVidEasyStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getVidEasyStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() =>
+      getVidEasyStreams(tmdbId, 'tv', season, episode)
+    ),
 }
