@@ -2,7 +2,7 @@ import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
-const WINGS_API_BASE = 'https://api.wingsdatabase.com'
+const WINGS_API_BASE = 'https://api.speedracelight.com'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -162,7 +162,7 @@ function createKeystream(
   const output = new Uint8Array(length)
   let counter = 0
 
-  for (let index = 0; index < length;) {
+  for (let index = 0; index < length; ) {
     const word = nextWord(state, counter++)
     output[index++] = word & 0xff
     if (index < length) output[index++] = (word >>> 8) & 0xff
@@ -269,7 +269,9 @@ async function getSeed(tmdbId: string): Promise<string> {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (!response.ok) {
-    throw new Error(`Seed HTTP ${response.status} (${response.statusText}) from URL: ${seedUrl}`)
+    throw new Error(
+      `Seed HTTP ${response.status} (${response.statusText}) from URL: ${seedUrl}`
+    )
   }
   const data = (await response.json()) as { seed?: string }
   if (!data.seed) {
@@ -388,14 +390,18 @@ async function fetchServer(
     }
     const encryptedText = await response.text()
     if (!encryptedText.trim()) {
-      console.warn(`[VidEasy] Server [${serverName}] returned empty payload (${url.href})`)
+      console.warn(
+        `[VidEasy] Server [${serverName}] returned empty payload (${url.href})`
+      )
       return []
     }
     const links = formatLinks(
       decryptWingsPayload(encryptedText, seed, Number(tmdbId)),
       serverName
     )
-    console.log(`[VidEasy] Server [${serverName}] extracted ${links.length} stream(s)`)
+    console.log(
+      `[VidEasy] Server [${serverName}] extracted ${links.length} stream(s)`
+    )
     return links
   } catch (error) {
     console.warn(
@@ -422,7 +428,9 @@ async function getVidEasyStreams(
       getSeed(tmdbId),
     ])
     if (!details) {
-      console.warn(`[VidEasy] Failed to fetch media details from TMDB for ID: ${tmdbId}`)
+      console.warn(
+        `[VidEasy] Failed to fetch media details from TMDB for ID: ${tmdbId}`
+      )
       return []
     }
 
