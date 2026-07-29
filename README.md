@@ -2,6 +2,11 @@
 
 A powerful Express.js API for scraping streaming links for movies and TV shows using TMDB metadata. Supports multiple streaming providers with a modular, extensible architecture.
 
+For session-affine API and HLS proxying, see the separately deployable
+[`cloudflare-media-proxy/`](cloudflare-media-proxy/README.md). When configured,
+HLS playback is offloaded, and the complete Vixsrc request chain uses one
+Durable Object session.
+
 ## Features
 
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID

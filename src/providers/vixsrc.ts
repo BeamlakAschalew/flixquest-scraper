@@ -1,5 +1,10 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import {
+  CloudflareMediaProxySession,
+  createCloudflareMediaProxySession,
+  isCloudflareMediaProxyConfigured,
+} from '../utils/cloudflare-media-proxy.js'
 
 const BASE_URL = 'https://vixsrc.to'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
@@ -50,12 +55,15 @@ interface VixsrcVariant {
 
 async function request(
   url: string,
-  headers: Record<string, string> = VIXSRC_HEADERS
+  headers: Record<string, string> = VIXSRC_HEADERS,
+  proxySession?: CloudflareMediaProxySession
 ): Promise<Response> {
-  const response = await fetch(url, {
-    headers,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
+  const response = proxySession
+    ? await proxySession.fetch(url, { headers })
+    : await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      })
 
   if (!response.ok) {
     throw new Error(`Request to ${url} failed with HTTP ${response.status}`)
@@ -75,8 +83,11 @@ function buildApiUrl(
     : `${BASE_URL}/api/tv/${tmdbId}/${season}/${episode}`
 }
 
-async function fetchEmbedUrl(apiUrl: string): Promise<string> {
-  const response = await request(apiUrl)
+async function fetchEmbedUrl(
+  apiUrl: string,
+  proxySession?: CloudflareMediaProxySession
+): Promise<string> {
+  const response = await request(apiUrl, VIXSRC_HEADERS, proxySession)
   const data = (await response.json()) as Partial<VixsrcApiResponse>
 
   if (!data.src || typeof data.src !== 'string') {
@@ -86,11 +97,18 @@ async function fetchEmbedUrl(apiUrl: string): Promise<string> {
   return new URL(data.src, BASE_URL).href
 }
 
-async function fetchEmbedPage(embedUrl: string): Promise<string> {
-  const response = await request(embedUrl, {
-    ...VIXSRC_HEADERS,
-    Accept: 'text/html,application/xhtml+xml,*/*',
-  })
+async function fetchEmbedPage(
+  embedUrl: string,
+  proxySession?: CloudflareMediaProxySession
+): Promise<string> {
+  const response = await request(
+    embedUrl,
+    {
+      ...VIXSRC_HEADERS,
+      Accept: 'text/html,application/xhtml+xml,*/*',
+    },
+    proxySession
+  )
   return response.text()
 }
 
@@ -197,11 +215,14 @@ async function getVixsrcStreams(
   console.log(`[Vixsrc] Fetching ${apiUrl}`)
 
   try {
-    const embedUrl = await fetchEmbedUrl(apiUrl)
-    const embedHtml = await fetchEmbedPage(embedUrl)
+    const proxySession = isCloudflareMediaProxyConfigured()
+      ? await createCloudflareMediaProxySession()
+      : undefined
+    const embedUrl = await fetchEmbedUrl(apiUrl, proxySession)
+    const embedHtml = await fetchEmbedPage(embedUrl, proxySession)
     const masterUrl = buildMasterUrl(extractTokenData(embedHtml))
     const headers = playlistHeaders(embedUrl)
-    const playlistResponse = await request(masterUrl, headers)
+    const playlistResponse = await request(masterUrl, headers, proxySession)
     const playlist = await playlistResponse.text()
 
     if (!playlist.includes('#EXTM3U')) {
@@ -212,6 +233,70 @@ async function getVixsrcStreams(
       playlist,
       masterUrl
     )
+
+    if (proxySession) {
+      const proxiedSubtitles = (
+        await Promise.all(
+          subtitles.map(async subtitle => {
+            try {
+              return {
+                ...subtitle,
+                file: await proxySession.register({
+                  url: subtitle.file,
+                  headers,
+                  kind: 'auto',
+                }),
+              }
+            } catch (error) {
+              console.warn(
+                `[Vixsrc] Skipping subtitle '${subtitle.label}': ${
+                  error instanceof Error ? error.message : 'proxy error'
+                }`
+              )
+              return undefined
+            }
+          })
+        )
+      ).filter((subtitle): subtitle is Subtitle => subtitle !== undefined)
+      if (variants.length === 0) {
+        return [
+          {
+            server: 'vixsrc',
+            url: await proxySession.register({
+              url: masterUrl,
+              headers,
+              kind: 'hls',
+              preferredAudioLanguage: 'eng',
+            }),
+            isM3U8: true,
+            quality,
+            subtitles: proxiedSubtitles,
+            hlsAudioLanguage: 'eng',
+            requiresProxy: true,
+            proxyHandled: true,
+          },
+        ]
+      }
+
+      return Promise.all(
+        variants.map(async variant => ({
+          server: `vixsrc | ${variant.quality}`,
+          url: await proxySession.register({
+            url: masterUrl,
+            headers,
+            kind: 'hls',
+            selectedVariant: variant.url,
+            preferredAudioLanguage: 'eng',
+          }),
+          isM3U8: true,
+          quality: variant.quality,
+          subtitles: proxiedSubtitles,
+          requiresProxy: true,
+          proxyHandled: true,
+        }))
+      )
+    }
+
     if (variants.length === 0) {
       return [
         {

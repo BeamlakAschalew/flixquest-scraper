@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flixquest-media-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+  },
+  "secrets": {
+    "required": ["SERVICE_TOKEN", "SIGNING_SECRET"],
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SESSIONS",
+        "class_name": "ProxySession",
+      },
+    ],
+  },
+  "exports": {
+    "ProxySession": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+  },
+  "vars": {
+    "ALLOWED_HOSTS": "vixsrc.to,*.vixsrc.to,vix-content.net,*.vix-content.net",
+    "CORS_ORIGIN": "*",
+    "SESSION_TTL_SECONDS": "21600",
+    "UPSTREAM_TIMEOUT_MS": "45000",
+    "MAX_PLAYLIST_BYTES": "5242880",
+    "MAX_CONTROL_BODY_BYTES": "1048576",
+  },
+}

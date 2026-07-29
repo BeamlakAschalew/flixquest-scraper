@@ -38,6 +38,9 @@ export interface ProviderLink {
   // Browser clients cannot set some anti-hotlink headers. Such links must
   // remain behind the API proxy even when raw upstream URLs are requested.
   requiresProxy?: boolean
+  // Internal instruction: this URL and its nested media resources are already
+  // handled by a separately deployed proxy and must not be wrapped by /proxy.
+  proxyHandled?: boolean
 }
 
 // Provider response interface

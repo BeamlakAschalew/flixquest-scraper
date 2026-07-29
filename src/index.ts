@@ -20,6 +20,10 @@ import {
   forwardProxyStorage,
   setupForwardProxyPatch,
 } from './utils/forward-proxy.js'
+import {
+  createCloudflareMediaProxySession,
+  isCloudflareMediaProxyConfigured,
+} from './utils/cloudflare-media-proxy.js'
 
 setupForwardProxyPatch()
 
@@ -95,21 +99,100 @@ async function responseStreamLinks(
   const bypassProxy = isNoProxy(req)
   const proxyAll = !bypassProxy && shouldProxy(req)
   const baseUrl = proxyBaseUrl(req)
+  const shouldUseExternalHlsProxy =
+    !bypassProxy &&
+    isCloudflareMediaProxyConfigured() &&
+    links.some(link => link.isM3U8 && !link.proxyHandled)
+  const externalHlsSession = shouldUseExternalHlsProxy
+    ? await createCloudflareMediaProxySession().catch(error => {
+        console.warn(
+          `[MediaProxy] Could not create HLS session; using local proxy: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`
+        )
+        return undefined
+      })
+    : undefined
 
-  const processedLinks = links.map(link => {
-    if (bypassProxy) {
-      const rawUrl = unwrapInnerProxyUrl(link.url)
-      return {
-        ...link,
-        url: rawUrl,
-        requiresProxy: false,
+  const processedLinks = await Promise.all(
+    links.map(async link => {
+      if (link.proxyHandled) {
+        const publicLink = { ...link }
+        delete publicLink.proxyHandled
+        delete publicLink.hlsVariant
+        delete publicLink.hlsAudioLanguage
+        delete publicLink.dashVideoHeight
+        return publicLink
       }
-    }
 
-    return proxyAll || link.requiresProxy
-      ? proxyStreamLinks([link], baseUrl)[0]
-      : link
-  })
+      if (externalHlsSession && link.isM3U8) {
+        try {
+          const subtitles = (
+            await Promise.all(
+              link.subtitles.map(async subtitle => {
+                try {
+                  return {
+                    ...subtitle,
+                    file: await externalHlsSession.register({
+                      url: subtitle.file,
+                      headers: link.headers,
+                      kind: 'auto',
+                    }),
+                  }
+                } catch (error) {
+                  console.warn(
+                    `[MediaProxy] Skipping subtitle '${subtitle.label}': ${
+                      error instanceof Error ? error.message : 'proxy error'
+                    }`
+                  )
+                  return undefined
+                }
+              })
+            )
+          ).filter(
+            (subtitle): subtitle is ProviderLink['subtitles'][number] =>
+              subtitle !== undefined
+          )
+          const publicLink = {
+            ...link,
+            url: await externalHlsSession.register({
+              url: link.url,
+              headers: link.headers,
+              kind: 'hls',
+              selectedVariant: link.hlsVariant,
+              preferredAudioLanguage: link.hlsAudioLanguage,
+            }),
+            subtitles,
+            requiresProxy: true,
+          }
+          delete publicLink.hlsVariant
+          delete publicLink.hlsAudioLanguage
+          delete publicLink.dashVideoHeight
+          delete publicLink.proxyHandled
+          return publicLink
+        } catch (error) {
+          console.warn(
+            `[MediaProxy] Could not offload '${link.server}'; using local proxy: ${
+              error instanceof Error ? error.message : 'unknown error'
+            }`
+          )
+        }
+      }
+
+      if (bypassProxy) {
+        const rawUrl = unwrapInnerProxyUrl(link.url)
+        return {
+          ...link,
+          url: rawUrl,
+          requiresProxy: false,
+        }
+      }
+
+      return proxyAll || link.requiresProxy
+        ? proxyStreamLinks([link], baseUrl)[0]
+        : link
+    })
+  )
 
   return validateStreamLinks(processedLinks)
 }

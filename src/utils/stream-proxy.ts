@@ -251,6 +251,7 @@ export function proxyStreamLinks(
     delete publicLink.hlsVariant
     delete publicLink.hlsAudioLanguage
     delete publicLink.dashVideoHeight
+    delete publicLink.proxyHandled
     const proxySubtitleUrl = (value: string, label: string): string => {
       try {
         const url = new URL(value)
