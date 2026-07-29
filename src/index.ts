@@ -14,7 +14,6 @@ import type {
   ProviderLink,
   ProviderResponse,
 } from './types/index.js'
-import { handleStreamProxy, proxyStreamLinks } from './utils/stream-proxy.js'
 import { validateStreamLinks } from './utils/stream-validation.js'
 import {
   forwardProxyStorage,
@@ -48,70 +47,54 @@ app.use((req, _res, next) => {
   })
 })
 
-app.get('/proxy', handleStreamProxy)
-app.head('/proxy', handleStreamProxy)
-
-function proxyBaseUrl(req: Request): string {
-  return `${req.protocol}://${req.get('host')}`
-}
-
-function isNoProxy(req: Request): boolean {
-  const proxyQuery = getQueryString(req.query.proxy)?.toLowerCase()
-  const noProxyQuery = getQueryString(req.query.noProxy)?.toLowerCase()
-
-  return (
-    noProxyQuery === 'true' ||
-    noProxyQuery === '1' ||
-    proxyQuery === 'false' ||
-    proxyQuery === '0'
-  )
-}
-
-function shouldProxy(req: Request): boolean {
-  return getQueryString(req.query.proxy)?.toLowerCase() !== 'false'
-}
-
 function unwrapInnerProxyUrl(url: string): string {
-  try {
-    const parsed = new URL(url)
-    const innerUrl =
-      parsed.searchParams.get('url') ||
-      parsed.searchParams.get('destination') ||
-      parsed.searchParams.get('src')
+  let currentUrl = url
 
-    if (innerUrl && /^https?:\/\//i.test(innerUrl)) {
-      return innerUrl
+  for (let depth = 0; depth < 5; depth++) {
+    try {
+      const parsed = new URL(currentUrl)
+      const innerUrl =
+        parsed.searchParams.get('url') ||
+        parsed.searchParams.get('destination') ||
+        parsed.searchParams.get('src')
+
+      if (
+        !innerUrl ||
+        !/^https?:\/\//i.test(innerUrl) ||
+        innerUrl === currentUrl
+      ) {
+        break
+      }
+      currentUrl = innerUrl
+    } catch {
+      break
     }
-  } catch {
-    // Return original string if URL parsing fails
   }
-  return url
+
+  return currentUrl
+}
+
+function unproxyStreamLink(link: ProviderLink): ProviderLink {
+  return {
+    ...link,
+    url: unwrapInnerProxyUrl(link.url),
+    hlsVariant: link.hlsVariant
+      ? unwrapInnerProxyUrl(link.hlsVariant)
+      : undefined,
+    subtitles: link.subtitles.map(subtitle => ({
+      ...subtitle,
+      file: unwrapInnerProxyUrl(subtitle.file),
+    })),
+    requiresProxy: false,
+  }
 }
 
 async function responseStreamLinks(
-  req: Request,
   links: ProviderLink[]
 ): Promise<ProviderLink[]> {
-  const bypassProxy = isNoProxy(req)
-  const proxyAll = !bypassProxy && shouldProxy(req)
-  const baseUrl = proxyBaseUrl(req)
-
-  const processedLinks = links.map(link => {
-    if (bypassProxy) {
-      const rawUrl = unwrapInnerProxyUrl(link.url)
-      return {
-        ...link,
-        url: rawUrl,
-        requiresProxy: false,
-      }
-    }
-
-    return proxyAll || link.requiresProxy
-      ? proxyStreamLinks([link], baseUrl)[0]
-      : link
-  })
-
-  return validateStreamLinks(processedLinks)
+  const processedLinks = links.map(link => unproxyStreamLink(link))
+  const validatedLinks = await validateStreamLinks(processedLinks)
+  return validatedLinks.map(link => unproxyStreamLink(link))
 }
 
 function getQueryString(value: unknown): string | undefined {
@@ -167,7 +150,6 @@ app.get('/', (_req, res) => {
       providers: 'GET /api/v2/providers',
       toggleProvider:
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
-      proxy: 'GET /proxy?token={signedToken}',
     },
     availableProviders: getAllProviderIds(),
   })
@@ -301,7 +283,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       return
     }
 
-    const links = await responseStreamLinks(req, candidates)
+    const links = await responseStreamLinks(candidates)
     if (links.length === 0) {
       console.log(
         `[${provider.name}] Final URL validation kept 0/${candidates.length} candidate(s)`
@@ -393,7 +375,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       return
     }
 
-    const links = await responseStreamLinks(req, candidates)
+    const links = await responseStreamLinks(candidates)
     if (links.length === 0) {
       console.log(
         `[${provider.name}] Final URL validation kept 0/${candidates.length} candidate(s)`

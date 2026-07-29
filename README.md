@@ -11,7 +11,7 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
-- 🛡️ **Header-aware proxy**: Signed `/proxy` URLs apply provider User-Agent and Referer headers and rewrite HLS segments
+- 🔗 **Direct stream links**: Responses contain raw provider URLs and never internal or forward-proxy URLs
 - 🚀 **Deployment Ready**: Supports Vercel, Netlify, and Render deployments
 
 ## Prerequisites
@@ -243,11 +243,13 @@ curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider
 }
 ```
 
-### Stream Proxy
+### Stream URLs
 
-Stream responses use signed `/proxy` URLs by default. The proxy forwards provider-required `User-Agent`, `Referer`, byte-range, and conditional request headers. HLS manifests are rewritten so their variants, encryption keys, subtitles, and media segments continue through the same signed proxy. Validation runs against the final URL returned to the client: `/proxy` when proxying is enabled and the upstream URL otherwise.
-
-Proxy tokens expire after six hours and cannot be changed to target arbitrary URLs. Set `STREAM_PROXY_SECRET` to a long, private value in every deployment instance. Add `proxy=false` to a movie or TV request when direct upstream URLs are preferred.
+Stream responses always contain raw upstream URLs. The API does not expose or
+return an internal stream proxy. An enabled `fProxy` may still be used
+server-side for provider discovery and validation, but its URL is removed from
+stream, HLS variant, and subtitle results. TMDB metadata calls bypass `fProxy`.
+Clients should apply any `headers` included with a link when requesting it.
 
 ## Project Structure
 

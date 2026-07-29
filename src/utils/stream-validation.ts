@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from './config.js'
+import { getForwardProxyUrl } from './forward-proxy.js'
 
 const VALIDATION_TIMEOUT_MS = Math.max(15_000, DEFAULT_REQUEST_TIMEOUT_MS)
 const VALIDATION_CONCURRENCY = 8
@@ -27,6 +28,24 @@ function linkIdentity(link: ProviderLink): string {
   ].join('|')
 }
 
+function resolveValidatedUrl(requestUrl: string, responseUrl: string): string {
+  const normalizedResponseUrl = normalizeStreamUrl(responseUrl || requestUrl)
+  const forwardProxyUrl = getForwardProxyUrl(requestUrl)
+  if (forwardProxyUrl === requestUrl) return normalizedResponseUrl
+
+  try {
+    if (
+      new URL(normalizedResponseUrl).origin === new URL(forwardProxyUrl).origin
+    ) {
+      return requestUrl
+    }
+  } catch {
+    // Keep the normalized response URL if either URL cannot be parsed.
+  }
+
+  return normalizedResponseUrl
+}
+
 async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
   let url: string
   try {
@@ -52,7 +71,7 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
       signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
     })
 
-    const finalUrl = normalizeStreamUrl(response.url || url)
+    const finalUrl = resolveValidatedUrl(url, response.url)
     const contentType = response.headers.get('content-type') || ''
     const disposition = response.headers.get('content-disposition') || ''
     const looksLikeHtml = /(?:text\/html|application\/xhtml\+xml)/i.test(

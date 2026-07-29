@@ -34,6 +34,14 @@ export function mustUseForwardProxyUrl(urlStr: string): boolean {
   }
 }
 
+function isTmdbApiUrl(urlStr: string): boolean {
+  try {
+    return new URL(urlStr).hostname.toLowerCase() === 'api.themoviedb.org'
+  } catch {
+    return false
+  }
+}
+
 /**
  * Determines if a target URL is a direct media call that should bypass
  * forward proxying. Tokenized playlist endpoints remain on fProxy.
@@ -162,6 +170,11 @@ export function setupForwardProxyPatch() {
         targetUrlStr = input.url
       } else {
         targetUrlStr = String(input)
+      }
+
+      // TMDB metadata requests should always use the server's direct egress.
+      if (isTmdbApiUrl(targetUrlStr)) {
+        return originalFetch(input, init)
       }
 
       // Do not proxy requests that are already pointing to the proxy endpoint
