@@ -73,7 +73,19 @@ function standardSource(
   }
 }
 
-const SOURCES: AetherSource[] = [
+const DISABLED_SOURCES = new Set([
+  'lul',
+  'meridian',
+  'tiki',
+  'vidy',
+  'subtitulado',
+  'latino',
+  'castellano',
+  'cowflix',
+  'gallic',
+])
+
+const ALL_SOURCES: AetherSource[] = [
   standardSource(
     'lul',
     'Lul 👾',
@@ -166,6 +178,8 @@ const SOURCES: AetherSource[] = [
       `https://baguette.aether.cx/api/tv/${encodeURIComponent(tmdbId)}?s=${season}&e=${episode}`,
   },
 ]
+
+const SOURCES = ALL_SOURCES.filter(source => !DISABLED_SOURCES.has(source.id))
 
 function validHttpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null

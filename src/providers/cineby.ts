@@ -40,7 +40,9 @@ interface CinebyServer {
   qualityFilter?: string
 }
 
-const SERVERS: CinebyServer[] = [
+const DISABLED_SERVERS = new Set(['Neon', 'Vyse', 'Fade', 'Raze'])
+
+const ALL_SERVERS: CinebyServer[] = [
   {
     name: 'Yoru',
     endpoint: 'cdn/sources-with-title',
@@ -84,6 +86,8 @@ const SERVERS: CinebyServer[] = [
     audio: 'Portuguese',
   },
 ]
+
+const SERVERS = ALL_SERVERS.filter(server => !DISABLED_SERVERS.has(server.name))
 
 interface TmdbDetails {
   title?: string

@@ -35,7 +35,7 @@ import { aetherProvider } from './aether.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 
 // Register all providers here
-const rawProviders: Record<string, Provider> = {
+const rawProviders = {
   vixsrc: vixsrcProvider,
   vidsrc: vidsrcProvider,
   vidzee: vidzeeProvider,
@@ -70,6 +70,55 @@ const rawProviders: Record<string, Provider> = {
   artemis: artemisProvider,
   watchflux: watchFluxProvider,
   aether: aetherProvider,
+} satisfies Record<string, Provider>
+
+type ProviderId = keyof typeof rawProviders
+
+// Source-controlled provider switches. Set a provider to false to remove it
+// from normal provider listings and prevent stream requests from reaching it.
+const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
+  vixsrc: false,
+  vidsrc: false,
+  vidzee: true,
+  uhdmovies: true,
+  showbox: true,
+  '4khdhub': true,
+  '4khdhubnew': true,
+  dahmermovies: false,
+  'dahmermovies-tv': false,
+  streamflix: true,
+  videasy: true,
+  videasy2: false,
+  notorrent: true,
+  bollyflix: false,
+  playimdb: false,
+  vidlink: true,
+  netmirror: true,
+  tamilian: false,
+  vidfast: true,
+  castle: true,
+  movieblast: true,
+  peachify: true,
+  movix: true,
+  purstream: true,
+  xpass: false,
+  kisskh: false,
+  dramafull: false,
+  toonhub: false,
+  cuevana: true,
+  jetfilmizle: false,
+  cineby: true,
+  artemis: false,
+  watchflux: false,
+  aether: true,
+}
+
+function isProviderId(id: string): id is ProviderId {
+  return id in rawProviders
+}
+
+function isHardcodedProviderEnabled(providerId: string): boolean {
+  return isProviderId(providerId) && PROVIDER_ENABLED[providerId]
 }
 
 // In-memory store for dynamic runtime provider toggle overrides
@@ -81,16 +130,24 @@ export function setProviderEnabled(
   enabled: boolean
 ): boolean {
   const id = providerId.toLowerCase().trim()
-  if (!rawProviders[id]) {
+  if (!isProviderId(id)) {
+    return false
+  }
+  if (!PROVIDER_ENABLED[id]) {
     return false
   }
   providerStateOverrides.set(id, enabled)
   return true
 }
 
-// Check if a provider is enabled based on runtime state overrides
+// Runtime switches can disable an enabled provider, but source-configured false
+// entries remain disabled until their hardcoded switch is changed.
 export function isProviderEnabled(providerId: string): boolean {
   const id = providerId.toLowerCase().trim()
+
+  if (!isHardcodedProviderEnabled(id)) {
+    return false
+  }
 
   if (providerStateOverrides.has(id)) {
     return providerStateOverrides.get(id)!
@@ -136,10 +193,13 @@ export function getProvider(
   providerId: string,
   options?: ProviderQueryOptions
 ): Provider | undefined {
+  if (!isHardcodedProviderEnabled(providerId.toLowerCase().trim())) {
+    return undefined
+  }
   if (!options?.includeDisabled && !isProviderEnabled(providerId)) {
     return undefined
   }
-  const provider = providers[providerId]
+  const provider = providers[providerId.toLowerCase().trim()]
   return provider ? withResolvedAlias(provider) : undefined
 }
 
@@ -149,23 +209,36 @@ export function getRawProvider(
   providerId: string,
   options?: ProviderQueryOptions
 ): Provider | undefined {
+  if (!isHardcodedProviderEnabled(providerId.toLowerCase().trim())) {
+    return undefined
+  }
   if (!options?.includeDisabled && !isProviderEnabled(providerId)) {
     return undefined
   }
-  const provider = rawProviders[providerId]
+  const id = providerId.toLowerCase().trim()
+  if (!isProviderId(id)) {
+    return undefined
+  }
+  const provider = rawProviders[id]
   return provider ? withResolvedAlias(provider) : undefined
 }
 
 // Get all provider IDs
 export function getAllProviderIds(options?: ProviderQueryOptions): string[] {
   return Object.keys(providers).filter(
-    id => options?.includeDisabled || isProviderEnabled(id)
+    id =>
+      isHardcodedProviderEnabled(id) &&
+      (options?.includeDisabled || isProviderEnabled(id))
   )
 }
 
 // Get all providers
 export function getAllProviders(options?: ProviderQueryOptions): Provider[] {
   return Object.entries(providers)
-    .filter(([id]) => options?.includeDisabled || isProviderEnabled(id))
+    .filter(
+      ([id]) =>
+        isHardcodedProviderEnabled(id) &&
+        (options?.includeDisabled || isProviderEnabled(id))
+    )
     .map(([, provider]) => withResolvedAlias(provider))
 }
