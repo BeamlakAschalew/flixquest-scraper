@@ -79,7 +79,7 @@ type ProviderId = keyof typeof rawProviders
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   vixsrc: false,
   vidsrc: false,
-  vidzee: true,
+  vidzee: false,
   uhdmovies: true,
   showbox: true,
   '4khdhub': true,
