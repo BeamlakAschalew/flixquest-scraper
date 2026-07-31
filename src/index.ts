@@ -19,6 +19,7 @@ import {
   forwardProxyStorage,
   setupForwardProxyPatch,
 } from './utils/forward-proxy.js'
+import { fetchWyzieSubtitles } from './utils/wyzie-subs.js'
 
 setupForwardProxyPatch()
 
@@ -308,6 +309,20 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       )
     }
 
+    // Wyzie Subs fallback: if no link has subtitles, fetch from Wyzie
+    const hasAnySubtitles = links.some(link => link.subtitles.length > 0)
+    if (!hasAnySubtitles) {
+      const wyzieSubs = await fetchWyzieSubtitles(tmdbId)
+      if (wyzieSubs.length > 0) {
+        console.log(
+          `🔤 [${provider.name}] Injecting ${wyzieSubs.length} Wyzie subtitle(s) as fallback`
+        )
+        for (const link of links) {
+          link.subtitles = wyzieSubs
+        }
+      }
+    }
+
     const response: ProviderResponse = {
       success: true,
       provider: provider.id,
@@ -398,6 +413,20 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       console.log(
         `[${provider.name}] Final URL validation kept ${links.length}/${candidates.length} candidate(s)`
       )
+    }
+
+    // Wyzie Subs fallback: if no link has subtitles, fetch from Wyzie
+    const hasAnySubtitles = links.some(link => link.subtitles.length > 0)
+    if (!hasAnySubtitles) {
+      const wyzieSubs = await fetchWyzieSubtitles(tmdbId, season, episode)
+      if (wyzieSubs.length > 0) {
+        console.log(
+          `🔤 [${provider.name}] Injecting ${wyzieSubs.length} Wyzie subtitle(s) as fallback`
+        )
+        for (const link of links) {
+          link.subtitles = wyzieSubs
+        }
+      }
     }
 
     const response: ProviderResponse = {
