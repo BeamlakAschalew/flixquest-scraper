@@ -6,6 +6,7 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
+- 📡 **Live TV and EPG**: Lists DLHD 24/7 channels, extracts live HLS streams with playback headers, and exposes the categorized schedule
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
 - 🌐 **Multiple Providers**: Supports 30 streaming providers, including 4KHDHub, StreamFlix, Kisskh, ToonHub, Cuevana, JetFilmizle, UHDMovies, VidEasy, and NetMirror
 - 🔌 **Modular Architecture**: Easy to add new providers
@@ -243,14 +244,138 @@ curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider
 }
 ```
 
-### Stream URLs
-
-Stream responses always contain raw upstream URLs. The API does not expose or
-return an internal stream proxy. `fProxy` is always enabled server-side for
 Vixsrc and VidEasy discovery and validation, and may be enabled for other
 providers, but its URL is removed from stream, HLS variant, and subtitle
 results. TMDB metadata calls bypass `fProxy`. Clients should apply any `headers`
 included with a link when requesting it.
+
+### 5. DLHD Live Channels
+
+List the current channels scraped from `https://dlhd.st/24-7-channels.php`.
+
+**Endpoint:** `GET /api/v2/dlhd/channels`
+
+Optional query parameters:
+
+- `search` or `q`: Filter by channel name or ID.
+- `refresh=true`: Bypass the 15-minute in-memory channel cache.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/channels?search=ABC"
+```
+
+### 6. DLHD Channel Stream
+
+Extract a fresh HLS master playlist for a numeric DLHD channel ID. The returned
+`headers` must be sent with the master playlist, child playlists, and media
+segments. Stream responses use `Cache-Control: no-store` because the URL token
+is short-lived.
+
+**Endpoint:** `GET /api/v2/dlhd/channels/{id}/stream`
+
+The shorter alias `GET /api/v2/dlhd/stream/{id}` is also supported.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/channels/51/stream"
+```
+
+```json
+{
+  "success": true,
+  "source": "dlhd",
+  "channel": { "id": "51", "name": "ABC USA" },
+  "stream": {
+    "url": "https://stream-host.example/secure/token/premium51/index.m3u8",
+    "isM3U8": true,
+    "headers": {
+      "Accept": "*/*",
+      "Origin": "https://player-host.example",
+      "Referer": "https://player-host.example/",
+      "User-Agent": "Mozilla/5.0 ..."
+    },
+    "embedUrl": "https://player-host.example/premiumtv/daddy3.php?id=51",
+    "expiresAt": "2026-08-08T21:46:21.000Z"
+  }
+}
+```
+
+### 7. DLHD Categorized EPG
+
+Return DLHD's schedule nested as `days -> categories -> events -> channels`.
+Times are reported in the site's advertised `UK GMT` timezone.
+
+**Endpoint:** `GET /api/v2/dlhd/epg`
+
+Optional query parameters:
+
+- `date=YYYY-MM-DD`: Select a schedule day.
+- `category`: Case-insensitive category filter.
+- `search` or `q`: Search event titles, times, and channel names.
+- `refresh=true`: Bypass the five-minute in-memory EPG cache.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/epg?category=PPV&date=2026-08-08"
+```
+
+### 8. Cache Stats
+
+Check Redis caching layer connection health and key statistics.
+
+**Endpoint:** `GET /api/v2/cache/stats`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "cache": {
+    "enabled": true,
+    "connected": true,
+    "defaultTtlSeconds": 7200,
+    "providerKeysCount": 42
+  }
+}
+```
+
+### 9. Flush Provider Cache
+
+Clear all cached provider stream responses.
+
+**Endpoint:** `POST /api/v2/cache/flush`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Flushed 42 cached provider item(s)",
+  "clearedCount": 42
+}
+```
+
+## ⚡ Redis Caching Layer
+
+FlixQuest Scraper includes a fault-tolerant Redis caching layer that caches the full responses of provider scraping calls. This dramatically speeds up repeated streaming requests (from several seconds to < 10ms).
+
+### Features
+- **Seamless Fallback**: If Redis is not configured or fails to connect, the scraper operates normally without interruption.
+- **Cache Headers**: Every stream response includes an `X-Cache` header:
+  - `X-Cache: HIT`: Response served instantly from Redis cache.
+  - `X-Cache: MISS`: Response scraped live from upstream provider and cached.
+  - `X-Cache: BYPASS`: Cache bypassed via client parameter or header.
+- **Cache Bypass**: Bypass the cache and force a fresh scrape by adding `?skipCache=true`, `?nocache=true`, or `?refresh=true` to your query, or by sending the `X-Cache-Bypass: true` HTTP header.
+- **Configurable Expiration**: Default TTL is 2 hours (7200 seconds), configurable via `REDIS_CACHE_TTL`.
+
+### Environment Configuration
+```env
+REDIS_URL=redis://default:password@localhost:6379
+# OR discrete connection fields:
+# REDIS_HOST=localhost
+# REDIS_PORT=6379
+# REDIS_PASSWORD=secret
+REDIS_CACHE_TTL=7200
+REDIS_CACHE_ENABLED=true
+```
 
 ## Project Structure
 

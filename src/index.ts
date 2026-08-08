@@ -20,6 +20,14 @@ import {
   setupForwardProxyPatch,
 } from './utils/forward-proxy.js'
 import { fetchWyzieSubtitles } from './utils/wyzie-subs.js'
+import {
+  buildProviderCacheKey,
+  flushProviderCache,
+  getCacheStats,
+  getProviderCache,
+  setProviderCache,
+} from './utils/redis.js'
+import { dlhdRouter } from './routes/dlhd.js'
 
 setupForwardProxyPatch()
 
@@ -119,6 +127,22 @@ function parsePositiveInteger(value: unknown): number | undefined {
     : undefined
 }
 
+function shouldBypassCache(req: Request): boolean {
+  const skipQuery =
+    getQueryString(req.query.skipCache)?.toLowerCase() ||
+    getQueryString(req.query.nocache)?.toLowerCase() ||
+    getQueryString(req.query.refresh)?.toLowerCase()
+
+  const headerBypass = req.headers['x-cache-bypass']
+
+  return (
+    skipQuery === 'true' ||
+    skipQuery === '1' ||
+    headerBypass === 'true' ||
+    headerBypass === '1'
+  )
+}
+
 function resolveProvider(req: Request, res: Response) {
   const providerId = getQueryString(req.query.provider)
 
@@ -146,7 +170,8 @@ function resolveProvider(req: Request, res: Response) {
   return provider
 }
 
-app.get('/', (_req, res) => {
+app.get('/', async (_req, res) => {
+  const cacheStats = await getCacheStats()
   res.json({
     name: 'FlixQuest Scraper API',
     version: '2.0.0',
@@ -158,7 +183,17 @@ app.get('/', (_req, res) => {
       providers: 'GET /api/v2/providers',
       toggleProvider:
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
+      cacheStats: 'GET /api/v2/cache/stats',
+      cacheFlush: 'POST /api/v2/cache/flush',
+      dlhdChannels: 'GET /api/v2/dlhd/channels',
+      dlhdStream: 'GET /api/v2/dlhd/channels/{id}/stream',
+      dlhdEpg: 'GET /api/v2/dlhd/epg',
     },
+    redisCache: cacheStats.connected
+      ? 'connected'
+      : cacheStats.enabled
+        ? 'disconnected'
+        : 'disabled',
     availableProviders: getAllProviderIds(),
   })
 })
@@ -255,6 +290,31 @@ api.post('/providers/:id/toggle', (req: Request, res: Response) => {
 })
 
 /**
+ * GET /api/v2/cache/stats
+ */
+api.get('/cache/stats', async (_req: Request, res: Response) => {
+  const stats = await getCacheStats()
+  res.json({
+    success: true,
+    cache: stats,
+  })
+})
+
+/**
+ * POST /api/v2/cache/flush
+ */
+api.post('/cache/flush', async (_req: Request, res: Response) => {
+  const clearedCount = await flushProviderCache()
+  res.json({
+    success: true,
+    message: `Flushed ${clearedCount} cached provider item(s)`,
+    clearedCount,
+  })
+})
+
+api.use('/dlhd', dlhdRouter)
+
+/**
  * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc
  */
 api.get('/stream-movie', async (req: Request, res: Response) => {
@@ -270,6 +330,30 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     res.status(400).json(error)
     return
   }
+
+  const bypass = shouldBypassCache(req)
+  const fProxyContext = forwardProxyStorage.getStore()
+  const cacheKey = buildProviderCacheKey({
+    providerId: provider.id,
+    mediaType: 'movie',
+    tmdbId,
+    fProxyEnabled: fProxyContext?.fProxyEnabled,
+    proxyUrl: fProxyContext?.proxyUrl,
+  })
+
+  if (!bypass) {
+    const cachedResponse = await getProviderCache<ProviderResponse>(cacheKey)
+    if (cachedResponse) {
+      console.log(
+        `⚡ [${provider.name}] Cache HIT for movie TMDB ID: ${tmdbId}`
+      )
+      res.setHeader('X-Cache', 'HIT')
+      res.json(cachedResponse)
+      return
+    }
+  }
+
+  res.setHeader('X-Cache', bypass ? 'BYPASS' : 'MISS')
 
   try {
     console.log(
@@ -336,6 +420,11 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
+
+    if (!bypass && response.links && response.links.length > 0) {
+      setProviderCache(cacheKey, response)
+    }
+
     res.json(response)
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-movie:', err)
@@ -376,6 +465,32 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     res.status(400).json(error)
     return
   }
+
+  const bypass = shouldBypassCache(req)
+  const fProxyContext = forwardProxyStorage.getStore()
+  const cacheKey = buildProviderCacheKey({
+    providerId: provider.id,
+    mediaType: 'tv',
+    tmdbId,
+    season,
+    episode,
+    fProxyEnabled: fProxyContext?.fProxyEnabled,
+    proxyUrl: fProxyContext?.proxyUrl,
+  })
+
+  if (!bypass) {
+    const cachedResponse = await getProviderCache<ProviderResponse>(cacheKey)
+    if (cachedResponse) {
+      console.log(
+        `⚡ [${provider.name}] Cache HIT for TV TMDB ID: ${tmdbId} S${season}E${episode}`
+      )
+      res.setHeader('X-Cache', 'HIT')
+      res.json(cachedResponse)
+      return
+    }
+  }
+
+  res.setHeader('X-Cache', bypass ? 'BYPASS' : 'MISS')
 
   try {
     console.log(
@@ -442,6 +557,11 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     }
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
+
+    if (!bypass && response.links && response.links.length > 0) {
+      setProviderCache(cacheKey, response)
+    }
+
     res.json(response)
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-tv:', err)
@@ -465,6 +585,9 @@ app.listen(port, () => {
       '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
     )
     console.log('   GET /api/v2/providers')
+    console.log('   GET /api/v2/dlhd/channels')
+    console.log('   GET /api/v2/dlhd/channels/{id}/stream')
+    console.log('   GET /api/v2/dlhd/epg')
     console.log('')
     console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
   }

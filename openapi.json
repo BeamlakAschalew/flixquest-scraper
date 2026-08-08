@@ -21,6 +21,10 @@
       "description": "Operations for scraping movie and TV episode stream links."
     },
     {
+      "name": "DLHD",
+      "description": "Live channel, HLS extraction, and categorized EPG operations for DLHD."
+    },
+    {
       "name": "Proxy",
       "description": "Stream proxy pass-through endpoint for video playback."
     }
@@ -31,9 +35,7 @@
         "summary": "List Available Providers",
         "description": "Retrieves the list of active (and optionally disabled) video scraper providers.",
         "operationId": "getProviders",
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "parameters": [
           {
             "name": "all",
@@ -82,9 +84,7 @@
         "summary": "Update Provider Enabled State",
         "description": "Enables or disables a specific scraper provider by ID.",
         "operationId": "updateProviderStatus",
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "parameters": [
           {
             "name": "id",
@@ -145,9 +145,7 @@
         "summary": "Toggle Provider Status",
         "description": "Toggles the enabled status of a provider, or sets it explicitly if provided in the body.",
         "operationId": "toggleProviderStatus",
-        "tags": [
-          "Providers"
-        ],
+        "tags": ["Providers"],
         "parameters": [
           {
             "name": "id",
@@ -198,9 +196,7 @@
         "summary": "Get Movie Stream Links",
         "description": "Fetches validated playback stream links for a movie by TMDB ID using a selected provider.",
         "operationId": "getMovieStream",
-        "tags": [
-          "Streams"
-        ],
+        "tags": ["Streams"],
         "parameters": [
           {
             "name": "tmdbId",
@@ -297,9 +293,7 @@
         "summary": "Get TV Episode Stream Links",
         "description": "Fetches validated playback stream links for a TV episode by TMDB ID, season, and episode using a selected provider.",
         "operationId": "getTVStream",
-        "tags": [
-          "Streams"
-        ],
+        "tags": ["Streams"],
         "parameters": [
           {
             "name": "tmdbId",
@@ -411,14 +405,249 @@
         }
       }
     },
+    "/api/v2/dlhd/channels": {
+      "get": {
+        "summary": "List DLHD Live Channels",
+        "description": "Scrapes the current 24/7 channel directory from DLHD.",
+        "operationId": "getDlhdChannels",
+        "tags": ["DLHD"],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive channel name or ID filter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "description": "Set to true to bypass the channel cache.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current DLHD channels.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["success", "source", "count", "channels"],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "source": {
+                      "type": "string",
+                      "example": "dlhd"
+                    },
+                    "count": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DlhdChannel"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "DLHD channel directory was unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/dlhd/channels/{id}/stream": {
+      "get": {
+        "summary": "Extract a DLHD Channel HLS Stream",
+        "description": "Resolves a numeric DLHD channel ID to a validated, short-lived M3U8 URL and the Origin, Referer, and User-Agent headers required for playback.",
+        "operationId": "getDlhdChannelStream",
+        "tags": ["DLHD"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric DLHD channel ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "example": "51"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fresh HLS URL and playback headers. The response is not cacheable.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "source",
+                    "channel",
+                    "stream",
+                    "extractedAt"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "source": {
+                      "type": "string",
+                      "example": "dlhd"
+                    },
+                    "channel": {
+                      "$ref": "#/components/schemas/DlhdChannel"
+                    },
+                    "stream": {
+                      "$ref": "#/components/schemas/DlhdStream"
+                    },
+                    "extractedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The channel ID is not numeric.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "No current playable M3U8 could be extracted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/dlhd/epg": {
+      "get": {
+        "summary": "Get the Categorized DLHD EPG",
+        "description": "Returns the DLHD schedule grouped by day, category, event, and playable channels.",
+        "operationId": "getDlhdEpg",
+        "tags": ["DLHD"],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "Schedule date in YYYY-MM-DD format.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive category filter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Search event titles, times, and channel names.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "description": "Set to true to bypass the EPG cache.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categorized DLHD EPG.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DlhdEpgResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid date format.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "DLHD EPG was unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/proxy": {
       "get": {
         "summary": "Proxy Video Stream",
         "description": "Proxies video files, HLS manifests/segments, or DASH manifests using a signed JWT/HMAC token to pass required custom headers.",
         "operationId": "proxyStream",
-        "tags": [
-          "Proxy"
-        ],
+        "tags": ["Proxy"],
         "parameters": [
           {
             "name": "token",
@@ -498,12 +727,7 @@
     "schemas": {
       "ProviderInfo": {
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "alias",
-          "enabled"
-        ],
+        "required": ["id", "name", "alias", "enabled"],
         "properties": {
           "id": {
             "type": "string",
@@ -525,10 +749,7 @@
       },
       "ProviderListResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "providers"
-        ],
+        "required": ["success", "providers"],
         "properties": {
           "success": {
             "type": "boolean",
@@ -544,9 +765,7 @@
       },
       "UpdateProviderRequest": {
         "type": "object",
-        "required": [
-          "enabled"
-        ],
+        "required": ["enabled"],
         "properties": {
           "enabled": {
             "type": "boolean",
@@ -567,11 +786,7 @@
       },
       "UpdateProviderResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "message",
-          "provider"
-        ],
+        "required": ["success", "message", "provider"],
         "properties": {
           "success": {
             "type": "boolean",
@@ -588,19 +803,11 @@
       },
       "MediaInfo": {
         "type": "object",
-        "required": [
-          "type",
-          "title",
-          "releaseYear",
-          "tmdbId"
-        ],
+        "required": ["type", "title", "releaseYear", "tmdbId"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "movie",
-              "show"
-            ],
+            "enum": ["movie", "show"],
             "example": "movie"
           },
           "title": {
@@ -619,11 +826,7 @@
       },
       "Subtitle": {
         "type": "object",
-        "required": [
-          "file",
-          "label",
-          "kind"
-        ],
+        "required": ["file", "label", "kind"],
         "properties": {
           "file": {
             "type": "string",
@@ -651,13 +854,7 @@
       },
       "ProviderLink": {
         "type": "object",
-        "required": [
-          "server",
-          "url",
-          "isM3U8",
-          "quality",
-          "subtitles"
-        ],
+        "required": ["server", "url", "isM3U8", "quality", "subtitles"],
         "properties": {
           "server": {
             "type": "string",
@@ -714,10 +911,7 @@
       },
       "ProviderResponse": {
         "type": "object",
-        "required": [
-          "success",
-          "provider"
-        ],
+        "required": ["success", "provider"],
         "properties": {
           "success": {
             "type": "boolean",
@@ -744,12 +938,180 @@
           }
         }
       },
-      "ErrorResponse": {
+      "DlhdChannel": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "51"
+          },
+          "name": {
+            "type": "string",
+            "example": "ABC USA"
+          },
+          "letter": {
+            "type": "string",
+            "example": "A"
+          },
+          "watchUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://dlhd.st/watch.php?id=51"
+          },
+          "playerUrl": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://dlhd.st/stream/stream-51.php"
+          }
+        }
+      },
+      "DlhdStream": {
+        "type": "object",
+        "required": ["url", "isM3U8", "headers", "embedUrl"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "A validated, short-lived HLS master playlist URL."
+          },
+          "isM3U8": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "headers": {
+            "type": "object",
+            "description": "Headers required for the HLS master, variants, and segments.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "Accept": "*/*",
+              "Origin": "https://player-host.example",
+              "Referer": "https://player-host.example/",
+              "User-Agent": "Mozilla/5.0 ..."
+            }
+          },
+          "embedUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DlhdEpgResponse": {
         "type": "object",
         "required": [
           "success",
-          "error"
+          "source",
+          "timezone",
+          "dayCount",
+          "eventCount",
+          "days"
         ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "source": {
+            "type": "string",
+            "example": "dlhd"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "UK GMT"
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "dayCount": {
+            "type": "integer"
+          },
+          "eventCount": {
+            "type": "integer"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DlhdEpgDay"
+            }
+          }
+        }
+      },
+      "DlhdEpgDay": {
+        "type": "object",
+        "required": ["label", "categories"],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "label": {
+            "type": "string"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DlhdEpgCategory"
+            }
+          }
+        }
+      },
+      "DlhdEpgCategory": {
+        "type": "object",
+        "required": ["name", "slug", "events"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "PPV Events"
+          },
+          "slug": {
+            "type": "string",
+            "example": "ppv-events"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DlhdEpgEvent"
+            }
+          }
+        }
+      },
+      "DlhdEpgEvent": {
+        "type": "object",
+        "required": ["id", "time", "title", "channels"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string",
+            "example": "16:00"
+          },
+          "title": {
+            "type": "string",
+            "example": "APFC Indian Fight League"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DlhdChannel"
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["success", "error"],
         "properties": {
           "success": {
             "type": "boolean",
