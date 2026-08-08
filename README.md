@@ -516,6 +516,9 @@ interface Provider {
 - `toonhub` - English/Hindi/Japanese anime and cartoon provider
 - `cuevana` - Castilian and Latin-American Spanish movie and episode provider
 - `jetfilmizle` - Turkish movie and episode provider with multi-audio HLS
+- `vidrock` - VidRock AES-GCM-decrypted multi-server movie and episode provider
+- `vidnest` - VidNest multi-server movie and episode provider (custom-base64 payloads)
+- `vidup` - VidUp multi-server movie and episode provider
 
 For catalog, audio-language, and quality details, see
 [`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).

@@ -36,6 +36,15 @@ const api = express.Router()
 const port = parseInt(process.env.PORT || '3000', 10)
 const API_PREFIX = '/api/v2'
 
+// Providers whose responses contain short-lived or session-bound URLs must
+// not be cached for the default two-hour Redis TTL:
+// - vidsrc: stream hosts issue IP-bound tokens that expire quickly.
+// - vidup: the en config, server list and CSRF token rotate on every page
+//   load; resolved stream endpoints are session-bound.
+// - vidnest: several servers return signed URLs with expiry parameters
+//   (moviebox sign/t, beta t/s/e, alfa ?v=).
+const UNCACHEABLE_PROVIDER_IDS = new Set(['vidsrc', 'vidup', 'vidnest'])
+
 app.set('trust proxy', 1)
 app.use(express.json())
 
@@ -332,9 +341,10 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
-  // VidSrc stream hosts issue short-lived, IP-bound tokens. Caching complete
-  // responses would outlive those tokens and turn cache hits into dead links.
-  const useProviderCache = !bypass && provider.id !== 'vidsrc'
+  // Some providers issue short-lived, IP-bound or session-bound tokens.
+  // Caching complete responses would outlive those tokens and turn cache
+  // hits into dead links.
+  const useProviderCache = !bypass && !UNCACHEABLE_PROVIDER_IDS.has(provider.id)
   const fProxyContext = forwardProxyStorage.getStore()
   const cacheKey = buildProviderCacheKey({
     providerId: provider.id,
@@ -470,7 +480,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
-  const useProviderCache = !bypass && provider.id !== 'vidsrc'
+  const useProviderCache = !bypass && !UNCACHEABLE_PROVIDER_IDS.has(provider.id)
   const fProxyContext = forwardProxyStorage.getStore()
   const cacheKey = buildProviderCacheKey({
     providerId: provider.id,

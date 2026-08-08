@@ -32,6 +32,9 @@ import { cinebyProvider } from './cineby.js'
 import { artemisProvider } from './artemis.js'
 import { watchFluxProvider } from './watchflux.js'
 import { aetherProvider } from './aether.js'
+import { vidRockProvider } from './vidrock.js'
+import { vidNestProvider } from './vidnest.js'
+import { vidUpProvider } from './vidup.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 
 // Register all providers here
@@ -70,6 +73,9 @@ const rawProviders = {
   jetfilmizle: jetFilmizleProvider,
   artemis: artemisProvider,
   watchflux: watchFluxProvider,
+  vidrock: vidRockProvider,
+  vidnest: vidNestProvider,
+  vidup: vidUpProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -111,6 +117,9 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   jetfilmizle: false,
   artemis: false,
   watchflux: false,
+  vidrock: true,
+  vidnest: true,
+  vidup: true,
 }
 
 function isProviderId(id: string): id is ProviderId {
