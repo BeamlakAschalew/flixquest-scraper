@@ -96,7 +96,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   purstream: true,
   cuevana: true,
   vixsrc: false,
-  vidsrc: false,
+  vidsrc: true,
   vidzee: false,
   dahmermovies: false,
   'dahmermovies-tv': false,

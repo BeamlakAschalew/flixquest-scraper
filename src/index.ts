@@ -332,6 +332,9 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
+  // VidSrc stream hosts issue short-lived, IP-bound tokens. Caching complete
+  // responses would outlive those tokens and turn cache hits into dead links.
+  const useProviderCache = !bypass && provider.id !== 'vidsrc'
   const fProxyContext = forwardProxyStorage.getStore()
   const cacheKey = buildProviderCacheKey({
     providerId: provider.id,
@@ -341,7 +344,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     proxyUrl: fProxyContext?.proxyUrl,
   })
 
-  if (!bypass) {
+  if (useProviderCache) {
     const cachedResponse = await getProviderCache<ProviderResponse>(cacheKey)
     if (cachedResponse) {
       console.log(
@@ -353,7 +356,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     }
   }
 
-  res.setHeader('X-Cache', bypass ? 'BYPASS' : 'MISS')
+  res.setHeader('X-Cache', useProviderCache ? 'MISS' : 'BYPASS')
 
   try {
     console.log(
@@ -421,7 +424,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
-    if (!bypass && response.links && response.links.length > 0) {
+    if (useProviderCache && response.links && response.links.length > 0) {
       setProviderCache(cacheKey, response)
     }
 
@@ -467,6 +470,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
+  const useProviderCache = !bypass && provider.id !== 'vidsrc'
   const fProxyContext = forwardProxyStorage.getStore()
   const cacheKey = buildProviderCacheKey({
     providerId: provider.id,
@@ -478,7 +482,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     proxyUrl: fProxyContext?.proxyUrl,
   })
 
-  if (!bypass) {
+  if (useProviderCache) {
     const cachedResponse = await getProviderCache<ProviderResponse>(cacheKey)
     if (cachedResponse) {
       console.log(
@@ -490,7 +494,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     }
   }
 
-  res.setHeader('X-Cache', bypass ? 'BYPASS' : 'MISS')
+  res.setHeader('X-Cache', useProviderCache ? 'MISS' : 'BYPASS')
 
   try {
     console.log(
@@ -558,7 +562,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
 
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
-    if (!bypass && response.links && response.links.length > 0) {
+    if (useProviderCache && response.links && response.links.length > 0) {
       setProviderCache(cacheKey, response)
     }
 
