@@ -277,7 +277,7 @@ async function getVixsrcStreams(
 
 export const vixsrcProvider: Provider = {
   name: 'Vixsrc',
-  alias: 'Axum',
+  alias: 'vixsrc',
   id: 'vixsrc',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => getVixsrcStreams(tmdbId, 'movie')),

@@ -184,6 +184,7 @@ async function getStreams(
 export const vidFastProvider: Provider = {
   name: 'VidFast',
   id: 'vidfast',
+  alias: 'Lalibela',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

@@ -743,6 +743,7 @@ export function configureShowBoxProxies(_proxies: string | string[]): void {
 export const showboxProvider: Provider = {
   name: 'ShowBox',
   id: 'showbox',
+  alias: 'Adwa',
   streamMovie: tmdbId => getShowBoxStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getShowBoxStreams(tmdbId, 'tv', season, episode),

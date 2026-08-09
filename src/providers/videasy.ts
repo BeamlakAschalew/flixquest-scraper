@@ -489,6 +489,7 @@ async function getVidEasyStreams(
 export const vidEasyProvider: Provider = {
   name: 'VidEasy',
   id: 'videasy',
+  alias: 'Abyssinia',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => getVidEasyStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>

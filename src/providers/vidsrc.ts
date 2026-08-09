@@ -307,6 +307,7 @@ async function getStreams(
 export const vidsrcProvider: Provider = {
   name: 'VidSrc',
   id: 'vidsrc',
+  alias: 'Yeha',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

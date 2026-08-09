@@ -208,6 +208,7 @@ async function getStreams(
 export const vidlinkProvider: Provider = {
   name: 'Vidlink',
   id: 'vidlink',
+  alias: 'Gumma',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

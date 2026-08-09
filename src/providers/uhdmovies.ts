@@ -1264,7 +1264,7 @@ async function getUHDMoviesStreams(
 export const uhdmoviesProvider: Provider = {
   name: 'UHDMovies',
   id: 'uhdmovies',
-
+  alias: 'Karamara',
   async streamMovie(tmdbId: string): Promise<ProviderLink[]> {
     return getUHDMoviesStreams(tmdbId, 'movie')
   },
