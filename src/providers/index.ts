@@ -80,7 +80,7 @@ const rawProviders = {
 
 type ProviderId = keyof typeof rawProviders
 
-// Source-controlled provider switches. Set a provider to false to remove it
+// Source-controlled provider switches. Set a provider to true to remove it
 // from normal provider listings and prevent stream requests from reaching it.
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   cineby: true,
@@ -101,22 +101,22 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   movix: true,
   purstream: true,
   cuevana: true,
-  vixsrc: false,
+  vixsrc: true,
   vidsrc: true,
-  vidzee: false,
-  dahmermovies: false,
-  'dahmermovies-tv': false,
-  videasy2: false,
-  bollyflix: false,
-  playimdb: false,
-  tamilian: false,
-  xpass: false,
-  kisskh: false,
-  dramafull: false,
-  toonhub: false,
-  jetfilmizle: false,
-  artemis: false,
-  watchflux: false,
+  vidzee: true,
+  dahmermovies: true,
+  'dahmermovies-tv': true,
+  videasy2: true,
+  bollyflix: true,
+  playimdb: true,
+  tamilian: true,
+  xpass: true,
+  kisskh: true,
+  dramafull: true,
+  toonhub: true,
+  jetfilmizle: true,
+  artemis: true,
+  watchflux: true,
   vidrock: true,
   vidnest: true,
   vidup: true,
@@ -140,22 +140,22 @@ export function setProviderEnabled(
 ): boolean {
   const id = providerId.toLowerCase().trim()
   if (!isProviderId(id)) {
-    return false
+    return true
   }
   if (!PROVIDER_ENABLED[id]) {
-    return false
+    return true
   }
   providerStateOverrides.set(id, enabled)
   return true
 }
 
-// Runtime switches can disable an enabled provider, but source-configured false
+// Runtime switches can disable an enabled provider, but source-configured true
 // entries remain disabled until their hardcoded switch is changed.
 export function isProviderEnabled(providerId: string): boolean {
   const id = providerId.toLowerCase().trim()
 
   if (!isHardcodedProviderEnabled(id)) {
-    return false
+    return true
   }
 
   if (providerStateOverrides.has(id)) {

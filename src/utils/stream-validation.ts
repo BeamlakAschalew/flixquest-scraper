@@ -4,6 +4,12 @@ import { getForwardProxyUrl } from './forward-proxy.js'
 
 const VALIDATION_TIMEOUT_MS = Math.max(15_000, DEFAULT_REQUEST_TIMEOUT_MS)
 const VALIDATION_CONCURRENCY = 8
+const VALIDATION_RETRIES = 2
+const VALIDATION_RETRY_DELAY_MS = 1_000
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || (status >= 500 && status <= 599)
+}
 const MEDIA_EXTENSION = /\.(?:m3u8|mpd|mp4|mkv|webm|avi|mov|ts)(?:$|[?#])/i
 const MEDIA_CONTENT_TYPE =
   /^(?:video|audio)\/|mpegurl|dash\+xml|application\/(?:octet-stream|x-mpegurl)/i
@@ -54,50 +60,87 @@ async function validateLink(link: ProviderLink): Promise<ProviderLink | null> {
     return null
   }
 
+  const headers: Record<string, string> = {
+    ...link.headers,
+    Accept: '*/*',
+  }
+  if (!link.isM3U8 && !link.isDASH) headers.Range = 'bytes=0-0'
   try {
-    const headers: Record<string, string> = {
-      ...link.headers,
-      Accept: '*/*',
-    }
-    if (!link.isM3U8 && !link.isDASH) headers.Range = 'bytes=0-0'
     if (!new URL(url).pathname.toLowerCase().includes('/playlist/')) {
       headers['x-skip-forward-proxy'] = 'true'
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
-    })
-
-    const finalUrl = resolveValidatedUrl(url, response.url)
-    const contentType = response.headers.get('content-type') || ''
-    const disposition = response.headers.get('content-disposition') || ''
-    const looksLikeHtml = /(?:text\/html|application\/xhtml\+xml)/i.test(
-      contentType
-    )
-    const looksLikeMedia =
-      link.isM3U8 ||
-      link.isDASH ||
-      MEDIA_CONTENT_TYPE.test(contentType) ||
-      MEDIA_EXTENSION.test(finalUrl) ||
-      /filename\s*=.*\.(?:mp4|mkv|webm|avi|mov|ts)/i.test(disposition)
-
-    await response.body?.cancel()
-    if (!response.ok || looksLikeHtml || !looksLikeMedia) return null
-
-    return {
-      ...link,
-      url: finalUrl,
-      isM3U8:
-        link.isM3U8 ||
-        /mpegurl/i.test(contentType) ||
-        /\.m3u8(?:$|[?#])/i.test(finalUrl),
     }
   } catch {
     return null
   }
+
+  let lastError: unknown
+  let lastStatus = 0
+  let lastContentType = ''
+
+  for (let attempt = 0; attempt <= VALIDATION_RETRIES; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve =>
+        setTimeout(resolve, VALIDATION_RETRY_DELAY_MS * 2 ** (attempt - 1))
+      )
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(VALIDATION_TIMEOUT_MS),
+      })
+
+      const finalUrl = resolveValidatedUrl(url, response.url)
+      const contentType = response.headers.get('content-type') || ''
+      const disposition = response.headers.get('content-disposition') || ''
+      const looksLikeHtml = /(?:text\/html|application\/xhtml\+xml)/i.test(
+        contentType
+      )
+      const looksLikeMedia =
+        link.isM3U8 ||
+        link.isDASH ||
+        MEDIA_CONTENT_TYPE.test(contentType) ||
+        MEDIA_EXTENSION.test(finalUrl) ||
+        /filename\s*=.*\.(?:mp4|mkv|webm|avi|mov|ts)/i.test(disposition)
+
+      await response.body?.cancel()
+      if (!response.ok) {
+        lastStatus = response.status
+        lastContentType = contentType
+        if (isRetryableStatus(response.status)) continue
+        return null
+      }
+      if (looksLikeHtml || !looksLikeMedia) {
+        lastStatus = response.status
+        lastContentType = contentType
+        return null
+      }
+
+      return {
+        ...link,
+        url: finalUrl,
+        isM3U8:
+          link.isM3U8 ||
+          /mpegurl/i.test(contentType) ||
+          /\.m3u8(?:$|[?#])/i.test(finalUrl),
+      }
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  if (lastStatus > 0) {
+    console.warn(
+      `[StreamValidation] Rejected ${url} after ${VALIDATION_RETRIES + 1} attempt(s): HTTP ${lastStatus} (${lastContentType || 'no content-type'})`
+    )
+  } else if (lastError) {
+    console.warn(
+      `[StreamValidation] Rejected ${url} after ${VALIDATION_RETRIES + 1} attempt(s): ${lastError instanceof Error ? lastError.message : 'unknown error'}`
+    )
+  }
+  return null
 }
 
 export async function validateStreamLinks(

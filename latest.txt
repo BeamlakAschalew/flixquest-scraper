@@ -1,0 +1,367 @@
+ pnpm test:stream --concurrency 5
+$ tsx stream-tester.ts --concurrency 5
+
+╔══════════════════════════════════════════════════════════╗
+║  🧪  FlixQuest Stream Tester                             ║
+╚══════════════════════════════════════════════════════════╝
+
+  Base URL:    http://localhost:3000
+  Timeout:     45000ms
+  Concurrency: 5
+  Proxy:       false
+
+Checking server connectivity...
+(node:101107) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✓ Server is running at http://localhost:3000
+
+Discovered 37 providers: cineby, aether, videasy, showbox, 4khdhub, 4khdhubnew, uhdmovies, streamflix, notorrent, vidlink, netmirror, vidfast, castle, movieblast, peachify, movix, purstream, cuevana, vixsrc, vidsrc, vidzee, dahmermovies, dahmermovies-tv, videasy2, bollyflix, playimdb, tamilian, xpass, kisskh, dramafull, toonhub, jetfilmizle, artemis, watchflux, vidrock, vidnest, vidup
+
+Running 185 tests across 37 providers (concurrency=5)
+
+┌─ aether (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   2 link(s)          [Auto, Auto]                   no subs  5394ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [Auto]                         no subs  1746ms
+   PASS  🎬 MOV Inception                                  2 link(s)          [Auto, Auto]                   no subs  4485ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [Auto]                         no subs  5651ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [Auto]                         no subs  4177ms
+└─ aether ✅ 5/5 passed
+
+┌─ videasy (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   6 link(s)          [Auto, Auto, 2160p, 1080p, 72… 🗨 subs  9108ms
+   PASS  🎬 MOV Fight Club                                 9 link(s)          [Auto, Auto, 2160p, 1080p, 72… 🗨 subs  3738ms
+   PASS  🎬 MOV Inception                                  6 link(s)          [Auto, Auto, 2160p, 1080p, 72… 🗨 subs  5867ms
+   PASS  📺 TV  Breaking Bad S1E1                          10 link(s)         [Auto, Auto, 2160p, 1080p, 10… 🗨 subs  17302ms
+   PASS  📺 TV  Game of Thrones S1E1                       4 link(s)          [2160p, 1080p, 720p, 480p]     🗨 subs  15681ms
+└─ videasy ✅ 5/5 passed
+
+┌─ cineby (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   6 link(s)          [2160p, 1080p, 720p, 480p, pl… 🗨 subs  8704ms
+   PASS  🎬 MOV Fight Club                                 6 link(s)          [2160p, 1080p, 720p, 480p, pl… 🗨 subs  7250ms
+   PASS  🎬 MOV Inception                                  6 link(s)          [2160p, 1080p, 720p, 480p, pl… 🗨 subs  4960ms
+   PASS  📺 TV  Breaking Bad S1E1                          6 link(s)          [2160p, 1080p, 720p, 480p, Vi… 🗨 subs  13862ms
+   PASS  📺 TV  Game of Thrones S1E1                       4 link(s)          [2160p, 1080p, 720p, 480p]     🗨 subs  17303ms
+└─ cineby ✅ 5/5 passed
+
+┌─ streamflix (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [720p]                         no subs  17797ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [720p]                         no subs  15105ms
+   PASS  🎬 MOV Inception                                  1 link(s)          [720p]                         no subs  7543ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [720p]                         no subs  6429ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [720p]                         no subs  7908ms
+└─ streamflix ✅ 5/5 passed
+
+┌─ notorrent (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  1396ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  556ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  585ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  828ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  772ms  ↳ No streams found for this episode
+└─ notorrent ❌ 0/5 passed
+
+┌─ vidlink (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   3 link(s)          [1080p, 720p, 480p]            🗨 subs  6418ms
+   PASS  🎬 MOV Fight Club                                 2 link(s)          [720p, 480p]                   🗨 subs  1899ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [1080p, 720p, 480p]            🗨 subs  2221ms
+   PASS  📺 TV  Breaking Bad S1E1                          3 link(s)          [1080p, 720p, 480p]            🗨 subs  3390ms
+   PASS  📺 TV  Game of Thrones S1E1                       3 link(s)          [1080p, 720p, 480p]            🗨 subs  1604ms
+└─ vidlink ✅ 5/5 passed
+
+┌─ showbox (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   7 link(s)          [2160p HDR | HEVC | AAC [~8.4… no subs  25778ms
+   PASS  🎬 MOV Fight Club                                 7 link(s)          [2160p HEVC | AAC [~8.21 GB],… no subs  24249ms
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  40254ms  ↳ No streams found for this movie
+   PASS  📺 TV  Breaking Bad S1E1                          7 link(s)          [2160p HEVC | AAC [~1.79 GB],… no subs  12092ms
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+└─ showbox ⚠️ 3/5 passed
+
+┌─ netmirror (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  11014ms  ↳ No validated streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  7753ms  ↳ No validated streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  1849ms  ↳ No streams found for this movie
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [auto]                         🗨 subs  14312ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [auto]                         🗨 subs  5361ms
+└─ netmirror ⚠️ 2/5 passed
+
+┌─ castle (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [720P]                         no subs  4900ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [1080P]                        🗨 subs  4271ms
+   PASS  🎬 MOV Inception                                  2 link(s)          [720P, 1080P]                  🗨 subs  4421ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [1080P]                        🗨 subs  12415ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [1080P]                        🗨 subs  3978ms
+└─ castle ✅ 5/5 passed
+
+┌─ 4khdhub (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   7 link(s)          [2160p, 1080p, 1080p, 2160p, … no subs  39635ms
+   PASS  🎬 MOV Fight Club                                 10 link(s)         [2160p, 2160p, 2160p, 2160p, … no subs  29497ms
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+└─ 4khdhub ⚠️ 2/5 passed
+
+┌─ peachify (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  307ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  164ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  321ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  475ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  983ms  ↳ No streams found for this episode
+└─ peachify ❌ 0/5 passed
+
+┌─ movieblast (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  987ms  ↳ No streams found for this movie
+   PASS  🎬 MOV Fight Club                                 2 link(s)          [720p, 480p]                   no subs  4433ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [720p, 720p, 360p]             no subs  5415ms
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  2538ms  ↳ No streams found for this episode
+   PASS  📺 TV  Game of Thrones S1E1                       2 link(s)          [720p, 480p]                   no subs  3018ms
+└─ movieblast ⚠️ 3/5 passed
+
+┌─ movix (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [2160p]                        no subs  4400ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [1080p]                        no subs  814ms
+   PASS  🎬 MOV Inception                                  1 link(s)          [1080p]                        no subs  882ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [1080p]                        no subs  1145ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [1080p]                        no subs  966ms
+└─ movix ✅ 5/5 passed
+
+┌─ purstream (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [2160p]                        no subs  2050ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [1080p]                        no subs  1401ms
+   PASS  🎬 MOV Inception                                  1 link(s)          [1080p]                        no subs  1724ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [1080p]                        no subs  1240ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [1080p]                        no subs  2275ms
+└─ purstream ✅ 5/5 passed
+
+┌─ vixsrc (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   3 link(s)          [1080p, 720p, 480p]            🗨 subs  2979ms
+   PASS  🎬 MOV Fight Club                                 3 link(s)          [480p, 720p, 1080p]            🗨 subs  1459ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [480p, 720p, 1080p]            🗨 subs  1325ms
+   PASS  📺 TV  Breaking Bad S1E1                          3 link(s)          [480p, 720p, 1080p]            🗨 subs  4143ms
+   PASS  📺 TV  Game of Thrones S1E1                       3 link(s)          [1080p, 720p, 480p]            🗨 subs  1656ms
+└─ vixsrc ✅ 5/5 passed
+
+┌─ 4khdhubnew (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  45002ms  ↳ The operation was aborted due to timeout
+   PASS  🎬 MOV Fight Club                                 10 link(s)         [2160p, 2160p, 2160p, 2160p, … no subs  36773ms
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+└─ 4khdhubnew ⚠️ 1/5 passed
+
+┌─ vidfast (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   7 link(s)          [auto, 1080p, 2160p, 720p, au… no subs  25519ms
+   PASS  🎬 MOV Fight Club                                 6 link(s)          [auto, 2160p, 1080p, 720p, au… no subs  6296ms
+   PASS  🎬 MOV Inception                                  7 link(s)          [auto, 2160p, 1080p, 720p, au… no subs  16269ms
+   PASS  📺 TV  Breaking Bad S1E1                          7 link(s)          [auto, 1080p, 720p, 1080p, 72… no subs  20880ms
+   PASS  📺 TV  Game of Thrones S1E1                       7 link(s)          [auto, 1080p, 720p, 1080p, 72… no subs  27559ms
+└─ vidfast ✅ 5/5 passed
+
+┌─ vidsrc (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   3 link(s)          [auto, auto, auto]             no subs  1985ms
+   PASS  🎬 MOV Fight Club                                 3 link(s)          [auto, auto, auto]             no subs  1604ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [auto, auto, auto]             no subs  1374ms
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  3058ms  ↳ No validated streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  2740ms  ↳ No validated streams found for this episode
+└─ vidsrc ⚠️ 3/5 passed
+
+┌─ cuevana (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [Auto]                         no subs  12936ms
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  3029ms  ↳ No streams found for this movie
+   PASS  🎬 MOV Inception                                  1 link(s)          [Auto]                         no subs  6146ms
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  4599ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  6708ms  ↳ No streams found for this episode
+└─ cuevana ⚠️ 2/5 passed
+
+┌─ dahmermovies (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  3152ms  ↳ No validated streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  2164ms  ↳ No validated streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  1116ms  ↳ No validated streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  1201ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  875ms  ↳ No streams found for this episode
+└─ dahmermovies ❌ 0/5 passed
+
+┌─ vidzee (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   1 link(s)          [auto]                         🗨 subs  4194ms
+   PASS  🎬 MOV Fight Club                                 1 link(s)          [720p]                         🗨 subs  3980ms
+   PASS  🎬 MOV Inception                                  1 link(s)          [720p]                         🗨 subs  2169ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [720p]                         🗨 subs  2156ms
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [720p]                         🗨 subs  3649ms
+└─ vidzee ✅ 5/5 passed
+
+┌─ dahmermovies-tv (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  10197ms  ↳ No validated streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  417ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  378ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  1448ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  1619ms  ↳ No streams found for this episode
+└─ dahmermovies-tv ❌ 0/5 passed
+
+┌─ tamilian (3 movies, 2 shows)
+   FAIL  🎬 MOV 3 Idiots                                   0 links            —                              no subs  6456ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Lagaan                                     0 links            —                              no subs  2145ms  ↳ No streams found for this movie
+   PASS  🎬 MOV KGF: Chapter 2                             1 link(s)          [1080p]                        no subs  1817ms
+   FAIL  📺 TV  Sacred Games S1E1                          0 links            —                              no subs  1900ms  ↳ No streams found for this episode
+   FAIL  📺 TV  The Family Man S1E1                        0 links            —                              no subs  839ms  ↳ No streams found for this episode
+└─ tamilian ⚠️ 1/5 passed
+
+┌─ uhdmovies (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  45003ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+└─ uhdmovies ❌ 0/5 passed
+
+┌─ kisskh (3 movies, 2 shows)
+   PASS  🎬 MOV Parasite                                   1 link(s)          [720p]                         no subs  10866ms
+   FAIL  🎬 MOV Escape from Mogadishu                      0 links            —                              no subs  2046ms  ↳ No streams found for this movie
+   PASS  🎬 MOV The Gangster, the Cop, the Devil           1 link(s)          [Auto]                         no subs  4911ms
+   PASS  📺 TV  All of Us Are Dead S1E1                    1 link(s)          [Auto]                         no subs  16996ms
+   PASS  📺 TV  Squid Game S1E1                            1 link(s)          [Auto]                         no subs  9260ms
+└─ kisskh ⚠️ 4/5 passed
+
+┌─ dramafull (3 movies, 2 shows)
+   FAIL  🎬 MOV Parasite                                   0 links            —                              no subs  5763ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Escape from Mogadishu                      0 links            —                              no subs  2061ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV The Gangster, the Cop, the Devil           0 links            —                              no subs  1164ms  ↳ No streams found for this movie
+   FAIL  📺 TV  All of Us Are Dead S1E1                    0 links            —                              no subs  2124ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Squid Game S1E1                            0 links            —                              no subs  1698ms  ↳ No streams found for this episode
+└─ dramafull ❌ 0/5 passed
+
+┌─ playimdb (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   3 link(s)          [1080p, 1080p, 1080p]          no subs  24379ms
+   PASS  🎬 MOV Fight Club                                 3 link(s)          [1080p, 1080p, 1080p]          no subs  6954ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [1080p, 1080p, 1080p]          no subs  9167ms
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   PASS  📺 TV  Game of Thrones S1E1                       3 link(s)          [1080p, 1080p, 1080p]          no subs  18298ms
+└─ playimdb ⚠️ 4/5 passed
+
+┌─ bollyflix (3 movies, 2 shows)
+   FAIL  🎬 MOV 3 Idiots                                   0 links            —                              no subs  16605ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Lagaan                                     0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV KGF: Chapter 2                             0 links            —                              no subs  23223ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Sacred Games S1E1                          0 links            —                              no subs  23150ms  ↳ No streams found for this episode
+   FAIL  📺 TV  The Family Man S1E1                        0 links            —                              no subs  2492ms  ↳ No streams found for this episode
+└─ bollyflix ❌ 0/5 passed
+
+┌─ artemis (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  2537ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  297ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  290ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  622ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  416ms  ↳ No streams found for this episode
+└─ artemis ❌ 0/5 passed
+
+┌─ watchflux (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  6668ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  151ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  155ms  ↳ No streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  426ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  608ms  ↳ No streams found for this episode
+└─ watchflux ❌ 0/5 passed
+
+┌─ toonhub (3 movies, 2 shows)
+   PASS  🎬 MOV Your Name                                  3 link(s)          [480p, 720p, 1080p]            no subs  12014ms
+   FAIL  🎬 MOV Spirited Away                              0 links            —                              no subs  11322ms  ↳ No streams found for this movie
+   FAIL  🎬 MOV Dragon Ball Super: Broly                   0 links            —                              no subs  6492ms  ↳ No streams found for this movie
+   PASS  📺 TV  Demon Slayer S1E1                          3 link(s)          [480p, 720p, 1080p]            no subs  13318ms
+   FAIL  📺 TV  Naruto S1E1                                0 links            —                              no subs  4871ms  ↳ No streams found for this episode
+└─ toonhub ⚠️ 2/5 passed
+
+┌─ jetfilmizle (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   2 link(s)          [Auto, Auto]                   no subs  8843ms
+   PASS  🎬 MOV Fight Club                                 2 link(s)          [Auto, Auto]                   no subs  9395ms
+   PASS  🎬 MOV Inception                                  2 link(s)          [Auto, Auto]                   no subs  5745ms
+   PASS  📺 TV  Breaking Bad S1E1                          1 link(s)          [1080p]                        🗨 subs  13095ms
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  18592ms  ↳ No streams found for this episode
+└─ jetfilmizle ⚠️ 4/5 passed
+
+┌─ videasy2 (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  22715ms  ↳ No streams found for this episode
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+└─ videasy2 ❌ 0/5 passed
+
+┌─ vidrock (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   3 link(s)          [360p, 480p, 720p]             🗨 subs  28702ms
+   PASS  🎬 MOV Fight Club                                 4 link(s)          [auto, 360p, 480p, 720p]       🗨 subs  23866ms
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  9180ms  ↳ No validated streams found for this movie
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   PASS  📺 TV  Game of Thrones S1E1                       1 link(s)          [auto]                         🗨 subs  8039ms
+└─ vidrock ⚠️ 3/5 passed
+
+┌─ xpass (3 movies, 2 shows)
+   FAIL  🎬 MOV The Shawshank Redemption                   0 links            —                              no subs  45000ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Fight Club                                 0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Breaking Bad S1E1                          0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   FAIL  📺 TV  Game of Thrones S1E1                       0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+└─ xpass ❌ 0/5 passed
+
+┌─ vidup (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   4 link(s)          [auto, auto, auto, auto]       no subs  24969ms
+   PASS  🎬 MOV Fight Club                                 3 link(s)          [auto, auto, auto]             no subs  36200ms
+   PASS  🎬 MOV Inception                                  3 link(s)          [auto, auto, auto]             no subs  14816ms
+   PASS  📺 TV  Breaking Bad S1E1                          3 link(s)          [auto, auto, auto]             no subs  22093ms
+   PASS  📺 TV  Game of Thrones S1E1                       3 link(s)          [auto, auto, auto]             no subs  11283ms
+└─ vidup ✅ 5/5 passed
+
+┌─ vidnest (3 movies, 2 shows)
+   PASS  🎬 MOV The Shawshank Redemption                   14 link(s)         [auto, auto, auto, 360p, 480p… 🗨 subs  22454ms
+   PASS  🎬 MOV Fight Club                                 11 link(s)         [auto, auto, auto, 360p, 480p… no subs  29332ms
+   FAIL  🎬 MOV Inception                                  0 links            —                              no subs  45001ms  ↳ The operation was aborted due to timeout
+   PASS  📺 TV  Breaking Bad S1E1                          11 link(s)         [auto, auto, auto, 1080p, aut… 🗨 subs  40215ms
+   PASS  📺 TV  Game of Thrones S1E1                       10 link(s)         [auto, auto, auto, 1080p, aut… 🗨 subs  25485ms
+└─ vidnest ⚠️ 4/5 passed
+
+
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+  PROVIDER SUMMARY
+══════════════════════════════════════════════════════════════════════════════════════════════════════════════
+  Provider             Status     Pass Rate    Movies       TV           Avg Time   Subs  
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+  aether               ✅ UP       100%         3/3          2/2          4291ms     —     
+  castle               ✅ UP       100%         3/3          2/2          5997ms     ✓     
+  cineby               ✅ UP       100%         3/3          2/2          10416ms    ✓     
+  movix                ✅ UP       100%         3/3          2/2          1641ms     —     
+  purstream            ✅ UP       100%         3/3          2/2          1738ms     —     
+  streamflix           ✅ UP       100%         3/3          2/2          10956ms    —     
+  videasy              ✅ UP       100%         3/3          2/2          10339ms    ✓     
+  vidfast              ✅ UP       100%         3/3          2/2          19305ms    —     
+  vidlink              ✅ UP       100%         3/3          2/2          3106ms     ✓     
+  vidup                ✅ UP       100%         3/3          2/2          21872ms    —     
+  vidzee               ✅ UP       100%         3/3          2/2          3230ms     ✓     
+  vixsrc               ✅ UP       100%         3/3          2/2          2312ms     ✓     
+  jetfilmizle          ⚠️  PARTI… 80%          3/3          1/2          11134ms    ✓     
+  kisskh               ⚠️  PARTI… 80%          2/3          2/2          8816ms     —     
+  playimdb             ⚠️  PARTI… 80%          3/3          1/2          20760ms    —     
+  vidnest              ⚠️  PARTI… 80%          2/3          2/2          32497ms    ✓     
+  movieblast           ⚠️  PARTI… 60%          2/3          1/2          3278ms     —     
+  showbox              ⚠️  PARTI… 60%          2/3          1/2          29475ms    —     
+  vidrock              ⚠️  PARTI… 60%          2/3          1/2          22958ms    ✓     
+  vidsrc               ⚠️  PARTI… 60%          3/3          0/2          2152ms     —     
+  4khdhub              ⚠️  PARTI… 40%          2/3          0/2          40827ms    —     
+  cuevana              ⚠️  PARTI… 40%          2/3          0/2          6684ms     —     
+  netmirror            ⚠️  PARTI… 40%          0/3          2/2          8058ms     ✓     
+  toonhub              ⚠️  PARTI… 40%          1/3          1/2          9603ms     —     
+  4khdhubnew           ⚠️  PARTI… 20%          1/3          0/2          43356ms    —     
+  tamilian             ⚠️  PARTI… 20%          1/3          0/2          2631ms     —     
+  artemis              ❌ DOWN     0%           0/3          0/2          832ms      —     
+  bollyflix            ❌ DOWN     0%           0/3          0/2          22094ms    —     
+  dahmermovies         ❌ DOWN     0%           0/3          0/2          1702ms     —     
+  dahmermovies-tv      ❌ DOWN     0%           0/3          0/2          2812ms     —     
+  dramafull            ❌ DOWN     0%           0/3          0/2          2562ms     —     
+  notorrent            ❌ DOWN     0%           0/3          0/2          827ms      —     
+  peachify             ❌ DOWN     0%           0/3          0/2          450ms      —     
+  uhdmovies            ❌ DOWN     0%           0/3          0/2          45001ms    —     
+  videasy2             ❌ DOWN     0%           0/3          0/2          40543ms    —     
+  watchflux            ❌ DOWN     0%           0/3          0/2          1602ms     —     
+  xpass                ❌ DOWN     0%           0/3          0/2          45001ms    —     
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Total: 185 tests across 37 providers
+  Passed: 98  Failed: 87  Rate: 53.0%
+  Providers responding: 26  Providers down: 11
+
+  Total execution time: 544.1s
