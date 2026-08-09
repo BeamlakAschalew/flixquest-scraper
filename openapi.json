@@ -21,6 +21,10 @@
       "description": "Operations for scraping movie and TV episode stream links."
     },
     {
+      "name": "Configuration",
+      "description": "Runtime playback configuration consumed by FlixQuest clients."
+    },
+    {
       "name": "DLHD",
       "description": "Live channel, HLS extraction, and categorized EPG operations for DLHD."
     },
@@ -30,6 +34,36 @@
     }
   ],
   "paths": {
+    "/api/v2/intro": {
+      "get": {
+        "summary": "Get Branded Intro Configuration",
+        "description": "Returns the optional branded video played before official streams.",
+        "operationId": "getIntroConfig",
+        "tags": ["Configuration"],
+        "responses": {
+          "200": {
+            "description": "Intro configuration retrieved successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntroConfigResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server intro environment variables are invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/providers": {
       "get": {
         "summary": "List Available Providers",
@@ -725,6 +759,35 @@
   },
   "components": {
     "schemas": {
+      "IntroConfig": {
+        "type": "object",
+        "required": ["enabled", "url"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "example": "https://cdn.example.com/flixquest-intro.mp4"
+          }
+        }
+      },
+      "IntroConfigResponse": {
+        "type": "object",
+        "required": ["success", "intro"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "intro": {
+            "$ref": "#/components/schemas/IntroConfig"
+          }
+        }
+      },
       "ProviderInfo": {
         "type": "object",
         "required": ["id", "name", "alias", "enabled"],

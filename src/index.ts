@@ -28,6 +28,7 @@ import {
   setProviderCache,
 } from './utils/redis.js'
 import { dlhdRouter } from './routes/dlhd.js'
+import { resolveIntroConfig } from './utils/intro-config.js'
 
 setupForwardProxyPatch()
 
@@ -190,6 +191,7 @@ app.get('/', async (_req, res) => {
       streamTV:
         'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
       providers: 'GET /api/v2/providers',
+      intro: 'GET /api/v2/intro',
       toggleProvider:
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
       cacheStats: 'GET /api/v2/cache/stats',
@@ -219,6 +221,27 @@ api.get('/providers', (req: Request, res: Response) => {
     enabled: isProviderEnabled(provider.id),
   }))
   res.json({ success: true, providers: providerList })
+})
+
+/**
+ * GET /api/v2/intro
+ *
+ * Returns the current branded intro configuration. Playback clients must
+ * fail open when the intro is disabled or temporarily unavailable so this
+ * optional branding can never prevent the requested stream from starting.
+ */
+api.get('/intro', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    res.json({ success: true, intro: resolveIntroConfig() })
+  } catch (error) {
+    const response: ErrorResponse = {
+      success: false,
+      error: 'Invalid branded intro configuration',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }
+    res.status(500).json(response)
+  }
 })
 
 /**
@@ -599,6 +622,7 @@ app.listen(port, () => {
       '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
     )
     console.log('   GET /api/v2/providers')
+    console.log('   GET /api/v2/intro')
     console.log('   GET /api/v2/dlhd/channels')
     console.log('   GET /api/v2/dlhd/channels/{id}/stream')
     console.log('   GET /api/v2/dlhd/epg')

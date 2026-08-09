@@ -46,6 +46,8 @@ cp .env.example .env
 
 ```env
 TMDB_API_KEY=your_actual_api_key_here
+INTRO_VIDEO_URL=https://cdn.example.com/flixquest-intro.mp4
+INTRO_VIDEO_ENABLED=true
 STREAM_PROXY_SECRET=your_long_random_secret
 PORT=3000
 FEBBOX_COOKIE=your_febbox_cookir_for_showbox
@@ -558,6 +560,8 @@ Create a `.env` file in the root directory (see `.env.example` for reference):
 | Variable       | Description                                                            | Required | Default |
 | -------------- | ---------------------------------------------------------------------- | -------- | ------- |
 | `TMDB_API_KEY` | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -       |
+| `INTRO_VIDEO_URL` | Absolute HTTP(S) URL for the branded pre-stream intro               | No       | -       |
+| `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                  | No       | Enabled when a URL is set |
 | `PORT`         | Server port                                                            | No       | `3000`  |
 | `NODE_ENV`     | Environment mode (`production` or `development`)                       | No       | -       |
 

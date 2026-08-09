@@ -18,7 +18,8 @@
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "typecheck": "tsc --noEmit",
     "test:stream": "tsx stream-tester.ts",
-    "test:dlhd": "tsx --test src/sources/dlhd.test.ts"
+    "test:dlhd": "tsx --test src/sources/dlhd.test.ts",
+    "test:intro": "tsx --test src/utils/intro-config.test.ts"
   },
   "keywords": [
     "streaming",
