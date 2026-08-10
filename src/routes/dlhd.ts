@@ -29,8 +29,10 @@ function includes(value: string, search: string | undefined): boolean {
 dlhdRouter.get('/channels', async (req: Request, res: Response) => {
   try {
     const search = queryString(req.query.search) || queryString(req.query.q)
-    const channels = (await getDlhdChannels(bypassCache(req))).filter(channel =>
-      includes(`${channel.name} ${channel.id}`, search)
+    const channels = (await getDlhdChannels(bypassCache(req))).filter(
+      channel =>
+        !channel.name.trim().toLowerCase().includes('+18') &&
+        includes(`${channel.name} ${channel.id}`, search)
     )
 
     res.json({
