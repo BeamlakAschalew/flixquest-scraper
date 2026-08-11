@@ -36,6 +36,7 @@ import { vidRockProvider } from './vidrock.js'
 import { vidNestProvider } from './vidnest.js'
 import { vidUpProvider } from './vidup.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
+import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
 // Register all providers here
 const rawProviders = {
@@ -169,17 +170,20 @@ export function isProviderEnabled(providerId: string): boolean {
 export function getProviderAlias(provider: Provider): string {
   const envVarKey = provider.id.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()
   const envAlias = process.env[`PROVIDER_ALIAS_${envVarKey}`]
-  if (envAlias && envAlias.trim()) {
-    return envAlias.trim()
-  }
-  return provider.alias || provider.name
+  return envAlias?.trim() || provider.alias || provider.name
 }
 
-// Helper to attach resolved alias to a provider object
+// Get audited content-origin/audio-language metadata for a provider.
+export function getProviderContent(provider: Provider): string {
+  return PROVIDER_CONTENT_BADGES[provider.id] || ''
+}
+
+// Helper to attach resolved public metadata to a provider object
 function withResolvedAlias(provider: Provider): Provider {
   return {
     ...provider,
     alias: getProviderAlias(provider),
+    content: getProviderContent(provider),
   }
 }
 

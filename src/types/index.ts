@@ -89,6 +89,7 @@ export interface ErrorResponse {
 export interface Provider {
   name: string
   alias?: string
+  content?: string
   id: string
   streamMovie: (tmdbId: string) => Promise<ProviderLink[]>
   streamTV: (

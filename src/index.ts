@@ -218,6 +218,7 @@ api.get('/providers', (req: Request, res: Response) => {
     id: provider.id,
     name: provider.name,
     alias: provider.alias || provider.name,
+    content: provider.content || '',
     enabled: isProviderEnabled(provider.id),
   }))
   res.json({ success: true, providers: providerList })
@@ -279,6 +280,7 @@ api.patch('/providers/:id', (req: Request, res: Response) => {
       id: provider!.id,
       name: provider!.name,
       alias: provider!.alias || provider!.name,
+      content: provider!.content || '',
       enabled,
     },
   })
@@ -316,6 +318,7 @@ api.post('/providers/:id/toggle', (req: Request, res: Response) => {
       id: provider!.id,
       name: provider!.name,
       alias: provider!.alias || provider!.name,
+      content: provider!.content || '',
       enabled,
     },
   })
