@@ -32,6 +32,7 @@ dlhdRouter.get('/channels', async (req: Request, res: Response) => {
     const channels = (await getDlhdChannels(bypassCache(req))).filter(
       channel =>
         !channel.name.trim().toLowerCase().includes('+18') &&
+        !channel.name.trim().toLowerCase().includes('18+') &&
         includes(`${channel.name} ${channel.id}`, search)
     )
 
