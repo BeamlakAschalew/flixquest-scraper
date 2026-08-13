@@ -31,11 +31,18 @@ import { jetFilmizleProvider } from './jetfilmizle.js'
 import { cinebyProvider } from './cineby.js'
 import { cinejoyProvider } from './cinejoy.js'
 import { artemisProvider } from './artemis.js'
+import { zstreamProvider } from './zstream.js'
 import { watchFluxProvider } from './watchflux.js'
 import { aetherProvider } from './aether.js'
 import { vidRockProvider } from './vidrock.js'
 import { vidNestProvider } from './vidnest.js'
 import { vidUpProvider } from './vidup.js'
+import { rabbitMeowProvider } from './rabbitmeow.js'
+import { primeSrcProvider } from './primesrc.js'
+import { smashyStreamProvider } from './smashystream.js'
+import { twoEmbedProvider } from './2embed.js'
+import { multiEmbedProvider } from './multiembed.js'
+import { oneElevenMoviesProvider } from './111movies.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
@@ -75,10 +82,17 @@ const rawProviders = {
   toonhub: toonHubProvider,
   jetfilmizle: jetFilmizleProvider,
   artemis: artemisProvider,
+  zstream: zstreamProvider,
   watchflux: watchFluxProvider,
   vidrock: vidRockProvider,
   vidnest: vidNestProvider,
   vidup: vidUpProvider,
+  rabbitmeow: rabbitMeowProvider,
+  primesrc: primeSrcProvider,
+  smashystream: smashyStreamProvider,
+  '2embed': twoEmbedProvider,
+  multiembed: multiEmbedProvider,
+  '111movies': oneElevenMoviesProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -120,10 +134,17 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   toonhub: true,
   jetfilmizle: true,
   artemis: true,
+  zstream: true,
   watchflux: true,
   vidrock: true,
   vidnest: true,
   vidup: true,
+  rabbitmeow: true,
+  primesrc: true,
+  smashystream: true,
+  '2embed': true,
+  multiembed: true,
+  '111movies': true,
 }
 
 function isProviderId(id: string): id is ProviderId {

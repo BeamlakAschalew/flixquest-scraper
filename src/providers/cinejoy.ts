@@ -16,6 +16,8 @@ interface CinejoyServer {
 }
 
 interface CinejoySubtitle {
+  id?: string
+  type?: string
   url?: string
   language?: string
   lang?: string
@@ -155,12 +157,31 @@ function normalizeQuality(value: string): string {
   return value || 'Auto'
 }
 
+function subtitleLabel(caption: CinejoySubtitle): string {
+  const id = caption.id?.trim()
+  if (id) {
+    const descriptive = id.replace(/^[a-z]{2,3}[-_]/i, '')
+    return descriptive.replace(/\b\w/g, character => character.toUpperCase())
+  }
+
+  const language = caption.language || caption.lang
+  if (!language) return 'Unknown'
+  try {
+    return (
+      new Intl.DisplayNames(['en'], { type: 'language' }).of(language) ||
+      language
+    )
+  } catch {
+    return language
+  }
+}
+
 function subtitlesFor(stream: CinejoyStream): Subtitle[] {
   return Array.from(
     new Map(
       (stream.captions || []).flatMap(caption => {
         if (!caption.url || !/^https?:\/\//i.test(caption.url)) return []
-        const label = caption.language || caption.lang || 'Unknown'
+        const label = subtitleLabel(caption)
         return [
           [
             `${caption.url}|${label}`,
@@ -168,6 +189,18 @@ function subtitlesFor(stream: CinejoyStream): Subtitle[] {
           ] as const,
         ]
       })
+    ).values()
+  )
+}
+
+function mergeSubtitles(...groups: Subtitle[][]): Subtitle[] {
+  return Array.from(
+    new Map(
+      groups
+        .flat()
+        .map(
+          subtitle => [`${subtitle.file}|${subtitle.label}`, subtitle] as const
+        )
     ).values()
   )
 }
@@ -310,9 +343,21 @@ async function getStreams(
     const links = settled.flatMap(result =>
       result.status === 'fulfilled' ? result.value : []
     )
-    return Array.from(
-      new Map(links.map(link => [link.url, link])).values()
-    ).sort((a, b) => qualityScore(b.quality) - qualityScore(a.quality))
+    // Captions are returned by the server that sourced them. Make the full
+    // Cinejoy subtitle catalog available on every equivalent playback link,
+    // including servers whose stream response has no captions of its own.
+    const allSubtitles = mergeSubtitles(...links.map(link => link.subtitles))
+    const uniqueLinks = Array.from(
+      new Map(
+        links.map(link => [
+          link.url,
+          { ...link, subtitles: mergeSubtitles(link.subtitles, allSubtitles) },
+        ])
+      ).values()
+    )
+    return uniqueLinks.sort(
+      (a, b) => qualityScore(b.quality) - qualityScore(a.quality)
+    )
   } catch (error) {
     console.error(
       `[Cinejoy] ${error instanceof Error ? error.message : 'Unknown provider error'}`
