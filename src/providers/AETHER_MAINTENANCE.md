@@ -1,17 +1,16 @@
 # Aether provider maintenance
 
-Last verified: **2026-07-24**
+Last verified: **2026-08-13**
 
 This document describes the server-side `aether` provider in this repository.
-It intentionally calls Aether's individual source workers concurrently and
-keeps successful streams when other workers fail.
+It calls Aether's individual source workers concurrently and keeps successful
+streams when other workers fail.
 
 ## User-facing behavior
 
 - Provider ID: `aether`
 - Movies: `/v2/stream-movie?tmdbId=884605&provider=aether`
-- TV:
-  `/v2/stream-tv?tmdbId=125988&season=1&episode=1&provider=aether`
+- TV: `/v2/stream-tv?tmdbId=125988&season=1&episode=1&provider=aether`
 - Primary output: adaptive HLS (`Auto`)
 - Common audio on the general sources: 🌐 original audio, usually 🇬🇧 English
   for English-language titles
@@ -25,71 +24,43 @@ Aether is an aggregator. A failed worker is normal and does not make the whole
 provider fail. The implementation uses `Promise.allSettled()` and returns every
 unique usable URL from the workers that responded.
 
-## Web application architecture
+## Request headers
 
-The tested site is `https://aether.bar`. It is a p-stream-style single-page
-application. The tested build loaded:
-
-- `/assets/index-BB5hgv0Z.js`
-- `/assets/PlayerView-Dr2ql_Ow.js`
-- `/assets/vendor-NZwZbizz.js`
-- `/config.js`
-
-Asset hashes will change on deployment. Locate the current player asset in the
-site HTML and search it for `runSourceScraper`, `listSources`, or
-`manualSourceSelect` when repairing a future build.
-
-The web client exposes source metadata through its provider registry. At the
-time of verification its movie/TV source order was:
-
-1. `lul` — Lul 👾
-2. `link` — Link 🔗
-3. `nebula` — Nebula 🌌
-4. `meridian` — Meridian 🪐
-5. `tiki` — Tiki 🗿
-6. `vidy` — Vidy 📺
-7. `aether-subtitulado` — Subtitulado 🇪🇸
-8. `aether-latino` — Latino
-9. `aether-castellano` — Castellano 🇪🇸
-10. `cowflix` — Cowflix 🇩🇪
-11. `gallic` — Gallic 🇫🇷
-12. `vidlink` — KingLink
-13. `diziyou` — Turkish TV only
-14. `animetsu` — anime TV only
-
-This repository directly implements the first eleven HTTP workers. KingLink
-uses an additional encrypted VidLink request, while Diziyou and Animetsu need
-title/episode metadata and their own embed resolvers; they are deliberately
-excluded instead of pretending their requests are equivalent.
-
-## Exact worker calls
-
-All calls are `GET` requests. The implementation sends:
+The workers reject plain server requests with Cloudflare blocks. Every lookup
+must carry a Chromium user agent plus the Aether origin pair:
 
 ```text
 Accept: application/json, text/plain, */*
+Accept-Language: en-US,en;q=0.9
 Origin: https://aether.bar
 Referer: https://aether.bar/
-User-Agent: a Chromium browser user agent
+User-Agent: <Chromium UA>
 ```
 
-Replace `{tmdb}`, `{season}` and `{episode}` with numeric values.
+## Worker calls
 
-| Source      | Movie call                                     | TV call                                                           |
-| ----------- | ---------------------------------------------- | ----------------------------------------------------------------- |
-| Lul         | `https://lul.aether.cx/movie/{tmdb}`           | `https://lul.aether.cx/tv/{tmdb}/{season}/{episode}`              |
-| Link        | `https://link.aether.cx/movie/{tmdb}`          | `https://link.aether.cx/tv/{tmdb}/{season}/{episode}`             |
-| Nebula      | `https://nebula.aether.cx/movie/{tmdb}?ser=cf` | `https://nebula.aether.cx/tv/{tmdb}/{season}/{episode}?ser=cf`    |
-| Meridian    | `https://meridian.aether.bar/movie/{tmdb}`     | `https://meridian.aether.bar/show/{tmdb}/{season}/{episode}`      |
-| Tiki        | `https://tiki.aether.cx/movie/{tmdb}`          | `https://tiki.aether.cx/tv/{tmdb}/{season}/{episode}`             |
-| Vidy        | `https://vidy.aether.cx/movie/{tmdb}`          | `https://vidy.aether.cx/tv/{tmdb}/{season}/{episode}`             |
-| Subtitulado | `https://sol.aether.bar/movie/{tmdb}?lang=sub` | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=sub`    |
-| Latino      | `https://sol.aether.bar/movie/{tmdb}?lang=lat` | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=lat`    |
-| Castellano  | `https://sol.aether.bar/movie/{tmdb}?lang=esp` | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=esp`    |
-| Cowflix     | `https://cow.aether.bar/movie/{tmdb}`          | `https://cow.aether.bar/tv/{tmdb}/{season}/{episode}`             |
-| Gallic      | `https://baguette.aether.cx/api/movie/{tmdb}`  | `https://baguette.aether.cx/api/tv/{tmdb}?s={season}&e={episode}` |
+All calls are `GET` requests. Replace `{tmdb}`, `{season}` and `{episode}`
+with numeric values.
+
+| Source      | Movie call                                                          | TV call                                                                   |
+| ----------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Lul         | `https://lul.aether.cx/movie/{tmdb}`                                | `https://lul.aether.cx/tv/{tmdb}/{season}/{episode}`                       |
+| Link        | `https://link.aether.cx/movie/{tmdb}`                               | `https://link.aether.cx/tv/{tmdb}/{season}/{episode}`                      |
+| Nebula      | `https://nebula.aether.cx/movie/{tmdb}?ser=cf`                      | `https://nebula.aether.cx/tv/{tmdb}/{season}/{episode}?ser=cf`             |
+| Meridian    | `https://meridian.aether.bar/movie/{tmdb}`                          | `https://meridian.aether.bar/show/{tmdb}/{season}/{episode}`               |
+| Tiki        | `https://tiki.aether.cx/movie/{tmdb}`                               | `https://tiki.aether.cx/tv/{tmdb}/{season}/{episode}`                      |
+| Vidy        | `https://vidy.aether.cx/movie/{tmdb}`                               | `https://vidy.aether.cx/tv/{tmdb}/{season}/{episode}`                      |
+| Vine        | `https://vine.aether.cx/movie/{tmdb}`                               | `https://vine.aether.cx/tv/{tmdb}/{season}/{episode}`                      |
+| Fast        | `https://fast.aether.cx/scrape?type=movie&tmdbId={tmdb}`            | `https://fast.aether.cx/scrape?type=show&tmdbId={tmdb}&season={s}&episode={e}` |
+| Subtitulado | `https://sol.aether.bar/movie/{tmdb}?lang=sub`                      | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=sub`             |
+| Latino      | `https://sol.aether.bar/movie/{tmdb}?lang=lat`                      | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=lat`             |
+| Castellano  | `https://sol.aether.bar/movie/{tmdb}?lang=esp`                      | `https://sol.aether.bar/tv/{tmdb}/{season}/{episode}?lang=esp`             |
+| Cowflix     | `https://cow.aether.bar/movie/{tmdb}`                               | `https://cow.aether.bar/tv/{tmdb}/{season}/{episode}`                      |
+| Gallic      | `https://baguette.aether.cx/api/movie/{tmdb}`                       | `https://baguette.aether.cx/api/tv/{tmdb}?s={season}&e={episode}`          |
 
 The TV path difference for Meridian (`show`, not `tv`) is intentional.
+`Fast` is the worker behind the client's `vidapi-click` source and uses query
+parameters instead of path segments.
 
 ## Observed response shapes
 
@@ -112,49 +83,64 @@ Meridian:
 
 ```json
 {
-  "title": "Silo - S1E1",
-  "url": "https://yield.aether.bar/m3u8-proxy?url=...&headers=...",
+  "title": "Ted Lasso - S1E1",
+  "url": "https://cdn.neuronix.sbs/segment/...?token1=...&token3=...",
   "subtitles": [
-    {
-      "language": "English",
-      "url": "https://.../subtitle/...",
-      "type": "vtt"
-    }
+    { "language": "English", "url": "https://cdn.syntraa.fun/subtitle/...", "type": "vtt" }
   ]
 }
 ```
 
-Tiki:
+Link:
+
+```json
+{ "id": 884605, "title": "No Hard Feelings 2023", "stream": "https://.../pl/..." }
+```
+
+Tiki and Lul:
+
+```json
+{ "stream": "https://tiki.aether.cx/.../master.m3u8" }
+```
+
+Vine:
 
 ```json
 {
-  "stream": "https://tiki.aether.cx/.../master.m3u8"
+  "id": 884605,
+  "type": "movie",
+  "title": "No Hard Feelings",
+  "streams": [
+    { "server": "atlas", "type": "mp4", "quality": "720p", "url": "https://.../995111_720p.mp4/" }
+  ]
 }
 ```
 
-Other workers have used `url`, `file`, `stream`, `streams`, `sources`, or
-`urls`. The parser accepts those known shapes but does not recursively harvest
-arbitrary URLs, which prevents subtitle or tracking URLs from being mislabeled
-as video.
+The parser accepts `url`, `file`, `stream`, `streams`, `sources`, or `urls`
+payload fields and does not recursively harvest arbitrary URLs, which
+prevents subtitle or tracking URLs from being mislabeled as video.
 
-## Live verification result
+## Live verification result (2026-08-13)
 
 For movie TMDB `884605` (`No Hard Feelings`):
 
-- ✅ Nebula returned HLS.
-- ✅ Meridian returned HLS plus multilingual subtitles.
-- ❌ Lul, Tiki and Vidy hit an upstream `429` during this check.
-- ❌ Link's worker was unavailable.
-- ❌ The regional workers had no matching stream for this title during the
-  check.
-
-For TV TMDB `125988`, season 1, episode 1 (`Silo`):
-
+- ✅ Link returned a stream.
 - ✅ Nebula returned HLS.
 - ✅ Meridian returned HLS plus multilingual subtitles.
 - ✅ Tiki returned HLS.
-- ❌ Lul hit an upstream `429`.
-- ❌ Link and the remaining tested workers returned unavailable/not-found.
+- ✅ Vine returned MP4 qualities.
+- ❌ Lul returned `No LUL backup found` / Cloudflare `1015` during this check
+  (rate limiting is intermittent).
+- ❌ Vidy returned `502` (worker down).
+- ❌ Fast returned Cloudflare `1033` from the scraper IP (client lists this
+  source as disabled as well).
+- ❌ Sol returned `530`, Cowflix returned `502`, Gallic returned `404`.
+
+For TV TMDB `97546`, season 1, episode 1 (`Ted Lasso`):
+
+- ✅ Link, Nebula, Meridian (with subtitles), Tiki and Lul returned streams.
+- ❌ Vine had no streams for this episode; Vidy, Fast and the regional
+  workers were unavailable.
 
 These results are a snapshot, not a permanent allowlist. Keep every worker in
 the concurrent probe because availability changes by title and over time.
@@ -177,7 +163,7 @@ Useful direct checks:
 
 ```bash
 curl 'http://localhost:3000/v2/stream-movie?tmdbId=884605&provider=aether'
-curl 'http://localhost:3000/v2/stream-tv?tmdbId=125988&season=1&episode=1&provider=aether'
+curl 'http://localhost:3000/v2/stream-tv?tmdbId=97546&season=1&episode=1&provider=aether'
 ```
 
 The provider needs no API key, cookie, Cloudflare clearance, or browser

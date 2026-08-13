@@ -8,6 +8,9 @@ const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 
+// The workers reject requests that do not look like they originate from the
+// Aether web application. A Chromium user agent alone is not enough; the
+// Origin/Referer pair is required.
 const REQUEST_HEADERS = {
   Accept: 'application/json, text/plain, */*',
   'Accept-Language': 'en-US,en;q=0.9',
@@ -31,6 +34,7 @@ interface AetherSubtitle {
   language?: string
   lang?: string
   kind?: string
+  type?: string
 }
 
 interface AetherStream {
@@ -40,6 +44,7 @@ interface AetherStream {
   source?: string
   name?: string
   label?: string
+  server?: string
   quality?: string
   type?: string
   subtitles?: AetherSubtitle[]
@@ -72,18 +77,6 @@ function standardSource(
       `${baseUrl}/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}`,
   }
 }
-
-const DISABLED_SOURCES = new Set([
-  'lul',
-  'meridian',
-  'tiki',
-  'vidy',
-  'subtitulado',
-  'latino',
-  'castellano',
-  'cowflix',
-  'gallic',
-])
 
 const ALL_SOURCES: AetherSource[] = [
   standardSource(
@@ -131,6 +124,21 @@ const ALL_SOURCES: AetherSource[] = [
     'Original / English',
     'https://vidy.aether.cx'
   ),
+  standardSource(
+    'vine',
+    'Vine 🇩🇪',
+    'Original / English',
+    'https://vine.aether.cx'
+  ),
+  {
+    id: 'fast',
+    name: 'Fast ⚡',
+    audio: 'Original / English',
+    movieUrl: tmdbId =>
+      `https://fast.aether.cx/scrape?type=movie&tmdbId=${encodeURIComponent(tmdbId)}`,
+    tvUrl: (tmdbId, season, episode) =>
+      `https://fast.aether.cx/scrape?type=show&tmdbId=${encodeURIComponent(tmdbId)}&season=${season}&episode=${episode}`,
+  },
   {
     ...standardSource(
       'subtitulado',
@@ -179,7 +187,7 @@ const ALL_SOURCES: AetherSource[] = [
   },
 ]
 
-const SOURCES = ALL_SOURCES.filter(source => !DISABLED_SOURCES.has(source.id))
+const SOURCES = ALL_SOURCES
 
 function validHttpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -199,7 +207,7 @@ function formatSubtitles(entries: AetherSubtitle[] = []): Subtitle[] {
       {
         file,
         label: entry.language || entry.lang || entry.label || 'Unknown',
-        kind: entry.kind || 'captions',
+        kind: entry.kind || entry.type || 'captions',
       },
     ]
   })
@@ -240,7 +248,7 @@ function parsePayload(
       ...sharedSubtitles,
       ...formatSubtitles([...(entry.subtitles || []), ...(entry.tracks || [])]),
     ]
-    const descriptor = entry.name || entry.label
+    const descriptor = entry.name || entry.label || entry.server
     const quality =
       entry.quality ||
       (descriptor && /\b(?:\d{3,4}p|4k|uhd|hd)\b/i.test(descriptor)

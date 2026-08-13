@@ -44,7 +44,17 @@ const API_PREFIX = '/api/v2'
 //   load; resolved stream endpoints are session-bound.
 // - vidnest: several servers return signed URLs with expiry parameters
 //   (moviebox sign/t, beta t/s/e, alfa ?v=).
-const UNCACHEABLE_PROVIDER_IDS = new Set(['vidsrc', 'vidup', 'vidnest'])
+// - aether: several workers (link, meridian, nebula, lul) hand out signed
+//   or tokenized stream URLs that can expire within the cache window.
+// - artemis: Celestial stream URLs are returned by a short-lived catalog
+//   lookup and can expire independently of the two-hour cache TTL.
+const UNCACHEABLE_PROVIDER_IDS = new Set([
+  'vidsrc',
+  'vidup',
+  'vidnest',
+  'aether',
+  'artemis',
+])
 
 app.set('trust proxy', 1)
 app.use(express.json())

@@ -29,6 +29,7 @@ import { toonHubProvider } from './toonhub.js'
 import { cuevanaProvider } from './cuevana.js'
 import { jetFilmizleProvider } from './jetfilmizle.js'
 import { cinebyProvider } from './cineby.js'
+import { cinejoyProvider } from './cinejoy.js'
 import { artemisProvider } from './artemis.js'
 import { watchFluxProvider } from './watchflux.js'
 import { aetherProvider } from './aether.js'
@@ -41,6 +42,7 @@ import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 // Register all providers here
 const rawProviders = {
   cineby: cinebyProvider,
+  cinejoy: cinejoyProvider,
   aether: aetherProvider,
   videasy: vidEasyProvider,
   showbox: showboxProvider,
@@ -85,6 +87,7 @@ type ProviderId = keyof typeof rawProviders
 // from normal provider listings and prevent stream requests from reaching it.
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   cineby: true,
+  cinejoy: true,
   aether: true,
   videasy: true,
   showbox: true,

@@ -6,6 +6,8 @@
 export const PROVIDER_CONTENT_BADGES: Readonly<Record<string, string>> = {
   cineby:
     'Hollywood: English | Indian/Bollywood: Hindi, Telugu | Korean: Korean | Anime: Japanese | Turkish: Turkish | Spanish: Spanish | French: French, English, Spanish | Animation: English',
+  cinejoy:
+    'Hollywood: English | Indian/Bollywood: audio unknown | Anime: audio unknown',
   aether:
     'Hollywood: English | Indian/Bollywood: English | Anime: English | Turkish: English | Spanish: English, Spanish | French: English | Animation: English',
   videasy: 'Hollywood: Spanish, English',
