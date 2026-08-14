@@ -71,6 +71,25 @@ pnpm start
 
 ## API Endpoints
 
+### Provider health status
+
+The API starts a background provider health monitor by default. Every fifteen
+minutes it checks providers concurrently. Each provider tries the audit title
+list sequentially until one title returns a validated stream; only providers
+that exhaust all of their titles are marked offline.
+
+```http
+GET /api/v2/providers/status
+```
+
+Status is atomically persisted to `data/provider-status.json`. Set
+`PROVIDER_STATUS_FILE` to a path on a persistent disk in production. Useful
+settings are `PROVIDER_HEALTH_INTERVAL_MS`, `PROVIDER_HEALTH_CONCURRENCY`,
+`PROVIDER_HEALTH_TIMEOUT_MS`, and `PROVIDER_HEALTH_MONITOR_ENABLED=false`.
+
+Run a standalone check with `pnpm providers:health:once`, or run the standalone
+fifteen-minute monitor with `pnpm providers:health`.
+
 ### 1. Health Check
 
 Check API status and list available endpoints.

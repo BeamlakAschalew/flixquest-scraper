@@ -113,6 +113,36 @@
         }
       }
     },
+    "/api/v2/providers/status": {
+      "get": {
+        "summary": "Get Provider Stream Health",
+        "description": "Returns the latest persisted fifteen-minute stream check for every enabled provider.",
+        "operationId": "getProviderHealthStatus",
+        "tags": ["Providers"],
+        "responses": {
+          "200": {
+            "description": "The latest provider health snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderHealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "No provider health snapshot is available yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/providers/{id}": {
       "patch": {
         "summary": "Update Provider Enabled State",
@@ -823,6 +853,67 @@
             "items": {
               "$ref": "#/components/schemas/ProviderInfo"
             }
+          }
+        }
+      },
+      "ProviderHealthAttempt": {
+        "type": "object",
+        "required": ["type", "tmdbId", "title", "success", "linkCount", "elapsedMs"],
+        "properties": {
+          "type": { "type": "string", "enum": ["movie", "tv"] },
+          "tmdbId": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "season": { "type": "integer" },
+          "episode": { "type": "integer" },
+          "success": { "type": "boolean" },
+          "httpStatus": { "type": "integer" },
+          "linkCount": { "type": "integer" },
+          "elapsedMs": { "type": "integer" },
+          "error": { "type": "string" }
+        }
+      },
+      "ProviderHealthResult": {
+        "type": "object",
+        "required": ["provider", "status", "checkedAt", "testedTitles", "linkCount", "attempts"],
+        "properties": {
+          "provider": { "type": "string" },
+          "status": { "type": "string", "enum": ["online", "offline"] },
+          "checkedAt": { "type": "string", "format": "date-time" },
+          "testedTitles": { "type": "integer" },
+          "successfulTitle": {
+            "allOf": [{ "$ref": "#/components/schemas/ProviderHealthAttempt" }],
+            "nullable": true
+          },
+          "linkCount": { "type": "integer" },
+          "responseTimeMs": { "type": "integer" },
+          "attempts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProviderHealthAttempt" }
+          }
+        }
+      },
+      "ProviderHealthResponse": {
+        "type": "object",
+        "required": ["success", "updatedAt", "intervalMs", "summary", "providers"],
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "startedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "updatedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "intervalMs": { "type": "integer", "example": 900000 },
+          "methodology": { "type": "string" },
+          "summary": {
+            "type": "object",
+            "required": ["total", "online", "offline"],
+            "properties": {
+              "total": { "type": "integer" },
+              "online": { "type": "integer" },
+              "offline": { "type": "integer" }
+            }
+          },
+          "providers": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/ProviderHealthResult" }
           }
         }
       },

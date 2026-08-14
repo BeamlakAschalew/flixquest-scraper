@@ -1,0 +1,1990 @@
+{
+  "success": true,
+  "startedAt": "2026-08-14T06:14:30.290Z",
+  "updatedAt": "2026-08-14T06:23:13.477Z",
+  "intervalMs": 900000,
+  "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
+  "summary": {
+    "total": 45,
+    "online": 29,
+    "offline": 16
+  },
+  "providers": {
+    "cineby": {
+      "provider": "cineby",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:14:37.231Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 6,
+      "responseTimeMs": 6916,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 6,
+          "elapsedMs": 6916
+        }
+      ]
+    },
+    "cinejoy": {
+      "provider": "cinejoy",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:14:48.126Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 4,
+      "responseTimeMs": 17810,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 4,
+          "elapsedMs": 17810
+        }
+      ]
+    },
+    "aether": {
+      "provider": "aether",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:18:16.363Z",
+      "testedTitles": 4,
+      "successfulTitle": {
+        "type": "tv",
+        "tmdbId": "66732",
+        "season": 1,
+        "episode": 1,
+        "title": "Stranger Things S1E1",
+        "category": "hollywood"
+      },
+      "linkCount": 4,
+      "responseTimeMs": 46017,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60025,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 4,
+          "elapsedMs": 46017
+        }
+      ]
+    },
+    "videasy": {
+      "provider": "videasy",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:14:51.354Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 6,
+      "responseTimeMs": 21038,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 6,
+          "elapsedMs": 21038
+        }
+      ]
+    },
+    "showbox": {
+      "provider": "showbox",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:14:56.113Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 7,
+      "responseTimeMs": 18882,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 7,
+          "elapsedMs": 18882
+        }
+      ]
+    },
+    "4khdhub": {
+      "provider": "4khdhub",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:21.735Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 5,
+      "responseTimeMs": 33608,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 5,
+          "elapsedMs": 33608
+        }
+      ]
+    },
+    "4khdhubnew": {
+      "provider": "4khdhubnew",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:23.172Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 5,
+      "responseTimeMs": 31818,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 5,
+          "elapsedMs": 31818
+        }
+      ]
+    },
+    "uhdmovies": {
+      "provider": "uhdmovies",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:25.155Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 2,
+      "responseTimeMs": 29042,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 2,
+          "elapsedMs": 29042
+        }
+      ]
+    },
+    "streamflix": {
+      "provider": "streamflix",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:15:48.173Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 7048,
+          "error": "No validated streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 4911,
+          "error": "No validated streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 8381,
+          "error": "No validated streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 6098,
+          "error": "No validated streams found for this episode"
+        }
+      ]
+    },
+    "notorrent": {
+      "provider": "notorrent",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:15:36.987Z",
+      "testedTitles": 8,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2897,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1205,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 3984,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2609,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "17473",
+          "title": "The Secret in Their Eyes",
+          "category": "spanish",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1011,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "1690",
+          "title": "Pan's Labyrinth",
+          "category": "spanish",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 644,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "71446",
+          "season": 1,
+          "episode": 1,
+          "title": "Money Heist S1E1",
+          "category": "spanish",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 749,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "73021",
+          "season": 1,
+          "episode": 1,
+          "title": "Cable Girls S1E1",
+          "category": "spanish",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 716,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "vidlink": {
+      "provider": "vidlink",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:15:31.479Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1452,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1164,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1734,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1973,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "netmirror": {
+      "provider": "netmirror",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:39.192Z",
+      "testedTitles": 2,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "872585",
+        "title": "Oppenheimer",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 7182,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 531,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 7182
+        }
+      ]
+    },
+    "vidfast": {
+      "provider": "vidfast",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:15:42.188Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1552,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1148,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1351,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1150,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "castle": {
+      "provider": "castle",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:42.223Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 2,
+      "responseTimeMs": 3031,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 2,
+          "elapsedMs": 3031
+        }
+      ]
+    },
+    "movieblast": {
+      "provider": "movieblast",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:44.444Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 2256,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 2256
+        }
+      ]
+    },
+    "peachify": {
+      "provider": "peachify",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:15:46.990Z",
+      "testedTitles": 8,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 388,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 218,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 299,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 269,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "19404",
+          "title": "3 Idiots",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 127,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "579974",
+          "title": "RRR",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 190,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "79744",
+          "season": 1,
+          "episode": 1,
+          "title": "Sacred Games S1E1",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 719,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "121750",
+          "season": 1,
+          "episode": 1,
+          "title": "The Family Man S1E1",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2557,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "movix": {
+      "provider": "movix",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:47.720Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 3276,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 3276
+        }
+      ]
+    },
+    "purstream": {
+      "provider": "purstream",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:50.355Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 3365,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 3365
+        }
+      ]
+    },
+    "cuevana": {
+      "provider": "cuevana",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:56.046Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 8326,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 8326
+        }
+      ]
+    },
+    "vixsrc": {
+      "provider": "vixsrc",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:54.562Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 6389,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 6389
+        }
+      ]
+    },
+    "vidsrc": {
+      "provider": "vidsrc",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:52.820Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 2465,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 2465
+        }
+      ]
+    },
+    "vidzee": {
+      "provider": "vidzee",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:15:54.879Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 2058,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 2058
+        }
+      ]
+    },
+    "dahmermovies": {
+      "provider": "dahmermovies",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:16:00.293Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2335,
+          "error": "No validated streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1330,
+          "error": "No validated streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1356,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 710,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "dahmermovies-tv": {
+      "provider": "dahmermovies-tv",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:16:05.865Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 8341,
+          "error": "No validated streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 799,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1145,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 701,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "videasy2": {
+      "provider": "videasy2",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:19:56.076Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60015,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60011,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        }
+      ]
+    },
+    "bollyflix": {
+      "provider": "bollyflix",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:16:10.271Z",
+      "testedTitles": 8,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1286,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1095,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2471,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1109,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "19404",
+          "title": "3 Idiots",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 926,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "579974",
+          "title": "RRR",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 931,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "79744",
+          "season": 1,
+          "episode": 1,
+          "title": "Sacred Games S1E1",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1094,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "121750",
+          "season": 1,
+          "episode": 1,
+          "title": "The Family Man S1E1",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1066,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "playimdb": {
+      "provider": "playimdb",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:16:28.434Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 22568,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 22568
+        }
+      ]
+    },
+    "tamilian": {
+      "provider": "tamilian",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:16:12.310Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 2039,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 2039
+        }
+      ]
+    },
+    "xpass": {
+      "provider": "xpass",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:23:13.477Z",
+      "testedTitles": 8,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60023,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60006,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60000,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "19404",
+          "title": "3 Idiots",
+          "category": "indian",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "579974",
+          "title": "RRR",
+          "category": "indian",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "79744",
+          "season": 1,
+          "episode": 1,
+          "title": "Sacred Games S1E1",
+          "category": "indian",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "121750",
+          "season": 1,
+          "episode": 1,
+          "title": "The Family Man S1E1",
+          "category": "indian",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1129,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "kisskh": {
+      "provider": "kisskh",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:16:43.278Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 14844,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 14844
+        }
+      ]
+    },
+    "dramafull": {
+      "provider": "dramafull",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:16:57.074Z",
+      "testedTitles": 8,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 3296,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2106,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1989,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1000,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "496243",
+          "title": "Parasite",
+          "category": "korean",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 920,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "845783",
+          "title": "The 8th Night",
+          "category": "korean",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 839,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "93405",
+          "season": 1,
+          "episode": 1,
+          "title": "Squid Game S1E1",
+          "category": "korean",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1721,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "215720",
+          "season": 1,
+          "episode": 1,
+          "title": "Queen of Tears S1E1",
+          "category": "korean",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1925,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "toonhub": {
+      "provider": "toonhub",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:17:13.012Z",
+      "testedTitles": 3,
+      "successfulTitle": {
+        "type": "tv",
+        "tmdbId": "1396",
+        "season": 1,
+        "episode": 1,
+        "title": "Breaking Bad S1E1",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 12730,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1882,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1326,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 12730
+        }
+      ]
+    },
+    "jetfilmizle": {
+      "provider": "jetfilmizle",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:17:16.617Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 2,
+      "responseTimeMs": 3605,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 2,
+          "elapsedMs": 3605
+        }
+      ]
+    },
+    "artemis": {
+      "provider": "artemis",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:17:29.198Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 12581,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 12581
+        }
+      ]
+    },
+    "zstream": {
+      "provider": "zstream",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:17:35.360Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 2,
+      "responseTimeMs": 6162,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 2,
+          "elapsedMs": 6162
+        }
+      ]
+    },
+    "watchflux": {
+      "provider": "watchflux",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:17:37.185Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 171,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 515,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 308,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 831,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "vidrock": {
+      "provider": "vidrock",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:17:39.629Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 1,
+      "responseTimeMs": 2444,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 1,
+          "elapsedMs": 2444
+        }
+      ]
+    },
+    "vidnest": {
+      "provider": "vidnest",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:18:09.939Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 13,
+      "responseTimeMs": 30310,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 13,
+          "elapsedMs": 30310
+        }
+      ]
+    },
+    "vidup": {
+      "provider": "vidup",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:18:51.012Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 3,
+      "responseTimeMs": 41073,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 3,
+          "elapsedMs": 41073
+        }
+      ]
+    },
+    "rabbitmeow": {
+      "provider": "rabbitmeow",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:22:16.371Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60001,
+          "error": "The operation was aborted due to timeout"
+        }
+      ]
+    },
+    "primesrc": {
+      "provider": "primesrc",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:19:06.768Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 2959,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1633,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 6860,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 4304,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "smashystream": {
+      "provider": "smashystream",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:23:06.779Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60002,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "linkCount": 0,
+          "elapsedMs": 60003,
+          "error": "The operation was aborted due to timeout"
+        }
+      ]
+    },
+    "2embed": {
+      "provider": "2embed",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:20:25.105Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 22,
+      "responseTimeMs": 29028,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 22,
+          "elapsedMs": 29028
+        }
+      ]
+    },
+    "multiembed": {
+      "provider": "multiembed",
+      "status": "offline",
+      "checkedAt": "2026-08-14T06:20:27.777Z",
+      "testedTitles": 4,
+      "successfulTitle": null,
+      "linkCount": 0,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 1063,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "movie",
+          "tmdbId": "872585",
+          "title": "Oppenheimer",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 371,
+          "error": "No streams found for this movie"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "1396",
+          "season": 1,
+          "episode": 1,
+          "title": "Breaking Bad S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 421,
+          "error": "No streams found for this episode"
+        },
+        {
+          "type": "tv",
+          "tmdbId": "66732",
+          "season": 1,
+          "episode": 1,
+          "title": "Stranger Things S1E1",
+          "category": "hollywood",
+          "success": false,
+          "httpStatus": 404,
+          "linkCount": 0,
+          "elapsedMs": 817,
+          "error": "No streams found for this episode"
+        }
+      ]
+    },
+    "111movies": {
+      "provider": "111movies",
+      "status": "online",
+      "checkedAt": "2026-08-14T06:20:32.065Z",
+      "testedTitles": 1,
+      "successfulTitle": {
+        "type": "movie",
+        "tmdbId": "27205",
+        "title": "Inception",
+        "category": "hollywood"
+      },
+      "linkCount": 4,
+      "responseTimeMs": 4288,
+      "attempts": [
+        {
+          "type": "movie",
+          "tmdbId": "27205",
+          "title": "Inception",
+          "category": "hollywood",
+          "success": true,
+          "httpStatus": 200,
+          "linkCount": 4,
+          "elapsedMs": 4288
+        }
+      ]
+    }
+  }
+}

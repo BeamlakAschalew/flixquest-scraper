@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { spawn, type ChildProcess } from 'node:child_process'
 import express from 'express'
 import type { Request, Response } from 'express'
 import { generateMovieMedia, generateShowMedia } from './utils/tmdb.js'
@@ -29,6 +30,10 @@ import {
 } from './utils/redis.js'
 import { dlhdRouter } from './routes/dlhd.js'
 import { resolveIntroConfig } from './utils/intro-config.js'
+import {
+  providerStatusFile,
+  readProviderStatus,
+} from './utils/provider-status.js'
 
 setupForwardProxyPatch()
 
@@ -203,6 +208,7 @@ app.get('/', async (_req, res) => {
       streamTV:
         'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
       providers: 'GET /api/v2/providers',
+      providerStatus: 'GET /api/v2/providers/status',
       intro: 'GET /api/v2/intro',
       toggleProvider:
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
@@ -234,6 +240,20 @@ api.get('/providers', (req: Request, res: Response) => {
     enabled: isProviderEnabled(provider.id),
   }))
   res.json({ success: true, providers: providerList })
+})
+
+api.get('/providers/status', async (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    res.json(await readProviderStatus())
+  } catch (error) {
+    const response: ErrorResponse = {
+      success: false,
+      error: 'Provider status is not available yet',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }
+    res.status(503).json(response)
+  }
 })
 
 /**
@@ -628,7 +648,9 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
 
 app.use(API_PREFIX, api)
 
-app.listen(port, () => {
+let providerHealthMonitor: ChildProcess | undefined
+
+const server = app.listen(port, () => {
   console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
   if (process.env.NODE_ENV !== 'production') {
     console.log('📖 API v2:')
@@ -637,6 +659,7 @@ app.listen(port, () => {
       '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
     )
     console.log('   GET /api/v2/providers')
+    console.log('   GET /api/v2/providers/status')
     console.log('   GET /api/v2/intro')
     console.log('   GET /api/v2/dlhd/channels')
     console.log('   GET /api/v2/dlhd/channels/{id}/stream')
@@ -644,6 +667,34 @@ app.listen(port, () => {
     console.log('')
     console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
   }
+
+  if (process.env.PROVIDER_HEALTH_MONITOR_ENABLED !== 'false') {
+    providerHealthMonitor = spawn(
+      process.execPath,
+      ['scripts/provider-health-monitor.mjs'],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+          PROVIDER_HEALTH_BASE_URL:
+            process.env.PROVIDER_HEALTH_BASE_URL || `http://127.0.0.1:${port}`,
+          PROVIDER_STATUS_FILE: providerStatusFile,
+        },
+      }
+    )
+    providerHealthMonitor.on('exit', (code, signal) => {
+      if (code && !signal) {
+        console.error(`[ProviderHealth] Monitor exited with code ${code}`)
+      }
+    })
+  }
 })
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    providerHealthMonitor?.kill(signal)
+    server.close(() => process.exit(0))
+  })
+}
 
 export default app
