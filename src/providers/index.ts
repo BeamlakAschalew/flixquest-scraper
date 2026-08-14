@@ -124,7 +124,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   vidzee: true,
   dahmermovies: false,
   'dahmermovies-tv': false,
-  videasy2: true,
+  videasy2: false,
   bollyflix: true,
   playimdb: true,
   tamilian: true,
