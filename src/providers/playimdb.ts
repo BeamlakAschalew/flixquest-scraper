@@ -116,6 +116,7 @@ async function getStreams(
 export const playImdbProvider: Provider = {
   name: 'PlayIMDb',
   id: 'playimdb',
+  alias: 'Enderta',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

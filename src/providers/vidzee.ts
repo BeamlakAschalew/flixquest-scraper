@@ -300,6 +300,7 @@ async function getVidZeeStreams(
 export const vidzeeProvider: Provider = {
   name: 'VidZee',
   id: 'vidzee',
+  alias: 'Erta Ale',
   streamMovie: tmdbId => getVidZeeStreams(tmdbId),
   streamTV: (tmdbId, season, episode) =>
     getVidZeeStreams(tmdbId, season, episode),

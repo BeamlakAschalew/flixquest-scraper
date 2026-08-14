@@ -149,6 +149,7 @@ async function getWatchFluxStreams(path: string): Promise<ProviderLink[]> {
 export const watchFluxProvider: Provider = {
   name: 'WatchFlux',
   id: 'watchflux',
+  alias: 'Tembien',
   streamMovie: tmdbId =>
     getWatchFluxStreams(`/watch/movie/${encodeURIComponent(tmdbId)}`),
   streamTV: (tmdbId, season, episode) =>

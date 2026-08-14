@@ -204,6 +204,7 @@ async function getStreams(
 export const movieBlastProvider: Provider = {
   name: 'MovieBlast',
   id: 'movieblast',
+  alias: 'Magdala',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

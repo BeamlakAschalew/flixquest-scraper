@@ -430,6 +430,7 @@ async function getStreams(
 export const bollyFlixProvider: Provider = {
   name: 'BollyFlix',
   id: 'bollyflix',
+  alias: 'Bale',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>

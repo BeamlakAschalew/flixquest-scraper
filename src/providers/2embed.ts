@@ -42,6 +42,7 @@ async function getStreams(
 export const twoEmbedProvider: Provider = {
   name: '2Embed',
   id: '2embed',
+  alias: 'Gudit',
   streamMovie: id => getStreams(id, 'movie'),
   streamTV: (id, s, e) => getStreams(id, 'tv', s, e),
 }

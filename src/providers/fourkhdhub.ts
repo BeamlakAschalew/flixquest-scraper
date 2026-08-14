@@ -772,6 +772,7 @@ const newConfig: FourKConfig = {
 export const fourKHDHubProvider: Provider = {
   name: classicConfig.name,
   id: classicConfig.id,
+  alias: 'Gondar',
   streamMovie: tmdbId => getStreams(classicConfig, tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(classicConfig, tmdbId, 'tv', season, episode),
@@ -780,6 +781,7 @@ export const fourKHDHubProvider: Provider = {
 export const fourKHDHubNewProvider: Provider = {
   name: newConfig.name,
   id: newConfig.id,
+  alias: 'Dallol',
   streamMovie: tmdbId => getStreams(newConfig, tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(newConfig, tmdbId, 'tv', season, episode),

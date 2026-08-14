@@ -47,6 +47,7 @@ async function getStreams(
 export const smashyStreamProvider: Provider = {
   name: 'SmashyStream',
   id: 'smashystream',
+  alias: 'Qwara',
   streamMovie: id => getStreams(id, 'movie'),
   streamTV: (id, s, e) => getStreams(id, 'tv', s, e),
 }

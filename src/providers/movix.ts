@@ -115,6 +115,7 @@ async function getStreams(
 export const movixProvider: Provider = {
   name: 'Movix',
   id: 'movix',
+  alias: 'Tiya',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

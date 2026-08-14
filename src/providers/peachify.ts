@@ -142,6 +142,7 @@ async function getStreams(
 export const peachifyProvider: Provider = {
   name: 'Peachify',
   id: 'peachify',
+  alias: 'Harar',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

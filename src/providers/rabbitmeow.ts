@@ -46,6 +46,7 @@ async function getStreams(
 export const rabbitMeowProvider: Provider = {
   name: 'RabbitMeow',
   id: 'rabbitmeow',
+  alias: 'Metemma',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

@@ -119,6 +119,7 @@ async function getStreams(
 export const netMirrorProvider: Provider = {
   name: 'NetMirror',
   id: 'netmirror',
+  alias: 'Danakil',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

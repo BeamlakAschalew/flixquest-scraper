@@ -163,6 +163,7 @@ async function lookupStreams(
 export const artemisProvider: Provider = {
   name: 'ZStream | Artemis (Celestial)',
   id: 'artemis',
+  alias: 'Maychew',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => lookupStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>

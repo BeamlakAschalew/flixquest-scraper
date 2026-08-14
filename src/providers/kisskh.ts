@@ -283,6 +283,7 @@ async function getStreams(
 export const kisskhProvider: Provider = {
   name: 'Kisskh',
   id: 'kisskh',
+  alias: 'Chelenqo',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

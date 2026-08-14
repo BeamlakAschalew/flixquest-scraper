@@ -374,7 +374,7 @@ function qualityScore(quality: string): number {
 export const cinejoyProvider: Provider = {
   name: 'Cinejoy',
   id: 'cinejoy',
-  alias: 'Cinejoy',
+  alias: 'Shewa',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

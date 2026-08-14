@@ -360,6 +360,7 @@ async function getStreams(
 export const vidRockProvider: Provider = {
   name: 'VidRock',
   id: 'vidrock',
+  alias: 'Zagwe',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

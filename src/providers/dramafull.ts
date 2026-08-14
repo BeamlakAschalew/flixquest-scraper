@@ -427,6 +427,7 @@ async function getStreams(
 export const dramaFullProvider: Provider = {
   name: 'DramaFull',
   id: 'dramafull',
+  alias: 'Embabo',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

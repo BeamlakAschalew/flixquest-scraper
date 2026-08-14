@@ -273,6 +273,7 @@ async function getStreams(
 export const cuevanaProvider: Provider = {
   name: 'Cuevana',
   id: 'cuevana',
+  alias: 'Lasta',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>

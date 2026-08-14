@@ -136,6 +136,7 @@ async function getMovieStreams(tmdbId: string): Promise<ProviderLink[]> {
 export const tamilianProvider: Provider = {
   name: 'Tamilian',
   id: 'tamilian',
+  alias: 'Massawa',
   streamMovie: async tmdbId => {
     try {
       const links = await getMovieStreams(tmdbId)

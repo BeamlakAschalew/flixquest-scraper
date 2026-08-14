@@ -230,6 +230,7 @@ async function getStreams(
 export const purStreamProvider: Provider = {
   name: 'PurStream',
   id: 'purstream',
+  alias: 'Debre Damo',
   streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreams(tmdbId, 'tv', season, episode),

@@ -98,6 +98,7 @@ async function getStreams(
 export const oneElevenMoviesProvider: Provider = {
   name: '111Movies',
   id: '111movies',
+  alias: 'Debre Libanos',
   streamMovie: id => getStreams(id, 'movie'),
   streamTV: (id, s, e) => getStreams(id, 'tv', s, e),
 }
