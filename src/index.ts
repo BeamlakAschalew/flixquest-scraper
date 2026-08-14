@@ -245,7 +245,50 @@ api.get('/providers', (req: Request, res: Response) => {
 api.get('/providers/status', async (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-store')
   try {
-    res.json(await readProviderStatus())
+    const stored = (await readProviderStatus()) as {
+      success?: boolean
+      startedAt?: string | null
+      updatedAt?: string | null
+      intervalMs?: number
+      summary?: unknown
+      providers?: unknown
+    }
+    const entries = Array.isArray(stored.providers)
+      ? stored.providers
+      : Object.values(stored.providers || {})
+    const providers = entries.map(entry => {
+      const item = entry as {
+        id?: string
+        provider?: string
+        alias?: string
+        status?: string
+        requestTimeMs?: number
+        responseTimeMs?: number
+        attempts?: Array<{ elapsedMs?: number }>
+      }
+      const id = item.id || item.provider || ''
+      const metadata = getRawProvider(id, { includeDisabled: true })
+      return {
+        id,
+        alias: item.alias || metadata?.alias || metadata?.name || id,
+        status: item.status || 'offline',
+        requestTimeMs:
+          item.requestTimeMs ??
+          item.attempts?.reduce(
+            (total, attempt) => total + (attempt.elapsedMs || 0),
+            0
+          ) ??
+          item.responseTimeMs ??
+          0,
+      }
+    })
+    res.json({
+      success: stored.success ?? true,
+      updatedAt: stored.updatedAt ?? null,
+      intervalMs: stored.intervalMs ?? 15 * 60 * 1000,
+      summary: stored.summary,
+      providers,
+    })
   } catch (error) {
     const response: ErrorResponse = {
       success: false,

@@ -82,6 +82,9 @@ that exhaust all of their titles are marked offline.
 GET /api/v2/providers/status
 ```
 
+Each provider entry contains only `id`, `alias`, `status`, and the total
+`requestTimeMs` for its latest check.
+
 Status is atomically persisted to `data/provider-status.json`. Set
 `PROVIDER_STATUS_FILE` to a path on a persistent disk in production. Useful
 settings are `PROVIDER_HEALTH_INTERVAL_MS`, `PROVIDER_HEALTH_CONCURRENCY`,

@@ -171,6 +171,7 @@ async function checkCase(baseUrl, provider, item, timeoutMs, fetchFn = fetch) {
 }
 
 export async function checkProvider(baseUrl, provider, options = {}) {
+  const providerStartedAt = Date.now()
   const timeoutMs = positiveNumber(options.timeoutMs, DEFAULT_TIMEOUT_MS)
   const cases = buildProviderCases(provider, options.matrixMode)
   const attempts = []
@@ -187,8 +188,10 @@ export async function checkProvider(baseUrl, provider, options = {}) {
     if (attempt.success) {
       return {
         provider,
+        alias: options.alias || provider,
         status: 'online',
         checkedAt: new Date().toISOString(),
+        requestTimeMs: Date.now() - providerStartedAt,
         testedTitles: attempts.length,
         successfulTitle: item,
         linkCount: attempt.linkCount,
@@ -200,8 +203,10 @@ export async function checkProvider(baseUrl, provider, options = {}) {
 
   return {
     provider,
+    alias: options.alias || provider,
     status: 'offline',
     checkedAt: new Date().toISOString(),
+    requestTimeMs: Date.now() - providerStartedAt,
     testedTitles: attempts.length,
     successfulTitle: null,
     linkCount: 0,
@@ -245,13 +250,22 @@ export async function runProviderHealthCheck(options = {}) {
   })
   if (!response.ok) throw new Error(`Provider list returned HTTP ${response.status}`)
   const data = await response.json()
-  const providers = Array.isArray(data.providers) ? data.providers.map(item => item.id) : []
+  const providers = Array.isArray(data.providers)
+    ? data.providers.map(item => ({
+        id: item.id,
+        alias: item.alias || item.name || item.id,
+      }))
+    : []
   if (!providers.length) throw new Error('The API returned no enabled providers')
 
   console.log(`[ProviderHealth] Checking ${providers.length} providers with concurrency ${concurrency}`)
   const results = await mapLimit(providers, concurrency, async provider => {
-    const result = await checkProvider(baseUrl, provider, { timeoutMs, matrixMode })
-    console.log(`[ProviderHealth] ${provider}: ${result.status} after ${result.testedTitles} title(s)`)
+    const result = await checkProvider(baseUrl, provider.id, {
+      alias: provider.alias,
+      timeoutMs,
+      matrixMode,
+    })
+    console.log(`[ProviderHealth] ${provider.id}: ${result.status} after ${result.testedTitles} title(s)`)
     return result
   })
   const online = results.filter(result => result.status === 'online').length
@@ -263,7 +277,12 @@ export async function runProviderHealthCheck(options = {}) {
     intervalMs: positiveNumber(process.env.PROVIDER_HEALTH_INTERVAL_MS, DEFAULT_INTERVAL_MS),
     methodology: 'Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.',
     summary: { total: results.length, online, offline: results.length - online },
-    providers: Object.fromEntries(results.map(result => [result.provider, result])),
+    providers: results.map(result => ({
+      id: result.provider,
+      alias: result.alias,
+      status: result.status,
+      requestTimeMs: result.requestTimeMs,
+    })),
   }
   await writeStatusFile(outputFile, status)
   console.log(`[ProviderHealth] Wrote ${outputFile}`)

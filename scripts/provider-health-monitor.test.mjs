@@ -31,12 +31,15 @@ test('tries another title after failure and stops at the first stream', async ()
     })
   }
   const result = await checkProvider('http://api.test', 'cineby', {
+    alias: 'Cineby Alias',
     timeoutMs: 1_000,
     fetchFn,
   })
   assert.equal(result.status, 'online')
   assert.equal(result.testedTitles, 2)
   assert.equal(result.successfulTitle.title, 'Oppenheimer')
+  assert.equal(result.alias, 'Cineby Alias')
+  assert.equal(typeof result.requestTimeMs, 'number')
   assert.equal(requests.length, 2)
 })
 

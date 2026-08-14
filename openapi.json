@@ -856,41 +856,14 @@
           }
         }
       },
-      "ProviderHealthAttempt": {
-        "type": "object",
-        "required": ["type", "tmdbId", "title", "success", "linkCount", "elapsedMs"],
-        "properties": {
-          "type": { "type": "string", "enum": ["movie", "tv"] },
-          "tmdbId": { "type": "string" },
-          "title": { "type": "string" },
-          "category": { "type": "string" },
-          "season": { "type": "integer" },
-          "episode": { "type": "integer" },
-          "success": { "type": "boolean" },
-          "httpStatus": { "type": "integer" },
-          "linkCount": { "type": "integer" },
-          "elapsedMs": { "type": "integer" },
-          "error": { "type": "string" }
-        }
-      },
       "ProviderHealthResult": {
         "type": "object",
-        "required": ["provider", "status", "checkedAt", "testedTitles", "linkCount", "attempts"],
+        "required": ["id", "alias", "status", "requestTimeMs"],
         "properties": {
-          "provider": { "type": "string" },
+          "id": { "type": "string", "example": "vixsrc" },
+          "alias": { "type": "string", "example": "VixSrc" },
           "status": { "type": "string", "enum": ["online", "offline"] },
-          "checkedAt": { "type": "string", "format": "date-time" },
-          "testedTitles": { "type": "integer" },
-          "successfulTitle": {
-            "allOf": [{ "$ref": "#/components/schemas/ProviderHealthAttempt" }],
-            "nullable": true
-          },
-          "linkCount": { "type": "integer" },
-          "responseTimeMs": { "type": "integer" },
-          "attempts": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ProviderHealthAttempt" }
-          }
+          "requestTimeMs": { "type": "integer", "example": 1432 }
         }
       },
       "ProviderHealthResponse": {
@@ -912,8 +885,8 @@
             }
           },
           "providers": {
-            "type": "object",
-            "additionalProperties": { "$ref": "#/components/schemas/ProviderHealthResult" }
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProviderHealthResult" }
           }
         }
       },
