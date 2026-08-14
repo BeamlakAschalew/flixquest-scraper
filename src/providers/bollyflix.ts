@@ -4,7 +4,7 @@ import type { Provider, ProviderLink } from '../types/index.js'
 
 const BASE_URL =
   process.env.BOLLYFLIX_BASE_URL?.trim().replace(/\/+$/, '') ||
-  'https://bollyflix.at'
+  'https://bollyflix.free'
 const TMDB_URL = 'https://api.themoviedb.org/3'
 const REQUEST_TIMEOUT_MS = 15_000
 const USER_AGENT =

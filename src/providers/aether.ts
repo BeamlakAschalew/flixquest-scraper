@@ -199,6 +199,15 @@ function validHttpUrl(value: unknown): string | null {
   }
 }
 
+function isBlockedStreamHost(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase()
+    return hostname === 'tnmr.org' || hostname.endsWith('.tnmr.org')
+  } catch {
+    return true
+  }
+}
+
 function formatSubtitles(entries: AetherSubtitle[] = []): Subtitle[] {
   return entries.flatMap(entry => {
     const file = validHttpUrl(entry.file || entry.url)
@@ -242,7 +251,7 @@ function parsePayload(
     const url = validHttpUrl(
       entry.url || entry.file || entry.stream || entry.source
     )
-    if (!url) return []
+    if (!url || isBlockedStreamHost(url)) return []
 
     const subtitles = [
       ...sharedSubtitles,
@@ -317,7 +326,20 @@ async function getAetherStreams(
     )
   })
 
-  return Array.from(new Map(links.map(link => [link.url, link])).values())
+  const uniqueLinks = Array.from(
+    new Map(links.map(link => [link.url, link])).values()
+  )
+  const allowedLinks = uniqueLinks.filter(
+    link => !isBlockedStreamHost(link.url)
+  )
+
+  if (allowedLinks.length !== uniqueLinks.length) {
+    console.warn(
+      `[Aether] Dropped ${uniqueLinks.length - allowedLinks.length} blocked tnmr.org stream(s)`
+    )
+  }
+
+  return allowedLinks
 }
 
 export const aetherProvider: Provider = {

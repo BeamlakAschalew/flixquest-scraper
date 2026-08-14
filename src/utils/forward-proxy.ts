@@ -12,7 +12,8 @@ export interface ForwardProxyContext {
   proxyUrl?: string
 }
 
-export const DEFAULT_FORWARD_PROXY_URL = 'https://onyx.et/proxy.php?url='
+export const DEFAULT_FORWARD_PROXY_URL =
+  'https://flixquest.beamlak.dev/proxy.php?url='
 
 export const forwardProxyStorage = new AsyncLocalStorage<ForwardProxyContext>()
 

@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import CryptoJS from 'crypto-js'
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 
 const BASE_URL = 'https://dramafull.rest'
@@ -209,6 +210,52 @@ function iframeUrls(html: string, baseUrl: string): string[] {
   return Array.from(new Set(urls))
 }
 
+function joinedNumericStrings(value: string | undefined): string {
+  if (!value) return ''
+  return [...value.matchAll(/['"](\d+)['"]/g)].map(match => match[1]).join('')
+}
+
+function decryptVidBasicPlayer(
+  html: string,
+  pageUrl: string
+): MediaCandidate | undefined {
+  const $ = cheerio.load(html)
+  const ciphertext = $('script[data-name="crypto"][data-value]')
+    .first()
+    .attr('data-value')
+  if (!ciphertext) return undefined
+
+  const keySource = html.match(/key=CryptoJS([\s\S]{0,500}?),iv=CryptoJS/)?.[1]
+  const ivSource = html.match(/,iv=CryptoJS([\s\S]{0,500}?),cryptoData=/)?.[1]
+  const keyValue = joinedNumericStrings(keySource)
+  const ivValue = joinedNumericStrings(ivSource)
+  if (keyValue.length !== 32 || ivValue.length !== 16) return undefined
+
+  try {
+    const key = CryptoJS.enc.Utf8.parse(keyValue)
+    const iv = CryptoJS.enc.Utf8.parse(ivValue)
+    const url = CryptoJS.AES.decrypt(ciphertext, key, { iv }).toString(
+      CryptoJS.enc.Utf8
+    )
+    if (!/^https?:\/\//i.test(url)) return undefined
+
+    const subtitles: Subtitle[] = []
+    const encryptedSubtitle = new URL(pageUrl).searchParams.get('sub')
+    if (encryptedSubtitle) {
+      const file = CryptoJS.AES.decrypt(encryptedSubtitle, key, {
+        iv,
+      }).toString(CryptoJS.enc.Utf8)
+      if (/^https?:\/\//i.test(file)) {
+        subtitles.push({ file, label: 'English', kind: 'captions' })
+      }
+    }
+
+    return { url, referer: pageUrl, subtitles }
+  } catch {
+    return undefined
+  }
+}
+
 function episodeUrl(
   html: string,
   detailUrl: string,
@@ -278,6 +325,9 @@ async function resolveMedia(
     subtitles,
   }))
   if (direct.length) return direct
+
+  const encryptedPlayer = decryptVidBasicPlayer(html, response.url)
+  if (encryptedPlayer) return [encryptedPlayer]
 
   for (const iframeUrl of iframeUrls(html, response.url)) {
     try {

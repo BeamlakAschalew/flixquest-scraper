@@ -55,7 +55,7 @@ const homepages = {
   animesalt: ['https://animesalt.ac/', 'manifest-declared'],
   animetsu: ['https://animetsu.live/', 'code-declared'],
   animeworld: ['https://watchanimeworld.net/', 'manifest-declared'],
-  bollyflix: [null, 'provider uses an addon/API relay; no source homepage exposed'],
+  bollyflix: ['https://bollyflix.free/', 'code-declared'],
   castle: ['https://api.fstcy.com/', 'API endpoint; no public catalog homepage exposed'],
   cineby: ['https://player.videasy.to/', 'provider delegates playback to Videasy'],
   cinefreak: ['https://cinefreak.nl/', 'code-declared'],

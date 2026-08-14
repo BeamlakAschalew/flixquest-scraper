@@ -82,17 +82,6 @@ function subtitlesFrom(payload: VidlinkResponse): Subtitle[] {
   })
 }
 
-function isExpiredSignedUrl(value: string): boolean {
-  try {
-    const expires = Number(new URL(value).searchParams.get('t'))
-    return (
-      Number.isFinite(expires) && expires > 0 && expires * 1000 <= Date.now()
-    )
-  } catch {
-    return false
-  }
-}
-
 function playbackHeaders(environment: string): Record<string, string> {
   return {
     ...HEADERS,
@@ -171,7 +160,7 @@ async function getStreams(
       standardPayload?.stream?.qualities || payload.stream?.qualities || {}
     )) {
       const url = typeof value === 'string' ? value : value?.url
-      if (!url || isExpiredSignedUrl(url)) continue
+      if (!url) continue
       candidates.set(url, {
         url,
         quality,

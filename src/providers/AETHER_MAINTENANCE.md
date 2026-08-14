@@ -20,6 +20,11 @@ streams when other workers fail.
   Spanish, French, German, Turkish, Arabic and several Asian and European
   languages. Subtitle availability varies by title.
 
+Aether streams remain unproxied. Links on `tnmr.org` and its subdomains are
+discarded because their signed URLs return nginx `403 Forbidden` from client
+IPs even when the Aether `Origin`, `Referer`, and user-agent headers are
+present.
+
 Aether is an aggregator. A failed worker is normal and does not make the whole
 provider fail. The implementation uses `Promise.allSettled()` and returns every
 unique usable URL from the workers that responded.

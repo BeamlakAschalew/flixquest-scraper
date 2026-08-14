@@ -54,6 +54,7 @@ const API_PREFIX = '/api/v2'
 // - artemis: Celestial stream URLs are returned by a short-lived catalog
 //   lookup and can expire independently of the two-hour cache TTL.
 // - zstream: Neko/Shibuya/Vault hand out short-lived tokenized stream URLs.
+// - vidfast: the protected server tokens and resolved CDN URLs are session-bound.
 const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vidsrc',
   'vidup',
@@ -61,6 +62,7 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'aether',
   'artemis',
   'zstream',
+  'vidfast',
 ])
 
 app.set('trust proxy', 1)

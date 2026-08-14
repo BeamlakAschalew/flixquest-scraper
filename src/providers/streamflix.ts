@@ -6,6 +6,7 @@ const CONFIG_URL = `${API_BASE}/config/config-streamflixapp.json`
 const DATA_URL = `${API_BASE}/data.json`
 const FIREBASE_URL =
   'wss://chilflix-410be-default-rtdb.asia-southeast1.firebasedatabase.app/.ws?ns=chilflix-410be-default-rtdb&v=5'
+const CURRENT_CDN_URL = 'https://stream.streamflixserver.site/'
 const CACHE_TTL_MS = 5 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 15_000
 const WEBSOCKET_TIMEOUT_MS = 30_000
@@ -186,6 +187,7 @@ function movieLinks(
   // Config revisions may rotate movie files across the same download/CDN pools
   // used by TV, so try those hosts after the movie-specific pools.
   const bases = [
+    [CURRENT_CDN_URL, '1080p', 'Current CDN'] as const,
     ...(config.premium || []).map(base => [base, '1080p', 'Premium'] as const),
     ...(config.movies || []).map(base => [base, '720p', 'Standard'] as const),
     ...(config.download || []).map(
@@ -293,6 +295,7 @@ function fallbackTvLink(
   episode: number
 ): ProviderLink[] {
   const baseUrl = [
+    CURRENT_CDN_URL,
     ...(config.download || []),
     ...(config.tv || []),
     ...(config.premium || []),
@@ -329,6 +332,7 @@ async function tvLinks(
 
     const bases = Array.from(
       new Set([
+        CURRENT_CDN_URL,
         ...(config.download || []),
         ...(config.tv || []),
         ...(config.premium || []),

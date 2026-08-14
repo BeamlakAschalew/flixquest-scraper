@@ -125,7 +125,7 @@ still comes from the local audit:
   language tags, 1080p/2160p, HDR/DV/REMUX labels.
 - [Tamilian](https://tamilian.io/) — Tamil-focused catalog and stated
   720p/1080p availability.
-- [BollyFlix catalog](https://bollyflix.at/) — Hindi/English and
+- [BollyFlix catalog](https://bollyflix.free/) — Hindi/English and
   regional dual-audio release labels.
 - [VixSrc documentation](https://vixsrc.to/) — movies/TV, catalog size,
   highest-available quality claim, and preferred Italian audio parameter.

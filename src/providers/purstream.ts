@@ -1,5 +1,4 @@
 import type { Provider, ProviderLink } from '../types/index.js'
-import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 const DOMAINS_URL =
   'https://raw.githubusercontent.com/wooodyhood/nuvio-repo/main/domains.json'
@@ -231,8 +230,7 @@ async function getStreams(
 export const purStreamProvider: Provider = {
   name: 'PurStream',
   id: 'purstream',
-  streamMovie: tmdbId =>
-    withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
+  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
-    withForcedForwardProxy(() => getStreams(tmdbId, 'tv', season, episode)),
+    getStreams(tmdbId, 'tv', season, episode),
 }
