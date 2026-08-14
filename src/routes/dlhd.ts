@@ -52,7 +52,10 @@ dlhdRouter.get('/channels', async (req: Request, res: Response) => {
 })
 
 async function streamHandler(req: Request, res: Response): Promise<void> {
-  const channelId = req.params.id?.trim()
+  const rawChannelId = req.params.id
+  const channelId = (
+    Array.isArray(rawChannelId) ? rawChannelId[0] : rawChannelId
+  )?.trim()
   if (!channelId || !/^\d+$/.test(channelId)) {
     res.status(400).json({
       success: false,

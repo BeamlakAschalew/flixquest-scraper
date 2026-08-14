@@ -327,7 +327,9 @@ api.get('/intro', (_req: Request, res: Response) => {
  * Body: { "enabled": true | false }
  */
 api.patch('/providers/:id', (req: Request, res: Response) => {
-  const providerId = req.params.id
+  const providerId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id
   const { enabled } = req.body
 
   if (typeof enabled !== 'boolean') {
@@ -368,7 +370,9 @@ api.patch('/providers/:id', (req: Request, res: Response) => {
  * Body (optional): { "enabled": true | false }
  */
 api.post('/providers/:id/toggle', (req: Request, res: Response) => {
-  const providerId = req.params.id
+  const providerId = Array.isArray(req.params.id)
+    ? req.params.id[0]
+    : req.params.id
   let enabled: boolean
 
   if (typeof req.body?.enabled === 'boolean') {

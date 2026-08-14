@@ -7,6 +7,7 @@ import {
 } from 'node:crypto'
 import type { Provider, ProviderLink } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 // Protocol and repair notes: ./ZSTREAM_MAINTENANCE.md
 //
@@ -462,7 +463,8 @@ export const zstreamProvider: Provider = {
   name: 'ZStream',
   id: 'zstream',
   alias: 'Fontaine',
-  streamMovie: tmdbId => lookupStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => lookupStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    lookupStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => lookupStreams(tmdbId, 'tv', season, episode)),
 }

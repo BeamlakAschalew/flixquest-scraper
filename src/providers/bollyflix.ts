@@ -1,6 +1,8 @@
 import * as cheerio from 'cheerio'
 import * as http2 from 'node:http2'
+import type { AnyNode } from 'domhandler'
 import type { Provider, ProviderLink } from '../types/index.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 const BASE_URL =
   process.env.BOLLYFLIX_BASE_URL?.trim().replace(/\/+$/, '') ||
@@ -120,7 +122,7 @@ async function search(title: string): Promise<SearchItem[]> {
 
 function nearestHeading(
   $: cheerio.CheerioAPI,
-  anchor: cheerio.Cheerio<cheerio.Element>
+  anchor: cheerio.Cheerio<AnyNode>
 ): string {
   const heading = anchor
     .parent()
@@ -428,7 +430,8 @@ async function getStreams(
 export const bollyFlixProvider: Provider = {
   name: 'BollyFlix',
   id: 'bollyflix',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => getStreams(tmdbId, 'tv', season, episode)),
 }

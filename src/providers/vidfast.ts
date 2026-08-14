@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 import {
   isPlayerApiUrl,
   openServerStream,
@@ -333,7 +334,8 @@ export const vidFastProvider: Provider = {
   name: 'VidFast',
   id: 'vidfast',
   alias: 'Lalibela',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => getStreams(tmdbId, 'tv', season, episode)),
 }
