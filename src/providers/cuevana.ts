@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import type { Provider, ProviderLink } from '../types/index.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 const BASE_URL = 'https://ww1.cuevana3.is'
 const TMDB_URL = 'https://api.themoviedb.org/3'
@@ -272,7 +273,8 @@ async function getStreams(
 export const cuevanaProvider: Provider = {
   name: 'Cuevana',
   id: 'cuevana',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => getStreams(tmdbId, 'tv', season, episode)),
 }

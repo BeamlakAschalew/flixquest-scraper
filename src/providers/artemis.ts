@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 // Protocol and repair notes: ./ARTEMIS_MAINTENANCE.md
 //
@@ -162,7 +163,8 @@ async function lookupStreams(
 export const artemisProvider: Provider = {
   name: 'ZStream | Artemis (Celestial)',
   id: 'artemis',
-  streamMovie: tmdbId => lookupStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => lookupStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    lookupStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => lookupStreams(tmdbId, 'tv', season, episode)),
 }
