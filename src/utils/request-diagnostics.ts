@@ -9,6 +9,13 @@ function errorProperties(error: Error): Record<string, unknown> {
     hostname?: unknown
     address?: unknown
     port?: unknown
+    requestId?: unknown
+    elapsedMs?: unknown
+    targetUrl?: unknown
+    proxyUrl?: unknown
+    proxySource?: unknown
+    proxyAddresses?: unknown
+    dnsError?: unknown
     cause?: unknown
     errors?: unknown
   }
@@ -25,8 +32,17 @@ function errorProperties(error: Error): Record<string, unknown> {
     'hostname',
     'address',
     'port',
+    'requestId',
+    'elapsedMs',
+    'targetUrl',
+    'proxyUrl',
+    'proxySource',
+    'proxyAddresses',
+    'dnsError',
   ] as const) {
-    if (diagnostic[key] !== undefined) properties[key] = diagnostic[key]
+    if (diagnostic[key] !== undefined) {
+      properties[key] = serializeError(diagnostic[key], 1)
+    }
   }
 
   return properties
@@ -72,6 +88,8 @@ export function formatRequestError(error: unknown): string {
 export function redactUrl(urlStr: string): string {
   try {
     const url = new URL(urlStr)
+    if (url.username) url.username = '[REDACTED]'
+    if (url.password) url.password = '[REDACTED]'
     for (const key of Array.from(url.searchParams.keys())) {
       if (SENSITIVE_QUERY_KEYS.test(key)) {
         url.searchParams.set(key, '[REDACTED]')

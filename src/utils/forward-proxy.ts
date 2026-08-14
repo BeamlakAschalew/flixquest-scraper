@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { lookup } from 'node:dns/promises'
 import {
   formatRequestError,
   redactUrl,
@@ -154,6 +155,84 @@ export function getForwardProxyUrl(
 let isPatched = false
 let requestSequence = 0
 
+interface ForwardProxyFailure extends Error {
+  code: 'FORWARD_PROXY_FETCH_FAILED'
+  requestId: string
+  elapsedMs: number
+  targetUrl: string
+  proxyUrl: string
+  proxySource: 'request' | 'environment' | 'default'
+  hostname: string
+  port: number
+  proxyAddresses?: Array<{ address: string; family: number }>
+  dnsError?: unknown
+}
+
+function getProxySource(
+  store: ForwardProxyContext | undefined
+): ForwardProxyFailure['proxySource'] {
+  if (store?.proxyUrl) return 'request'
+  if (process.env.FORWARD_PROXY_URL?.trim()) return 'environment'
+  return 'default'
+}
+
+async function lookupProxyAddresses(
+  hostname: string
+): Promise<Array<{ address: string; family: number }>> {
+  let timeout: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      lookup(hostname, { all: true }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () =>
+            reject(new Error('Proxy DNS diagnostic timed out after 2000ms')),
+          2_000
+        )
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
+async function createForwardProxyFailure(
+  error: unknown,
+  requestId: string,
+  startedAt: number,
+  targetUrl: string,
+  proxiedUrl: string,
+  store: ForwardProxyContext | undefined
+): Promise<ForwardProxyFailure> {
+  const parsedProxyUrl = new URL(proxiedUrl)
+  const elapsedMs = Date.now() - startedAt
+  const proxyPort = Number(
+    parsedProxyUrl.port || (parsedProxyUrl.protocol === 'http:' ? 80 : 443)
+  )
+  const failure = new Error(
+    `Forward proxy request failed after ${elapsedMs}ms: ${parsedProxyUrl.hostname}:${proxyPort}`,
+    { cause: error }
+  ) as ForwardProxyFailure
+
+  failure.name = 'ForwardProxyError'
+  failure.code = 'FORWARD_PROXY_FETCH_FAILED'
+  failure.requestId = requestId
+  failure.elapsedMs = elapsedMs
+  failure.targetUrl = redactUrl(targetUrl)
+  failure.proxyUrl = redactUrl(proxiedUrl)
+  failure.proxySource = getProxySource(store)
+  failure.hostname = parsedProxyUrl.hostname
+  failure.port = proxyPort
+
+  try {
+    failure.proxyAddresses = await lookupProxyAddresses(parsedProxyUrl.hostname)
+  } catch (dnsError) {
+    failure.dnsError = dnsError
+  }
+
+  return failure
+}
+
 /**
  * Patches globalThis.fetch so outbound scraping & metadata requests are
  * automatically routed through the forward proxy when fProxy is active,
@@ -231,10 +310,18 @@ export function setupForwardProxyPatch() {
           }
           return response
         } catch (error) {
-          console.error(
-            `🔀 [ForwardProxy:${requestId}] Fetch threw after ${Date.now() - startedAt}ms; target=${redactUrl(targetUrlStr)} proxyHost=${new URL(proxiedUrl).host} error=${formatRequestError(error)}`
+          const failure = await createForwardProxyFailure(
+            error,
+            requestId,
+            startedAt,
+            targetUrlStr,
+            proxiedUrl,
+            store
           )
-          throw error
+          console.error(
+            `🔀 [ForwardProxy:${requestId}] ${formatRequestError(failure)}`
+          )
+          throw failure
         }
       }
     }
