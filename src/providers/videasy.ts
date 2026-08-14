@@ -10,15 +10,25 @@ import {
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
 const WINGS_API_BASE = 'https://api.speedracelight.com'
+const VIDEASY_ORIGIN = 'https://player.videasy.to'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
 
 const REQUEST_HEADERS = {
-  'User-Agent': USER_AGENT,
   Accept: '*/*',
-  Origin: 'https://www.vidking.net',
-  Referer: 'https://www.vidking.net/',
+  'Accept-Language': 'en-US,en;q=0.9',
+  Origin: VIDEASY_ORIGIN,
+  Priority: 'u=1, i',
+  Referer: `${VIDEASY_ORIGIN}/`,
+  'Sec-CH-UA': '"Not=A?Brand";v="99", "Brave";v="151", "Chromium";v="151"',
+  'Sec-CH-UA-Mobile': '?0',
+  'Sec-CH-UA-Platform': '"macOS"',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'cross-site',
+  'Sec-GPC': '1',
+  'User-Agent': USER_AGENT,
   'Cache-Control': 'no-cache, no-store, must-revalidate',
   Pragma: 'no-cache',
   Expires: '0',
