@@ -2,6 +2,7 @@ import { Redis, RedisOptions } from 'ioredis'
 
 const DEFAULT_TTL_SECONDS = Number(process.env.REDIS_CACHE_TTL) || 7200 // 2 hours default
 const CACHE_PREFIX = 'flixquest:provider:'
+const PROVIDER_STATUS_KEY = 'flixquest:provider-status'
 
 const isCacheEnabled = process.env.REDIS_CACHE_ENABLED !== 'false'
 const redisUrl = process.env.REDIS_URL
@@ -76,6 +77,53 @@ export function isRedisAvailable(): boolean {
 
 export function getDefaultTtl(): number {
   return DEFAULT_TTL_SECONDS
+}
+
+/**
+ * Store the latest provider health status in Redis so that on serverless
+ * platforms (Vercel) every instance serves the same fresh snapshot.
+ */
+export async function setProviderStatus(
+  status: unknown,
+  ttlSeconds: number = DEFAULT_TTL_SECONDS
+): Promise<boolean> {
+  if (!isRedisAvailable() || !redisClient) {
+    return false
+  }
+  try {
+    await redisClient.set(
+      PROVIDER_STATUS_KEY,
+      JSON.stringify(status),
+      'EX',
+      ttlSeconds
+    )
+    return true
+  } catch (err) {
+    console.warn(
+      `⚠️  [Redis] Error writing provider status:`,
+      err instanceof Error ? err.message : err
+    )
+    return false
+  }
+}
+
+/**
+ * Retrieve the most recent provider health status from Redis.
+ */
+export async function getProviderStatus(): Promise<unknown | null> {
+  if (!isRedisAvailable() || !redisClient) {
+    return null
+  }
+  try {
+    const rawData = await redisClient.get(PROVIDER_STATUS_KEY)
+    return rawData ? (JSON.parse(rawData) as unknown) : null
+  } catch (err) {
+    console.warn(
+      `⚠️  [Redis] Error reading provider status:`,
+      err instanceof Error ? err.message : err
+    )
+    return null
+  }
 }
 
 export interface CacheKeyOptions {

@@ -1,5 +1,16 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/v2/providers/health/run",
+      "schedule": "*/15 * * * *"
+    }
+  ],
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 300
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

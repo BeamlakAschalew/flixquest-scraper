@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { getProviderStatus } from './redis.js'
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 
@@ -29,6 +30,10 @@ function candidateStatusFiles(): string[] {
 }
 
 export async function readProviderStatus(): Promise<unknown> {
+  const cached = await getProviderStatus()
+  if (cached !== null) {
+    return cached
+  }
   for (const file of candidateStatusFiles()) {
     try {
       const contents = await fs.readFile(file, 'utf8')

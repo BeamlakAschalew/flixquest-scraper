@@ -1,5 +1,7 @@
 import 'dotenv/config'
 import { spawn, type ChildProcess } from 'node:child_process'
+import os from 'node:os'
+import path from 'node:path'
 import express from 'express'
 import type { Request, Response } from 'express'
 import { generateMovieMedia, generateShowMedia } from './utils/tmdb.js'
@@ -27,6 +29,7 @@ import {
   getCacheStats,
   getProviderCache,
   setProviderCache,
+  setProviderStatus,
 } from './utils/redis.js'
 import { dlhdRouter } from './routes/dlhd.js'
 import { resolveIntroConfig } from './utils/intro-config.js'
@@ -34,6 +37,7 @@ import {
   providerStatusFile,
   readProviderStatus,
 } from './utils/provider-status.js'
+import { runProviderHealthCheck } from '../scripts/provider-health-monitor.mjs'
 
 setupForwardProxyPatch()
 
@@ -211,6 +215,7 @@ app.get('/', async (_req, res) => {
         'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
       providers: 'GET /api/v2/providers',
       providerStatus: 'GET /api/v2/providers/status',
+      healthRun: 'GET /api/v2/providers/health/run',
       intro: 'GET /api/v2/intro',
       toggleProvider:
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
@@ -319,6 +324,58 @@ api.get('/providers/status', async (_req: Request, res: Response) => {
       details: error instanceof Error ? error.message : 'Unknown error',
     }
     res.status(503).json(response)
+  }
+})
+
+/**
+ * GET /api/v2/providers/health/run
+ *
+ * Runs a provider health check on demand and stores the fresh snapshot in
+ * Redis. This is the endpoint Vercel Cron invokes every fifteen minutes;
+ * the check is also exposed directly so it can be triggered from a
+ * standalone cron on other platforms. Requires the `CRON_SECRET` query
+ * parameter unless the request comes from Vercel Cron itself.
+ */
+api.get('/providers/health/run', async (req: Request, res: Response) => {
+  const secret = process.env.CRON_SECRET
+  const fromVercelCron =
+    req.headers['user-agent']?.startsWith('vercel-cron/') === true ||
+    typeof req.headers['x-vercel-cron-schedule'] === 'string' ||
+    req.headers['x-vercel-cron'] === '1'
+  const authorized =
+    (fromVercelCron &&
+      (!secret || req.headers['x-vercel-cron-auth'] === secret)) ||
+    (secret && req.query.cronSecret === secret) ||
+    (!secret && process.env.VERCEL !== '1')
+  if (!authorized) {
+    res.status(401).json({ success: false, error: 'Unauthorized' })
+    return
+  }
+
+  const baseUrl = (
+    process.env.PROVIDER_HEALTH_BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+    `${req.protocol}://${req.get('host')}`
+  ).replace(/\/$/, '')
+  const outputFile = path.join(os.tmpdir(), 'provider-status.json')
+
+  try {
+    const status = await runProviderHealthCheck({
+      baseUrl,
+      outputFile,
+      concurrency: Number(process.env.PROVIDER_HEALTH_CONCURRENCY) || undefined,
+      timeoutMs: Number(process.env.PROVIDER_HEALTH_TIMEOUT_MS) || undefined,
+      matrixMode: process.env.PROVIDER_HEALTH_MATRIX || undefined,
+    })
+    await setProviderStatus(status)
+    res.json(status)
+  } catch (error) {
+    const response: ErrorResponse = {
+      success: false,
+      error: 'Provider health check failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }
+    res.status(500).json(response)
   }
 })
 
@@ -738,7 +795,11 @@ const server = app.listen(port, () => {
     console.log('⚠️  Make sure to set TMDB_API_KEY environment variable')
   }
 
-  if (process.env.PROVIDER_HEALTH_MONITOR_ENABLED !== 'false') {
+  // On Vercel serverless, background child processes are frozen between
+  // requests, so the interval monitor can never run. Vercel Cron drives
+  // `/api/v2/providers/health/run` instead, which stores results in Redis.
+  const isVercel = process.env.VERCEL === '1'
+  if (!isVercel && process.env.PROVIDER_HEALTH_MONITOR_ENABLED !== 'false') {
     providerHealthMonitor = spawn(
       process.execPath,
       ['scripts/provider-health-monitor.mjs'],

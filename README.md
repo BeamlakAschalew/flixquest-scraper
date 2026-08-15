@@ -93,6 +93,21 @@ settings are `PROVIDER_HEALTH_INTERVAL_MS`, `PROVIDER_HEALTH_CONCURRENCY`,
 Run a standalone check with `pnpm providers:health:once`, or run the standalone
 fifteen-minute monitor with `pnpm providers:health`.
 
+**Vercel:** serverless functions freeze between requests, so the background
+monitor does not run. Instead `vercel.json` registers a cron job that calls
+`GET /api/v2/providers/health/run` every fifteen minutes (Pro plan; Hobby is
+limited to one run per day). The on-demand check writes its result to Redis
+when `REDIS_URL`/`REDIS_HOST` is configured, and `/api/v2/providers/status`
+reads from Redis first, then the file. Secure the run endpoint by setting
+`CRON_SECRET` (Vercel sends it as the `x-vercel-cron-auth` header).
+
+```http
+GET /api/v2/providers/health/run
+```
+
+The endpoint is authorized for Vercel cron requests automatically; a manual
+trigger outside Vercel can pass `?cronSecret=<CRON_SECRET>`.
+
 ### 1. Health Check
 
 Check API status and list available endpoints.
