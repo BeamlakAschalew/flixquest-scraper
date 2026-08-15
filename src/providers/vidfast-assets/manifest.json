@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "origin": "https://vidfast.vc",
+  "probePath": "/movie/550",
+  "checkedAt": "2026-08-14T21:29:11.817Z",
+  "assets": {
+    "chunk-213.js": {
+      "chunkId": "255",
+      "sourceUrl": "https://vidfast.vc/_next/static/chunks/255-dbd7e92208fd5e1b.js",
+      "sha256": "dde540d6237f40fe6562d7a885d4c38a177c299d6fc8012eb82029cce4649d83",
+      "bytes": 172997
+    },
+    "chunk-aaea2bcf.js": {
+      "chunkId": "268",
+      "sourceUrl": "https://vidfast.vc/_next/static/chunks/aaea2bcf-18613745c71632cf.js",
+      "sha256": "312e35ffe71a0ffbbd3ff914a03e6c731607615ac294ebd3fafd32a03f4d1894",
+      "bytes": 325447
+    },
+    "chunk-771.js": {
+      "chunkId": "771",
+      "sourceUrl": "https://vidfast.vc/_next/static/chunks/771-0cb9dd8ac7f905e6.js",
+      "sha256": "9928305c9ae1194d140b98798adeb2818660677edf40e5a92d203ed178e08b1f",
+      "bytes": 617494
+    },
+    "chunk-365.js": {
+      "chunkId": "365",
+      "sourceUrl": "https://vidfast.vc/_next/static/chunks/365-acd65de884fa930f.js",
+      "sha256": "5e6836c53e25458fa0ef8dd98e84db19138cccf63829fbf75e138cc6339a436c",
+      "bytes": 1961364
+    }
+  }
+}

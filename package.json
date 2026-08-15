@@ -21,8 +21,11 @@
     "test:dlhd": "tsx --test src/sources/dlhd.test.ts",
     "test:intro": "tsx --test src/utils/intro-config.test.ts",
     "test:provider-health": "node --test scripts/provider-health-monitor.test.mjs",
+    "test:vidfast-updater": "node --test scripts/vidfast-player-updater.test.mjs",
     "providers:health": "node scripts/provider-health-monitor.mjs",
-    "providers:health:once": "node scripts/provider-health-monitor.mjs --once"
+    "providers:health:once": "node scripts/provider-health-monitor.mjs --once",
+    "vidfast:update": "node scripts/vidfast-player-updater.mjs",
+    "vidfast:update:once": "node scripts/vidfast-player-updater.mjs --once"
   },
   "keywords": [
     "streaming",

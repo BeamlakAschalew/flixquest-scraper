@@ -7,7 +7,14 @@ import { fileURLToPath } from 'node:url'
 import { patchPlayerChunk, createNativeConsole } from './vidfast-patch.js'
 import { createSandbox, createModuleStubs } from './vidfast-sandbox.js'
 
-const chunkDir = fileURLToPath(new URL('./vidfast-assets', import.meta.url))
+const defaultChunkDir = fileURLToPath(new URL('./vidfast-assets', import.meta.url))
+const chunkDir = process.env.VIDFAST_ASSET_DIR || defaultChunkDir
+const PLAYER_ASSET_FILENAMES = [
+  'chunk-213.js',
+  'chunk-aaea2bcf.js',
+  'chunk-771.js',
+  'chunk-365.js',
+]
 const RESOLVE_TIMEOUT_MS = 45000
 const BUNDLE_STREAM_ROUTE_PATTERN =
   /fetch\(""\.concat\("([^"]+)","\/"\)\.concat\("([^"]+)","\/"\)\.concat\(n\[/
@@ -19,6 +26,32 @@ let cryptoModule = null
 let playerBuffer = null
 let playerApiPrefix = null
 let playerStreamSegment = null
+let playerAssetSignature = null
+
+function currentPlayerAssetSignature() {
+  try {
+    const manifest = fs.readFileSync(`${chunkDir}/manifest.json`, 'utf8')
+    return `manifest:${manifest}`
+  } catch {
+    return PLAYER_ASSET_FILENAMES
+      .map(filename => {
+        const stat = fs.statSync(`${chunkDir}/${filename}`)
+        return `${filename}:${stat.size}:${stat.mtimeMs}`
+      })
+      .join('|')
+  }
+}
+
+function resetPlayerRuntime() {
+  sandbox = null
+  cryptoModule = null
+  playerBuffer = null
+  playerApiPrefix = null
+  playerStreamSegment = null
+  playerAssetSignature = null
+  for (const key of Object.keys(modules)) delete modules[key]
+  for (const key of Object.keys(moduleCache)) delete moduleCache[key]
+}
 
 const SESSION_ALPHABET =
   'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'
@@ -89,7 +122,9 @@ function requirePlayerRoute(name) {
 }
 
 function ensurePlayerReady() {
-  if (sandbox) return
+  const assetSignature = currentPlayerAssetSignature()
+  if (sandbox && playerAssetSignature === assetSignature) return
+  if (sandbox) resetPlayerRuntime()
   sandbox = createSandbox()
   modules['5376'] = (mod) => {
     mod.exports = { Buffer }
@@ -111,13 +146,20 @@ function ensurePlayerReady() {
   }
   loadChunk('chunk-365.js', patchPlayerChunk)
   webpackRequire('9987')
-  sandbox.__playerInit = sandbox._0x1942f5
-  sandbox.__playerDecrypt = sandbox._0x5d0ad3
+  sandbox.__playerInit = sandbox.__playerInit || sandbox._0x1942f5
+  sandbox.__playerDecrypt = sandbox.__playerDecrypt || sandbox._0x5d0ad3
+  if (typeof sandbox.__playerInit !== 'function') {
+    throw new Error('player initializer export not found')
+  }
+  if (typeof sandbox.__playerDecrypt !== 'function') {
+    throw new Error('player decryptor export not found')
+  }
   sandbox.__playerEncode = encodeSessionToken
   cryptoModule = webpackRequire('3018')
   playerBuffer = cryptoModule.randomBytes(1).constructor
   sandbox.__playerApiPrefix = playerApiPrefix
   sandbox.__playerStreamSegment = playerStreamSegment
+  playerAssetSignature = assetSignature
 }
 
 export function isPlayerApiUrl(url) {
