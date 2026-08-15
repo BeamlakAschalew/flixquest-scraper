@@ -37,6 +37,10 @@ const API_HEADERS: Record<string, string> = {
   Referer: `${BASE_URL}/`,
   'User-Agent': USER_AGENT,
   'X-Requested-With': 'XMLHttpRequest',
+  // The proxy cannot forward VidUp's long session-bound /gut POST URLs.
+  // Page/config/decrypt requests can still use the proxy; these API calls
+  // must use the server's direct egress.
+  'x-skip-forward-proxy': 'true',
 }
 
 const PLAYBACK_HEADERS: Record<string, string> = {
