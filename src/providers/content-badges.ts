@@ -66,4 +66,6 @@ export const PROVIDER_CONTENT_BADGES: Readonly<Record<string, string>> = {
     'Hollywood: English | Indian/Bollywood: English | Korean: English | Anime: English | Turkish: English | Spanish: English, Spanish | French: English | Animation: English',
   vidup:
     'Hollywood: audio unknown | Indian/Bollywood: audio unknown | Korean: audio unknown | Anime: audio unknown | Turkish: audio unknown | Spanish: audio unknown | French: audio unknown | Animation: audio unknown',
+  goated: 'Hollywood: audio unknown | Animation: audio unknown',
+  bingr: 'Hollywood: Hindi/Multi, original',
 }

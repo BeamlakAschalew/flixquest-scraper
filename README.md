@@ -8,7 +8,7 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
 - 📡 **Live TV and EPG**: Lists DLHD 24/7 channels, extracts live HLS streams with playback headers, and exposes the categorized schedule
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
-- 🌐 **Multiple Providers**: Supports 30 streaming providers, including 4KHDHub, StreamFlix, Kisskh, ToonHub, Cuevana, JetFilmizle, UHDMovies, VidEasy, and NetMirror
+- 🌐 **Multiple Providers**: Supports 33 streaming providers, including GOATED, Bingr, 4KHDHub, StreamFlix, Kisskh, ToonHub, Cuevana, UHDMovies, VidEasy, and NetMirror
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
@@ -560,6 +560,8 @@ interface Provider {
 - `vidrock` - VidRock AES-GCM-decrypted multi-server movie and episode provider
 - `vidnest` - VidNest multi-server movie and episode provider (custom-base64 payloads)
 - `vidup` - VidUp multi-server movie and episode provider
+- `goated` - GOATED proof-of-work resolver with adaptive HLS quality detection
+- `bingr` - Bingr nine-server provider with explicit quality/language metadata
 
 For catalog, audio-language, and quality details, see
 [`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).

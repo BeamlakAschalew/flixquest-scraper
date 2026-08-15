@@ -43,6 +43,8 @@ import { smashyStreamProvider } from './smashystream.js'
 import { twoEmbedProvider } from './2embed.js'
 import { multiEmbedProvider } from './multiembed.js'
 import { oneElevenMoviesProvider } from './111movies.js'
+import { goatedProvider } from './goated.js'
+import { bingrProvider } from './bingr.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
@@ -93,6 +95,8 @@ const rawProviders = {
   '2embed': twoEmbedProvider,
   multiembed: multiEmbedProvider,
   '111movies': oneElevenMoviesProvider,
+  goated: goatedProvider,
+  bingr: bingrProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -145,6 +149,8 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   '2embed': true,
   multiembed: false,
   '111movies': true,
+  goated: true,
+  bingr: true,
 }
 
 function isProviderId(id: string): id is ProviderId {

@@ -59,6 +59,8 @@ const API_PREFIX = '/api/v2'
 //   lookup and can expire independently of the two-hour cache TTL.
 // - zstream: Neko/Shibuya/Vault hand out short-lived tokenized stream URLs.
 // - vidfast: the protected server tokens and resolved CDN URLs are session-bound.
+// - goated: reallyfast.xyz returns short-lived signed CDN playlists.
+// - bingr: several servers return signed or session-bound media URLs.
 const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vidsrc',
   'vidup',
@@ -67,6 +69,8 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'artemis',
   'zstream',
   'vidfast',
+  'goated',
+  'bingr',
 ])
 
 app.set('trust proxy', 1)
