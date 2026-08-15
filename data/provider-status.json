@@ -1,7 +1,7 @@
 {
   "success": true,
-  "startedAt": "2026-08-15T11:55:43.935Z",
-  "updatedAt": "2026-08-15T12:01:13.250Z",
+  "startedAt": "2026-08-15T12:25:43.974Z",
+  "updatedAt": "2026-08-15T12:31:04.872Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
@@ -14,169 +14,169 @@
       "id": "cineby",
       "alias": "Adulis",
       "status": "online",
-      "requestTimeMs": 14835
+      "requestTimeMs": 2511
     },
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 17195
+      "requestTimeMs": 41295
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 4073
+      "requestTimeMs": 3528
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 60357
+      "requestTimeMs": 32286
     },
     {
       "id": "4khdhub",
       "alias": "Gondar",
       "status": "online",
-      "requestTimeMs": 42020
+      "requestTimeMs": 27511
     },
     {
       "id": "4khdhubnew",
       "alias": "Dallol",
       "status": "online",
-      "requestTimeMs": 29434
+      "requestTimeMs": 25992
     },
     {
       "id": "uhdmovies",
       "alias": "Karamara",
       "status": "online",
-      "requestTimeMs": 34151
+      "requestTimeMs": 16189
     },
     {
       "id": "streamflix",
       "alias": "Begemder",
       "status": "online",
-      "requestTimeMs": 4222
+      "requestTimeMs": 5019
     },
     {
       "id": "vidlink",
       "alias": "Gumma",
       "status": "online",
-      "requestTimeMs": 1953
+      "requestTimeMs": 1739
     },
     {
       "id": "netmirror",
       "alias": "Danakil",
       "status": "online",
-      "requestTimeMs": 6555
+      "requestTimeMs": 6501
     },
     {
       "id": "vidfast",
       "alias": "Lalibela",
       "status": "online",
-      "requestTimeMs": 8310
+      "requestTimeMs": 39420
     },
     {
       "id": "castle",
       "alias": "Dogali",
       "status": "online",
-      "requestTimeMs": 11320
+      "requestTimeMs": 3614
     },
     {
       "id": "movieblast",
       "alias": "Magdala",
       "status": "online",
-      "requestTimeMs": 6027
+      "requestTimeMs": 1530
     },
     {
       "id": "movix",
       "alias": "Tiya",
       "status": "online",
-      "requestTimeMs": 5560
+      "requestTimeMs": 3111
     },
     {
       "id": "vixsrc",
       "alias": "Awash",
       "status": "online",
-      "requestTimeMs": 3279
+      "requestTimeMs": 4300
     },
     {
       "id": "vidsrc",
       "alias": "Yeha",
       "status": "online",
-      "requestTimeMs": 4839
+      "requestTimeMs": 1426
     },
     {
       "id": "vidzee",
       "alias": "Erta Ale",
       "status": "online",
-      "requestTimeMs": 3184
+      "requestTimeMs": 2252
     },
     {
       "id": "bollyflix",
       "alias": "Bale",
       "status": "offline",
-      "requestTimeMs": 149393
+      "requestTimeMs": 139245
     },
     {
       "id": "playimdb",
       "alias": "Enderta",
       "status": "online",
-      "requestTimeMs": 2549
+      "requestTimeMs": 2683
     },
     {
       "id": "tamilian",
       "alias": "Massawa",
       "status": "online",
-      "requestTimeMs": 1627
+      "requestTimeMs": 2582
     },
     {
       "id": "kisskh",
       "alias": "Chelenqo",
       "status": "online",
-      "requestTimeMs": 6382
+      "requestTimeMs": 3853
     },
     {
       "id": "dramafull",
       "alias": "Embabo",
       "status": "offline",
-      "requestTimeMs": 10908
+      "requestTimeMs": 10207
     },
     {
       "id": "artemis",
       "alias": "Maychew",
       "status": "online",
-      "requestTimeMs": 43473
+      "requestTimeMs": 18529
     },
     {
       "id": "zstream",
       "alias": "Fontaine",
       "status": "online",
-      "requestTimeMs": 4641
+      "requestTimeMs": 2587
     },
     {
       "id": "vidrock",
       "alias": "Zagwe",
       "status": "online",
-      "requestTimeMs": 3570
+      "requestTimeMs": 7200
     },
     {
       "id": "vidnest",
       "alias": "Wuchale",
       "status": "online",
-      "requestTimeMs": 12207
+      "requestTimeMs": 54156
     },
     {
       "id": "vidup",
       "alias": "Gura",
       "status": "online",
-      "requestTimeMs": 4407
+      "requestTimeMs": 7625
     },
     {
       "id": "rabbitmeow",
       "alias": "Metemma",
       "status": "offline",
-      "requestTimeMs": 240010
+      "requestTimeMs": 240009
     },
     {
       "id": "smashystream",
@@ -188,13 +188,13 @@
       "id": "2embed",
       "alias": "Gudit",
       "status": "online",
-      "requestTimeMs": 6829
+      "requestTimeMs": 30281
     },
     {
       "id": "111movies",
       "alias": "Debre Libanos",
       "status": "online",
-      "requestTimeMs": 1339
+      "requestTimeMs": 2586
     }
   ]
 }

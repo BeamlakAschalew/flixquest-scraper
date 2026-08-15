@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "nodemon",
-    "build": "tsc -p tsconfig.json && cp src/providers/videasy2.wasm src/providers/vidzee.wasm.b64 dist/providers/ && cp -R src/providers/vidfast-assets dist/providers/",
+    "build": "tsc -p tsconfig.json && cp src/providers/videasy2.wasm src/providers/vidzee.wasm.b64 dist/providers/ && cp -R src/providers/vidfast-assets dist/providers/ && mkdir -p dist/data && cp data/provider-status.json dist/data/",
     "start": "node dist/index.js",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\"",

@@ -254,6 +254,27 @@ api.get('/providers/status', async (_req: Request, res: Response) => {
       intervalMs?: number
       summary?: unknown
       providers?: unknown
+    } | null
+    if (!stored) {
+      // No persisted status is available yet (e.g. a fresh Vercel serverless
+      // deployment where the status file has not been written). Report the
+      // provider registry as untested instead of failing the request.
+      const fallback = getAllProviders({ includeDisabled: true }).map(
+        provider => ({
+          id: provider.id,
+          alias: provider.alias || provider.name,
+          status: 'untested',
+          requestTimeMs: 0,
+        })
+      )
+      res.json({
+        success: true,
+        updatedAt: null,
+        intervalMs: 15 * 60 * 1000,
+        summary: { total: fallback.length, online: 0, offline: 0 },
+        providers: fallback,
+      })
+      return
     }
     const entries = Array.isArray(stored.providers)
       ? stored.providers
