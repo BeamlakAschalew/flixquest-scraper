@@ -7,7 +7,8 @@ const ORIGIN = 'https://cinejoy.to'
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
-const FALLBACK_GATEWAY_CHUNK = 'BOqDcafn.js'
+const GATEWAY_DISCOVERY_ATTEMPTS = 2
+const WATCH_ROUTES = ['/watch/movie/[id]', '/watch/tv/[id]/[season]/[episode]']
 
 interface CinejoyServer {
   name: string
@@ -79,50 +80,133 @@ let gatewayPromise: Promise<CinejoyGateway> | null = null
 async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: API_HEADERS,
+    cache: 'no-store',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`)
   return response.text()
 }
 
-function findGatewayChunk(page: string): string {
-  return (
-    page.match(/\/_app\/immutable\/chunks\/(BOq[^"']+\.js)/)?.[1] ||
-    FALLBACK_GATEWAY_CHUNK
+function findAppEntry(page: string): string {
+  const asset = page.match(
+    /["'](\/_app\/immutable\/entry\/app\.[^"'?]+\.js(?:\?[^"']*)?)["']/
+  )?.[1]
+  if (!asset) throw new Error('Cinejoy app entry was not found')
+  return new URL(asset, ORIGIN).href
+}
+
+function findWatchNodeUrls(app: string): string[] {
+  const nodeIndexes = WATCH_ROUTES.flatMap(route => {
+    const escapedRoute = route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const match = app.match(new RegExp(`"${escapedRoute}":\\[(\\d+)\\]`))
+    return match ? [match[1]] : []
+  })
+
+  const nodeAssets = new Map(
+    Array.from(
+      app.matchAll(/(?:\.\.\/|\/)nodes\/(\d+)\.([^"']+\.js)/g),
+      match => [match[1], match[0]] as const
+    )
   )
+  const urls = nodeIndexes.flatMap(index => {
+    const asset = nodeAssets.get(index)
+    return asset ? [new URL(asset, `${ORIGIN}/_app/immutable/entry/`).href] : []
+  })
+  if (!urls.length) throw new Error('Cinejoy watch route nodes were not found')
+  return [...new Set(urls)]
+}
+
+function findImportedChunkUrls(nodes: string[]): string[] {
+  const assets = nodes.flatMap(node =>
+    Array.from(
+      node.matchAll(/["'](\.\.\/chunks\/[^"']+\.js)["']/g),
+      match => match[1]
+    )
+  )
+  const urls = assets.map(
+    asset => new URL(asset, `${ORIGIN}/_app/immutable/nodes/`).href
+  )
+  if (!urls.length) throw new Error('Cinejoy watch route chunks were not found')
+  return [...new Set(urls)]
+}
+
+function hasGatewayExports(source: string): boolean {
+  const exportBlocks = Array.from(
+    source.matchAll(/export\{([^}]+)\}/g),
+    match => match[1]
+  )
+  return exportBlocks.some(block =>
+    ['d', 'n', 'o'].every(name =>
+      new RegExp(
+        `(?:^|,)\\s*(?:[A-Za-z_$][\\w$]*\\s+as\\s+)?${name}\\s*(?=,|$)`
+      ).test(block)
+    )
+  )
+}
+
+function makeGatewayStandalone(source: string): string {
+  const settingsImport =
+    /import\s*\{\s*a\s+as\s+([A-Za-z_$][\w$]*)\s*\}\s*from\s*["']\.\/[^"']+["'];?/
+  const match = source.match(settingsImport)
+  if (!match) throw new Error('Cinejoy gateway import signature changed')
+  return source.replace(settingsImport, `const ${match[1]}=[];`)
+}
+
+async function discoverGatewaySource(cacheBust = false): Promise<string> {
+  const watchUrl = new URL(`${ORIGIN}/watch/movie/1081003`)
+  if (cacheBust) watchUrl.searchParams.set('_build', Date.now().toString())
+
+  const page = await fetchText(watchUrl.href)
+  const app = await fetchText(findAppEntry(page))
+  const nodeUrls = findWatchNodeUrls(app)
+  const nodes = await Promise.all(nodeUrls.map(fetchText))
+  const chunkUrls = findImportedChunkUrls(nodes)
+  const chunks = await Promise.allSettled(chunkUrls.map(fetchText))
+
+  for (const result of chunks) {
+    if (result.status === 'fulfilled' && hasGatewayExports(result.value)) {
+      try {
+        makeGatewayStandalone(result.value)
+        return result.value
+      } catch {
+        // Other shared chunks can coincidentally expose the same minified
+        // names; the gateway also has the removable settings-store import.
+      }
+    }
+  }
+  throw new Error('Cinejoy gateway chunk was not found in watch route imports')
+}
+
+async function importGateway(source: string): Promise<CinejoyGateway> {
+  // The gateway's only import is the settings store. Stream lookups do not
+  // use it, so removing that browser-only dependency makes Cinejoy's own
+  // encrypted gateway client executable in Node without reimplementing its
+  // frequently changing handshake protocol.
+  const standalone = makeGatewayStandalone(source)
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(standalone).toString('base64')}`
+  const gateway = (await import(moduleUrl)) as Partial<CinejoyGateway>
+  if (
+    typeof gateway.d !== 'function' ||
+    typeof gateway.n !== 'function' ||
+    typeof gateway.o !== 'function'
+  ) {
+    throw new Error('Cinejoy gateway exports changed')
+  }
+  return gateway as CinejoyGateway
 }
 
 async function loadGateway(): Promise<CinejoyGateway> {
   if (gatewayPromise) return gatewayPromise
   gatewayPromise = (async () => {
-    const page = await fetchText(`${ORIGIN}/watch/movie/1081003`)
-    const chunkName = findGatewayChunk(page)
-    const source = await fetchText(
-      `${ORIGIN}/_app/immutable/chunks/${chunkName}`
-    )
-
-    // The gateway's only import is the settings store. Stream lookups do not
-    // use it, so removing that browser-only dependency makes Cinejoy's own
-    // encrypted gateway client executable in Node without reimplementing its
-    // frequently changing handshake protocol.
-    const standalone = source.replace(
-      /import\{a as X\}from["']\.\/[^"']+["'];?/,
-      'const X=[];'
-    )
-    if (standalone === source) {
-      throw new Error('Cinejoy gateway import signature changed')
+    let lastError: unknown
+    for (let attempt = 0; attempt < GATEWAY_DISCOVERY_ATTEMPTS; attempt++) {
+      try {
+        return await importGateway(await discoverGatewaySource(attempt > 0))
+      } catch (error) {
+        lastError = error
+      }
     }
-
-    const moduleUrl = `data:text/javascript;base64,${Buffer.from(standalone).toString('base64')}`
-    const gateway = (await import(moduleUrl)) as Partial<CinejoyGateway>
-    if (
-      typeof gateway.d !== 'function' ||
-      typeof gateway.n !== 'function' ||
-      typeof gateway.o !== 'function'
-    ) {
-      throw new Error('Cinejoy gateway exports changed')
-    }
-    return gateway as CinejoyGateway
+    throw lastError
   })().catch(error => {
     gatewayPromise = null
     throw error
