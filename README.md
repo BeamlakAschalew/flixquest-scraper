@@ -562,6 +562,9 @@ interface Provider {
 - `vidup` - VidUp multi-server movie and episode provider
 - `goated` - GOATED proof-of-work resolver with adaptive HLS quality detection
 - `bingr` - Bingr nine-server provider with explicit quality/language metadata
+- `rive` - Rive multi-resolver provider with direct HLS/MP4 streams and subtitles
+- `vidrift` - VidRift Earth resolver with distinct CDN roots and adaptive HLS qualities
+- `vuflix` - Vuflix dynamic multi-source provider with Sigma, 4K, Upsilon, and every currently advertised backend
 
 For catalog, audio-language, and quality details, see
 [`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).

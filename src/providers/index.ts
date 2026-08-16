@@ -45,6 +45,9 @@ import { multiEmbedProvider } from './multiembed.js'
 import { oneElevenMoviesProvider } from './111movies.js'
 import { goatedProvider } from './goated.js'
 import { bingrProvider } from './bingr.js'
+import { riveProvider } from './rive.js'
+import { vidRiftProvider } from './vidrift.js'
+import { vuflixProvider } from './vuflix.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
@@ -97,6 +100,9 @@ const rawProviders = {
   '111movies': oneElevenMoviesProvider,
   goated: goatedProvider,
   bingr: bingrProvider,
+  rive: riveProvider,
+  vidrift: vidRiftProvider,
+  vuflix: vuflixProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -104,19 +110,19 @@ type ProviderId = keyof typeof rawProviders
 // Source-controlled provider switches. Set a provider to true to remove it
 // from normal provider listings and prevent stream requests from reaching it.
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
+  videasy: true,
+  vidfast: true,
   cineby: false,
   cinejoy: true,
   aether: false,
-  videasy: true,
   showbox: true,
   '4khdhub': false,
   '4khdhubnew': false,
   uhdmovies: false,
-  streamflix: true,
+  streamflix: false,
   notorrent: false,
   vidlink: false,
   netmirror: false,
-  vidfast: true,
   castle: false,
   movieblast: false,
   peachify: false,
@@ -150,7 +156,10 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   multiembed: false,
   '111movies': false,
   goated: true,
-  bingr: false,
+  bingr: true,
+  rive: true,
+  vidrift: true,
+  vuflix: true,
 }
 
 function isProviderId(id: string): id is ProviderId {

@@ -399,7 +399,7 @@ async function getStreamFlixStreams(
 export const streamFlixProvider: Provider = {
   name: 'StreamFlix',
   id: 'streamflix',
-  alias: 'Begemder',
+  alias: 'Axum',
   streamMovie: tmdbId => getStreamFlixStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getStreamFlixStreams(tmdbId, 'tv', season, episode),

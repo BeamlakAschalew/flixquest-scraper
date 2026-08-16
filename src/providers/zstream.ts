@@ -462,7 +462,7 @@ async function lookupStreams(
 export const zstreamProvider: Provider = {
   name: 'ZStream',
   id: 'zstream',
-  alias: 'Fontaine',
+  alias: 'Axum',
   streamMovie: tmdbId =>
     withForcedForwardProxy(() => lookupStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>

@@ -62,6 +62,9 @@ const API_PREFIX = '/api/v2'
 // - vidfast: the protected server tokens and resolved CDN URLs are session-bound.
 // - goated: reallyfast.xyz returns short-lived signed CDN playlists.
 // - bingr: several servers return signed or session-bound media URLs.
+// - rive: resolver backends return short-lived signed HLS/MP4 URLs.
+// - vidrift: source discovery uses a short-lived playback token and rotating media URLs.
+// - vuflix: its provider catalog returns short-lived playback and media-proxy tokens.
 const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vidsrc',
   'vidup',
@@ -72,6 +75,9 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vidfast',
   'goated',
   'bingr',
+  'rive',
+  'vidrift',
+  'vuflix',
 ])
 
 app.set('trust proxy', 1)
