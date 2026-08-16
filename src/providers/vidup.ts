@@ -17,6 +17,7 @@
  */
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 const BASE_URL = 'https://vidup.to'
 const CRYPTO_URL = 'https://enc-dec.app/api'
@@ -272,7 +273,8 @@ export const vidUpProvider: Provider = {
   name: 'VidUp',
   id: 'vidup',
   alias: 'Gura',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() => getStreams(tmdbId, 'tv', season, episode)),
 }

@@ -104,7 +104,7 @@ type ProviderId = keyof typeof rawProviders
 // Source-controlled provider switches. Set a provider to true to remove it
 // from normal provider listings and prevent stream requests from reaching it.
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
-  cineby: true,
+  cineby: false,
   cinejoy: true,
   aether: false,
   videasy: true,
@@ -130,14 +130,14 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   'dahmermovies-tv': false,
   videasy2: false,
   bollyflix: false,
-  playimdb: true,
+  playimdb: false,
   tamilian: false,
   xpass: false,
   kisskh: false,
   dramafull: false,
   toonhub: false,
   jetfilmizle: false,
-  artemis: true,
+  artemis: false,
   zstream: true,
   watchflux: false,
   vidrock: true,
@@ -150,7 +150,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   multiembed: false,
   '111movies': false,
   goated: true,
-  bingr: true,
+  bingr: false,
 }
 
 function isProviderId(id: string): id is ProviderId {
