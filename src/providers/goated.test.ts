@@ -28,7 +28,7 @@ function decryptRequest(body: string): Record<string, unknown> {
   ) as Record<string, unknown>
 }
 
-test('GOATED solves, encrypts, expands sources, and inspects HLS quality', async () => {
+test('GOATED solves, encrypts, and returns adaptive HLS sources', async () => {
   const originalFetch = globalThis.fetch
   const resolveRequests: Record<string, unknown>[] = []
 
@@ -71,8 +71,8 @@ test('GOATED solves, encrypts, expands sources, and inspects HLS quality', async
     })
     assert.equal(resolveRequests[1].source, 'Valenox')
     assert.equal(links.length, 2)
-    assert.equal(links[0].quality, '1080p')
-    assert.match(links[0].server, /360p\/1080p/)
+    assert.equal(links[0].quality, 'auto')
+    assert.equal(links[0].server, 'GOATED | Orbit')
     assert.equal(links[0].isM3U8, true)
     assert.equal(links[0].subtitles.length, 2)
     assert.deepEqual(await goatedProvider.streamTV('27205', 0, 1), [])

@@ -173,29 +173,6 @@ function subtitlesFrom(entries: ResolverSubtitle[] = []): Subtitle[] {
   )
 }
 
-function parseResolutionLadder(manifest: string): number[] {
-  const heights = Array.from(
-    manifest.matchAll(/RESOLUTION=\d+x(\d+)/gi),
-    match => Number(match[1])
-  ).filter(height => Number.isSafeInteger(height) && height > 0)
-  return Array.from(new Set(heights)).sort((a, b) => a - b)
-}
-
-async function inspectHls(url: string): Promise<number[]> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/vnd.apple.mpegurl, application/x-mpegURL',
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    if (!response.ok) return []
-    return parseResolutionLadder(await response.text())
-  } catch {
-    return []
-  }
-}
-
 async function linkFromResponse(
   payload: ResolverResponse,
   fallbackSource?: string
@@ -205,20 +182,15 @@ async function linkFromResponse(
   const isM3U8 =
     payload.format?.toLowerCase() === 'hls' ||
     /\.m3u8(?:$|[?#])/i.test(url.href)
-  const ladder = isM3U8 ? await inspectHls(url.href) : []
-  const highest = ladder.at(-1)
   const source = payload.source || fallbackSource || 'Default'
-  const ladderLabel = ladder.length
-    ? ` | ${ladder.map(height => `${height}p`).join('/')}`
-    : ''
   return {
-    server: `GOATED | ${source}${ladderLabel}`,
+    server: `GOATED | ${source}`,
     url: url.href,
     isM3U8,
     isDASH:
       payload.format?.toLowerCase() === 'dash' ||
       /\.mpd(?:$|[?#])/i.test(url.href),
-    quality: highest ? `${highest}p` : 'auto',
+    quality: 'auto',
     subtitles: subtitlesFrom(payload.subtitles),
   }
 }

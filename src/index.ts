@@ -18,6 +18,7 @@ import type {
   ProviderResponse,
 } from './types/index.js'
 import { validateStreamLinks } from './utils/stream-validation.js'
+import { resolveStreamQualities } from './utils/stream-quality.js'
 import {
   forwardProxyStorage,
   setupForwardProxyPatch,
@@ -147,7 +148,8 @@ async function responseStreamLinks(
 ): Promise<ProviderLink[]> {
   const processedLinks = links.map(link => unproxyStreamLink(link))
   const validatedLinks = await validateStreamLinks(processedLinks)
-  return validatedLinks.map(link => unproxyStreamLink(link))
+  const resolvedLinks = await resolveStreamQualities(validatedLinks)
+  return resolvedLinks.map(link => unproxyStreamLink(link))
 }
 
 function getQueryString(value: unknown): string | undefined {

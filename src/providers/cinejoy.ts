@@ -146,7 +146,7 @@ function hasGatewayExports(source: string): boolean {
 
 function makeGatewayStandalone(source: string): string {
   const settingsImport =
-    /import\s*\{\s*a\s+as\s+([A-Za-z_$][\w$]*)\s*\}\s*from\s*["']\.\/[^"']+["'];?/
+    /import\s*\{\s*[ap]\s+as\s+([A-Za-z_$][\w$]*)\s*\}\s*from\s*["']\.\/[^"']+["'];?/
   const match = source.match(settingsImport)
   if (!match) throw new Error('Cinejoy gateway import signature changed')
   return source.replace(settingsImport, `const ${match[1]}=[];`)
