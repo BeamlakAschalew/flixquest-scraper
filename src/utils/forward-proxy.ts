@@ -12,7 +12,10 @@ export interface ForwardProxyContext {
   proxyUrl?: string
 }
 
-export const DEFAULT_FORWARD_PROXY_URL = 'https://onyx.et/proxy.php?url='
+export const DEFAULT_FORWARD_PROXY_URL =
+  'https://flixquest.beamlak.dev/proxy.php?url='
+
+export const FALLBACK_FORWARD_PROXY_URL = 'https://onyx.et/proxy.php?url='
 
 export const forwardProxyStorage = new AsyncLocalStorage<ForwardProxyContext>()
 
@@ -138,6 +141,10 @@ export function getForwardProxyUrl(
     process.env.FORWARD_PROXY_URL?.trim() ||
     DEFAULT_FORWARD_PROXY_URL
 
+  return buildForwardProxyUrl(baseProxyUrl, targetUrl)
+}
+
+function buildForwardProxyUrl(baseProxyUrl: string, targetUrl: string): string {
   if (baseProxyUrl.includes('%s')) {
     return baseProxyUrl.replace('%s', encodeURIComponent(targetUrl))
   }
@@ -150,6 +157,84 @@ export function getForwardProxyUrl(
       : '?url='
 
   return `${baseProxyUrl}${separator}${encodeURIComponent(targetUrl)}`
+}
+
+interface ForwardProxyCandidate {
+  baseUrl: string
+  source: ForwardProxyFailure['proxySource']
+}
+
+function getForwardProxyCandidates(
+  store: ForwardProxyContext | undefined
+): ForwardProxyCandidate[] {
+  if (store?.proxyUrl) {
+    return [{ baseUrl: store.proxyUrl, source: 'request' }]
+  }
+
+  const primaryEnvironmentUrl = process.env.FORWARD_PROXY_URL?.trim()
+  const fallbackEnvironmentUrl = process.env.FORWARD_PROXY_FALLBACK_URL?.trim()
+  const candidates: ForwardProxyCandidate[] = [
+    {
+      baseUrl: primaryEnvironmentUrl || DEFAULT_FORWARD_PROXY_URL,
+      source: primaryEnvironmentUrl ? 'environment' : 'default',
+    },
+    {
+      baseUrl: fallbackEnvironmentUrl || FALLBACK_FORWARD_PROXY_URL,
+      source: fallbackEnvironmentUrl ? 'environment' : 'default',
+    },
+  ]
+
+  const seen = new Set<string>()
+  return candidates.filter(candidate => {
+    let normalizedUrl = candidate.baseUrl.trim()
+    try {
+      normalizedUrl = new URL(
+        buildForwardProxyUrl(
+          candidate.baseUrl,
+          'https://forward-proxy-dedupe.invalid/'
+        )
+      ).href
+    } catch {
+      // Keep the raw configured URL; fetch will report a useful final error.
+    }
+    if (seen.has(normalizedUrl)) return false
+    seen.add(normalizedUrl)
+    return true
+  })
+}
+
+export function isForwardProxyUrl(
+  targetUrl: string,
+  context?: ForwardProxyContext
+): boolean {
+  const store = context || forwardProxyStorage.getStore()
+  try {
+    const targetHostname = new URL(targetUrl).hostname.toLowerCase()
+    const configuredUrls = [
+      store?.proxyUrl,
+      process.env.FORWARD_PROXY_URL?.trim(),
+      process.env.FORWARD_PROXY_FALLBACK_URL?.trim(),
+      DEFAULT_FORWARD_PROXY_URL,
+      FALLBACK_FORWARD_PROXY_URL,
+    ]
+
+    return configuredUrls.some(proxyUrl => {
+      if (!proxyUrl) return false
+      try {
+        return new URL(proxyUrl).hostname.toLowerCase() === targetHostname
+      } catch {
+        return false
+      }
+    })
+  } catch {
+    return false
+  }
+}
+
+function shouldRetryForwardProxyResponse(response: Response): boolean {
+  return (
+    response.status === 408 || response.status === 429 || response.status >= 500
+  )
 }
 
 let isPatched = false
@@ -166,14 +251,6 @@ interface ForwardProxyFailure extends Error {
   port: number
   proxyAddresses?: Array<{ address: string; family: number }>
   dnsError?: unknown
-}
-
-function getProxySource(
-  store: ForwardProxyContext | undefined
-): ForwardProxyFailure['proxySource'] {
-  if (store?.proxyUrl) return 'request'
-  if (process.env.FORWARD_PROXY_URL?.trim()) return 'environment'
-  return 'default'
 }
 
 async function lookupProxyAddresses(
@@ -202,7 +279,7 @@ async function createForwardProxyFailure(
   startedAt: number,
   targetUrl: string,
   proxiedUrl: string,
-  store: ForwardProxyContext | undefined
+  proxySource: ForwardProxyFailure['proxySource']
 ): Promise<ForwardProxyFailure> {
   const parsedProxyUrl = new URL(proxiedUrl)
   const elapsedMs = Date.now() - startedAt
@@ -220,7 +297,7 @@ async function createForwardProxyFailure(
   failure.elapsedMs = elapsedMs
   failure.targetUrl = redactUrl(targetUrl)
   failure.proxyUrl = redactUrl(proxiedUrl)
-  failure.proxySource = getProxySource(store)
+  failure.proxySource = proxySource
   failure.hostname = parsedProxyUrl.hostname
   failure.port = proxyPort
 
@@ -268,14 +345,8 @@ export function setupForwardProxyPatch() {
         return originalFetch(input, init)
       }
 
-      // Do not proxy requests that are already pointing to the proxy endpoint
-      const currentProxy =
-        store?.proxyUrl ||
-        process.env.FORWARD_PROXY_URL?.trim() ||
-        DEFAULT_FORWARD_PROXY_URL
-
-      const proxyDomain = new URL(currentProxy.split('?')[0]).hostname
-      if (targetUrlStr.includes(proxyDomain)) {
+      // Do not recursively wrap requests to either configured proxy endpoint.
+      if (isForwardProxyUrl(targetUrlStr, store)) {
         return originalFetch(input, init)
       }
 
@@ -284,44 +355,72 @@ export function setupForwardProxyPatch() {
         return originalFetch(input, init)
       }
 
-      const proxiedUrl = getForwardProxyUrl(targetUrlStr, store)
+      const proxyCandidates = getForwardProxyCandidates(store)
 
-      if (proxiedUrl !== targetUrlStr) {
+      if (proxyCandidates.length > 0) {
         const requestId = `${process.pid}-${++requestSequence}`
         const startedAt = Date.now()
-        console.log(
-          `🔀 [ForwardProxy:${requestId}] Routing ${init?.method || (input instanceof Request ? input.method : 'GET')} ${redactUrl(targetUrlStr)} via ${redactUrl(proxiedUrl)}`
-        )
+        const requestTemplate =
+          input instanceof Request
+            ? new Request(input, init)
+            : new Request(targetUrlStr, init)
 
-        try {
-          const response =
-            input instanceof Request
-              ? await originalFetch(new Request(proxiedUrl, input), init)
-              : await originalFetch(proxiedUrl, init)
-          const elapsedMs = Date.now() - startedAt
+        for (const [index, candidate] of proxyCandidates.entries()) {
+          const proxiedUrl = buildForwardProxyUrl(
+            candidate.baseUrl,
+            targetUrlStr
+          )
+          const hasFallback = index < proxyCandidates.length - 1
+          const attempt = index + 1
 
           console.log(
-            `🔀 [ForwardProxy:${requestId}] Response after ${elapsedMs}ms: ${responseDiagnostics(response)}`
+            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attempt}/${proxyCandidates.length} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(proxiedUrl)}`
           )
-          if (!response.ok) {
-            console.warn(
-              `🔀 [ForwardProxy:${requestId}] Non-2xx body: ${await responseBodySnippet(response)}`
+
+          try {
+            const response = await originalFetch(
+              new Request(proxiedUrl, requestTemplate.clone())
             )
+            const elapsedMs = Date.now() - startedAt
+
+            console.log(
+              `🔀 [ForwardProxy:${requestId}] Response after ${elapsedMs}ms: ${responseDiagnostics(response)}`
+            )
+            if (!response.ok) {
+              console.warn(
+                `🔀 [ForwardProxy:${requestId}] Non-2xx body: ${await responseBodySnippet(response)}`
+              )
+            }
+
+            if (hasFallback && shouldRetryForwardProxyResponse(response)) {
+              console.warn(
+                `🔀 [ForwardProxy:${requestId}] Proxy returned ${response.status}; retrying the same request through fallback`
+              )
+              continue
+            }
+
+            return response
+          } catch (error) {
+            if (hasFallback) {
+              console.warn(
+                `🔀 [ForwardProxy:${requestId}] Proxy attempt ${attempt} failed after ${Date.now() - startedAt}ms; retrying the same request through fallback: ${formatRequestError(error)}`
+              )
+              continue
+            }
+
+            const failure = await createForwardProxyFailure(
+              error,
+              requestId,
+              startedAt,
+              targetUrlStr,
+              proxiedUrl,
+              candidate.source
+            )
+            console.error(
+              `🔀 [ForwardProxy:${requestId}] ${formatRequestError(failure)}`
+            )
+            throw failure
           }
-          return response
-        } catch (error) {
-          const failure = await createForwardProxyFailure(
-            error,
-            requestId,
-            startedAt,
-            targetUrlStr,
-            proxiedUrl,
-            store
-          )
-          console.error(
-            `🔀 [ForwardProxy:${requestId}] ${formatRequestError(failure)}`
-          )
-          throw failure
         }
       }
     }

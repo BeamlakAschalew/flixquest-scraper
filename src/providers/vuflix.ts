@@ -16,17 +16,18 @@ const API_HEADERS = {
   Origin: SITE_URL,
   Referer: `${SITE_URL}/`,
 }
+const PREFERRED_PROVIDER_IDS = ['cineplay', 'cinejoy'] as const
 
 const FALLBACK_PROVIDERS: VuflixProviderEntry[] = [
-  { id: 'vsembed', name: 'Sigma', scrapeTimeoutSec: 120 },
+  // { id: 'vsembed', name: 'Sigma', scrapeTimeoutSec: 120 },
   { id: 'cineplay', name: '4K', scrapeTimeoutSec: 90 },
-  { id: 'bingr', name: 'Upsilon', scrapeTimeoutSec: 45 },
-  { id: 'filesun', name: 'Tau', scrapeTimeoutSec: 45 },
-  { id: 'onlyflix', name: 'Gamma', scrapeTimeoutSec: 45 },
-  { id: 'vaplayer', name: 'Alpha', scrapeTimeoutSec: 45 },
-  { id: 'moviebox', name: 'Pi', scrapeTimeoutSec: 45 },
-  { id: 'flixhqz', name: 'Gamma', scrapeTimeoutSec: 90 },
-  { id: 'huhu', name: 'Beta', scrapeTimeoutSec: 45 },
+  // { id: 'bingr', name: 'Upsilon', scrapeTimeoutSec: 45 },
+  // { id: 'filesun', name: 'Tau', scrapeTimeoutSec: 45 },
+  // { id: 'onlyflix', name: 'Gamma', scrapeTimeoutSec: 45 },
+  // { id: 'vaplayer', name: 'Alpha', scrapeTimeoutSec: 45 },
+  // { id: 'moviebox', name: 'Pi', scrapeTimeoutSec: 45 },
+  // { id: 'flixhqz', name: 'Gamma', scrapeTimeoutSec: 90 },
+  // { id: 'huhu', name: 'Beta', scrapeTimeoutSec: 45 },
   { id: 'cinejoy', name: '4K2', scrapeTimeoutSec: 45 },
 ]
 
@@ -470,18 +471,54 @@ async function getStreams(
 
   try {
     const providers = await getProviders()
-    const results = await Promise.allSettled(
-      providers.map(provider =>
-        fetchProvider(provider, tmdbId, mediaType, season, episode)
+    const providersById = new Map(
+      providers.map(provider => [provider.id!, provider] as const)
+    )
+    const preferredProviders = PREFERRED_PROVIDER_IDS.flatMap(id => {
+      const provider = providersById.get(id)
+      return provider ? [provider] : []
+    })
+    const fallbackProviders = providers.filter(
+      provider =>
+        !PREFERRED_PROVIDER_IDS.includes(
+          provider.id as (typeof PREFERRED_PROVIDER_IDS)[number]
+        )
+    )
+
+    const fetchBatch = async (
+      batch: VuflixProviderEntry[]
+    ): Promise<ProviderLink[]> => {
+      const results = await Promise.allSettled(
+        batch.map(provider =>
+          fetchProvider(provider, tmdbId, mediaType, season, episode)
+        )
       )
-    )
-    const links = results.flatMap(result =>
-      result.status === 'fulfilled' ? result.value : []
-    )
+      return results.flatMap(result =>
+        result.status === 'fulfilled' ? result.value : []
+      )
+    }
+
+    for (const provider of preferredProviders) {
+      const preferredLinks = await fetchProvider(
+        provider,
+        tmdbId,
+        mediaType,
+        season,
+        episode
+      ).catch(() => [])
+      if (preferredLinks.length) {
+        console.log(
+          `[Vuflix] Preferred ${providerLabel(provider)} provider returned ${preferredLinks.length} stream(s) for ${mediaType} ${tmdbId}`
+        )
+        return preferredLinks
+      }
+    }
+
+    const fallbackLinks = await fetchBatch(fallbackProviders)
     console.log(
-      `[Vuflix] Queried ${providers.length} backend(s) and extracted ${links.length} stream(s) for ${mediaType} ${tmdbId}`
+      `[Vuflix] Preferred providers were empty; queried ${fallbackProviders.length} fallback backend(s) and extracted ${fallbackLinks.length} stream(s) for ${mediaType} ${tmdbId}`
     )
-    return links
+    return fallbackLinks
   } catch (error) {
     console.error(
       `[Vuflix] ${error instanceof Error ? error.message : 'Unknown provider error'}`

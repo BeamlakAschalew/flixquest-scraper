@@ -1,6 +1,6 @@
 import type { Provider, ProviderLink } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from './config.js'
-import { getForwardProxyUrl } from './forward-proxy.js'
+import { getForwardProxyUrl, isForwardProxyUrl } from './forward-proxy.js'
 
 const VALIDATION_TIMEOUT_MS = Math.max(15_000, DEFAULT_REQUEST_TIMEOUT_MS)
 const VALIDATION_CONCURRENCY = 8
@@ -39,15 +39,7 @@ function resolveValidatedUrl(requestUrl: string, responseUrl: string): string {
   const forwardProxyUrl = getForwardProxyUrl(requestUrl)
   if (forwardProxyUrl === requestUrl) return normalizedResponseUrl
 
-  try {
-    if (
-      new URL(normalizedResponseUrl).origin === new URL(forwardProxyUrl).origin
-    ) {
-      return requestUrl
-    }
-  } catch {
-    // Keep the normalized response URL if either URL cannot be parsed.
-  }
+  if (isForwardProxyUrl(normalizedResponseUrl)) return requestUrl
 
   return normalizedResponseUrl
 }

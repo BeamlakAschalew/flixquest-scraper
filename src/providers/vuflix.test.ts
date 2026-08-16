@@ -2,7 +2,124 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { vuflixProvider } from './vuflix.js'
 
-test('Vuflix queries the live catalog and preserves every source shape', async () => {
+test('Vuflix returns 4K before querying 4K2 or slower providers', async () => {
+  const originalFetch = globalThis.fetch
+  const queriedProviders: string[] = []
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString())
+    if (url.pathname === '/api/player/providers') {
+      return Response.json({
+        providers: [
+          { id: 'vsembed', name: 'Sigma' },
+          { id: 'cineplay', name: '4K' },
+          { id: 'cinejoy', name: '4K2' },
+          { id: 'vaplayer', name: 'Alpha' },
+        ],
+      })
+    }
+
+    const provider = url.searchParams.get('provider') || ''
+    queriedProviders.push(provider)
+    if (provider === 'cineplay') {
+      return Response.json({
+        ok: true,
+        sources: [
+          {
+            provider,
+            providerName: '4K',
+            type: 'hls',
+            quality: '1080p',
+            url: 'https://media.example/4k/1080.m3u8',
+            qualities: [
+              {
+                quality: '2160p',
+                url: 'https://media.example/4k/2160.m3u8',
+              },
+              {
+                quality: '1080p',
+                url: 'https://media.example/4k/1080.m3u8',
+              },
+              {
+                quality: '720p',
+                url: 'https://media.example/4k/720.m3u8',
+              },
+              {
+                quality: '480p',
+                url: 'https://media.example/4k/480.m3u8',
+              },
+            ],
+          },
+        ],
+      })
+    }
+    throw new Error(`Slow provider ${provider} should not be queried`)
+  }) as typeof fetch
+
+  try {
+    const links = await vuflixProvider.streamMovie('533535')
+    assert.deepEqual(queriedProviders, ['cineplay'])
+    assert.deepEqual(
+      links
+        .filter(link => link.server.includes('4K (cineplay)'))
+        .map(link => link.quality),
+      ['2160p', '1080p', '720p', '480p']
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Vuflix tries 4K2 when 4K is empty before slower providers', async () => {
+  const originalFetch = globalThis.fetch
+  const queriedProviders: string[] = []
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString())
+    if (url.pathname === '/api/player/providers') {
+      return Response.json({
+        providers: [
+          { id: 'vsembed', name: 'Sigma' },
+          { id: 'cineplay', name: '4K' },
+          { id: 'cinejoy', name: '4K2' },
+        ],
+      })
+    }
+
+    const provider = url.searchParams.get('provider') || ''
+    queriedProviders.push(provider)
+    if (provider === 'cineplay') {
+      return Response.json({ ok: false, sources: [] })
+    }
+    if (provider === 'cinejoy') {
+      return Response.json({
+        ok: true,
+        sources: [
+          {
+            provider,
+            providerName: '4K2',
+            type: 'hls',
+            quality: '2160p',
+            url: 'https://media.example/4k2/2160.m3u8',
+          },
+        ],
+      })
+    }
+    throw new Error(`Slow provider ${provider} should not be queried`)
+  }) as typeof fetch
+
+  try {
+    const links = await vuflixProvider.streamMovie('533535')
+    assert.deepEqual(queriedProviders, ['cineplay', 'cinejoy'])
+    assert.equal(links.length, 1)
+    assert.equal(links[0].quality, '2160p')
+    assert.match(links[0].server, /4K2 \(cinejoy\)/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('Vuflix queries the remaining catalog when both 4K providers are empty', async () => {
   const originalFetch = globalThis.fetch
   const queriedProviders: string[] = []
 
@@ -14,6 +131,7 @@ test('Vuflix queries the live catalog and preserves every source shape', async (
         providers: [
           { id: 'vsembed', name: 'Sigma' },
           { id: 'cineplay', name: '4K' },
+          { id: 'cinejoy', name: '4K2' },
           { id: 'vaplayer', name: 'Alpha' },
           { id: 'moviebox', name: 'Pi' },
           { id: 'huhu', name: 'Beta', autoLoad: false },
@@ -41,42 +159,8 @@ test('Vuflix queries the live catalog and preserves every source shape', async (
         subtitles: [{ src: 'https://subs.example/en.vtt', label: 'English' }],
       })
     }
-    if (provider === 'cineplay') {
-      return Response.json({
-        ok: true,
-        sources: [
-          {
-            provider,
-            providerName: '4K',
-            type: 'hls',
-            quality: '1080p',
-            language: 'en',
-            url: 'https://media.example/4k/1080.m3u8',
-            qualities: [
-              {
-                quality: '2160p',
-                url: 'https://media.example/4k/2160.m3u8',
-                type: 'hls',
-              },
-              {
-                quality: '1080p',
-                url: 'https://media.example/4k/1080.m3u8',
-                type: 'hls',
-              },
-              {
-                quality: '720p',
-                url: 'https://media.example/4k/720.m3u8',
-                type: 'hls',
-              },
-              {
-                quality: '480p',
-                url: 'https://media.example/4k/480.m3u8',
-                type: 'hls',
-              },
-            ],
-          },
-        ],
-      })
+    if (provider === 'cineplay' || provider === 'cinejoy') {
+      return Response.json({ ok: false, sources: [] })
     }
     if (provider === 'vaplayer') {
       return Response.json({
@@ -151,18 +235,13 @@ test('Vuflix queries the live catalog and preserves every source shape', async (
     const links = await vuflixProvider.streamMovie('533535')
     assert.deepEqual(queriedProviders.sort(), [
       'broken',
+      'cinejoy',
       'cineplay',
       'huhu',
       'moviebox',
       'vaplayer',
       'vsembed',
     ])
-    assert.deepEqual(
-      links
-        .filter(link => link.server.includes('4K (cineplay)'))
-        .map(link => link.quality),
-      ['2160p', '1080p', '720p', '480p']
-    )
     assert.equal(
       links.filter(link => link.server.includes('Alpha (vaplayer)')).length,
       2

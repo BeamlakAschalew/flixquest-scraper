@@ -3,40 +3,54 @@ import test from 'node:test'
 import { vidUpProvider } from './vidup.js'
 import {
   DEFAULT_FORWARD_PROXY_URL,
+  FALLBACK_FORWARD_PROXY_URL,
   setupForwardProxyPatch,
 } from '../utils/forward-proxy.js'
 
 test('VidUp keeps its CSRF-protected POST handshake on the forward proxy', async () => {
   const originalFetch = globalThis.fetch
   const requests: Array<{
+    proxyUrl: string
     targetUrl: string
     method: string
     headers: Headers
+    body?: string
   }> = []
+  let primaryFailureTriggered = false
 
   globalThis.fetch = async (input, init) => {
-    const requestUrl =
-      typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.href
-          : input.url
-    const proxyUrl = new URL(requestUrl)
-    assert.equal(
-      `${proxyUrl.origin}${proxyUrl.pathname}?url=`,
-      DEFAULT_FORWARD_PROXY_URL
+    const request =
+      input instanceof Request ? input : new Request(input.toString(), init)
+    const proxyUrl = new URL(request.url)
+    const proxyBaseUrl = `${proxyUrl.origin}${proxyUrl.pathname}?url=`
+    assert.ok(
+      [DEFAULT_FORWARD_PROXY_URL, FALLBACK_FORWARD_PROXY_URL].includes(
+        proxyBaseUrl
+      )
     )
 
     const targetUrl = proxyUrl.searchParams.get('url')
     assert.ok(targetUrl)
-    const headers = new Headers(
-      init?.headers || (input instanceof Request ? input.headers : undefined)
-    )
+    const body =
+      request.method === 'GET' || request.method === 'HEAD'
+        ? undefined
+        : await request.clone().text()
     requests.push({
+      proxyUrl: proxyBaseUrl,
       targetUrl,
-      method: init?.method || (input instanceof Request ? input.method : 'GET'),
-      headers,
+      method: request.method,
+      headers: request.headers,
+      body,
     })
+
+    if (
+      targetUrl === 'https://enc-dec.app/api/dec-vidup' &&
+      proxyBaseUrl === DEFAULT_FORWARD_PROXY_URL &&
+      !primaryFailureTriggered
+    ) {
+      primaryFailureTriggered = true
+      throw new TypeError('simulated primary proxy failure')
+    }
 
     if (targetUrl.includes('/tv/2316/1/1')) {
       return new Response(
@@ -56,10 +70,10 @@ test('VidUp keeps its CSRF-protected POST handshake on the forward proxy', async
       return new Response('encrypted-servers')
     }
     if (targetUrl === 'https://enc-dec.app/api/dec-vidup') {
-      const body = JSON.parse(String(init?.body)) as { text: string }
+      const decodedBody = JSON.parse(body || '{}') as { text?: string }
       return Response.json({
         result:
-          body.text === 'encrypted-servers'
+          decodedBody.text === 'encrypted-servers'
             ? [{ name: 'Euro', data: 'server-data' }]
             : {
                 url: 'https://media.example/video/master.m3u8',
@@ -80,6 +94,25 @@ test('VidUp keeps its CSRF-protected POST handshake on the forward proxy', async
     const links = await vidUpProvider.streamTV('2316', 1, 1)
     assert.equal(links.length, 1)
     assert.equal(links[0].url, 'https://media.example/video/master.m3u8')
+    assert.equal(primaryFailureTriggered, true)
+
+    const retriedDecryptRequests = requests.filter(
+      request =>
+        request.targetUrl === 'https://enc-dec.app/api/dec-vidup' &&
+        request.body?.includes('encrypted-servers')
+    )
+    assert.equal(retriedDecryptRequests.length, 2)
+    assert.deepEqual(
+      retriedDecryptRequests.map(request => request.proxyUrl),
+      [DEFAULT_FORWARD_PROXY_URL, FALLBACK_FORWARD_PROXY_URL]
+    )
+    assert.equal(retriedDecryptRequests[0].method, 'POST')
+    assert.equal(retriedDecryptRequests[1].method, 'POST')
+    assert.equal(
+      retriedDecryptRequests[1].headers.get('content-type'),
+      retriedDecryptRequests[0].headers.get('content-type')
+    )
+    assert.equal(retriedDecryptRequests[1].body, retriedDecryptRequests[0].body)
 
     const vidUpPosts = requests.filter(
       request =>
