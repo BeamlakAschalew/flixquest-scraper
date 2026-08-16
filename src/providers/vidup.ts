@@ -38,10 +38,6 @@ const API_HEADERS: Record<string, string> = {
   Referer: `${BASE_URL}/`,
   'User-Agent': USER_AGENT,
   'X-Requested-With': 'XMLHttpRequest',
-  // The proxy cannot forward VidUp's long session-bound /gut POST URLs.
-  // Page/config/decrypt requests can still use the proxy; these API calls
-  // must use the server's direct egress.
-  'x-skip-forward-proxy': 'true',
 }
 
 const PLAYBACK_HEADERS: Record<string, string> = {
@@ -233,7 +229,9 @@ async function getStreams(
 
     const requestHeaders = {
       ...API_HEADERS,
-      ...(config.result.token ? { 'X-CSRF-Token': config.result.token } : {}),
+      // Match VidUp's client bundle casing. The default forward proxy treats
+      // the all-caps CSRF spelling as a separate header and duplicates it.
+      ...(config.result.token ? { 'X-Csrf-Token': config.result.token } : {}),
     }
     const encryptedServers = await fetchText(config.result.servers, {
       method: 'POST',
