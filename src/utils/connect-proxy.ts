@@ -125,6 +125,14 @@ class ProxyPool {
     return undefined
   }
 
+  find(url: string): PooledProxy | undefined {
+    return this.proxies.find(proxy => proxy.url === url)
+  }
+
+  includes(url: string): boolean {
+    return this.proxies.some(proxy => proxy.url === url)
+  }
+
   reportFailure(
     proxy: PooledProxy,
     reason: string,
@@ -540,6 +548,14 @@ export function reportPooledProxySuccess(proxy: PooledProxy): void {
 
 export function poolSize(): number {
   return getConnectProxyPool()?.size() ?? 0
+}
+
+export function findPooledProxy(url: string): PooledProxy | undefined {
+  return getConnectProxyPool()?.find(url)
+}
+
+export function poolIncludesProxy(url: string): boolean {
+  return getConnectProxyPool()?.includes(url) ?? false
 }
 
 export function maxConnectProxyAttempts(): number {

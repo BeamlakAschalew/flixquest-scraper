@@ -1,10 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { lookup } from 'node:dns/promises'
+import type { PooledProxy } from './connect-proxy.js'
 import {
   fetchThroughConnectProxy,
+  findPooledProxy,
   getConnectProxyPool,
   maxConnectProxyAttempts,
   nextPooledProxy,
+  poolIncludesProxy,
   reportPooledProxyFailure,
   reportPooledProxySuccess,
 } from './connect-proxy.js'
@@ -18,6 +21,7 @@ import {
 export interface ForwardProxyContext {
   fProxyEnabled: boolean
   proxyUrl?: string
+  pinnedProxyUrl?: string
 }
 
 export const DEFAULT_FORWARD_PROXY_URL =
@@ -35,6 +39,7 @@ export function withForcedForwardProxy<T>(
     {
       fProxyEnabled: true,
       proxyUrl: context?.proxyUrl,
+      pinnedProxyUrl: context?.pinnedProxyUrl,
     },
     callback
   )
@@ -385,19 +390,31 @@ export function setupForwardProxyPatch() {
         let lastProxiedUrl = ''
         let lastSource: ForwardProxyCandidate['source'] = 'default'
 
-        for (let attempt = 0; attempt < connectAttempts; attempt++) {
-          const proxy = nextPooledProxy()
-          if (!proxy) break
+        const pinnedUrl = store?.pinnedProxyUrl
+        const pinnedProxy =
+          pinnedUrl && poolIncludesProxy(pinnedUrl)
+            ? findPooledProxy(pinnedUrl)
+            : undefined
 
-          const attemptLabel = `connect:${attempt + 1}/${connectAttempts}`
+        let attempt = 0
+        let proxy: PooledProxy | undefined
+        if (pinnedProxy) {
+          proxy = pinnedProxy
+        } else {
+          proxy = nextPooledProxy()
+        }
+
+        while (proxy && attempt < connectAttempts) {
+          const currentProxy = proxy
+          const attemptLabel = `connect:${attempt + 1}/${connectAttempts}${pinnedProxy ? ' (pinned)' : ''}`
           console.log(
-            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attemptLabel} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(proxy.url)}`
+            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attemptLabel} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(currentProxy.url)}`
           )
 
           try {
             const response = await fetchThroughConnectProxy(
               targetUrlStr,
-              proxy,
+              currentProxy,
               requestTemplate,
               undefined,
               requestTemplate.signal
@@ -413,24 +430,38 @@ export function setupForwardProxyPatch() {
               )
             }
 
-            if (shouldRetryForwardProxyResponse(response)) {
-              reportPooledProxyFailure(proxy, `HTTP ${response.status}`)
+            // Only rotate on proxy-fingerprint rejections (403) and rate
+            // limiting. Target-side 5xx responses are returned as-is so a
+            // healthy proxy is not penalized for the upstream's own failure.
+            if (
+              response.status === 403 ||
+              response.status === 408 ||
+              response.status === 429
+            ) {
+              reportPooledProxyFailure(currentProxy, `HTTP ${response.status}`)
               console.warn(
                 `🔀 [ForwardProxy:${requestId}] Proxy returned ${response.status}; trying another proxy`
               )
+              if (store) store.pinnedProxyUrl = undefined
+              attempt += 1
+              proxy = nextPooledProxy()
               continue
             }
 
-            reportPooledProxySuccess(proxy)
+            if (store) store.pinnedProxyUrl = currentProxy.url
+            reportPooledProxySuccess(currentProxy)
             return response
           } catch (error) {
-            reportPooledProxyFailure(proxy, formatRequestError(error))
+            reportPooledProxyFailure(currentProxy, formatRequestError(error))
             lastError = error
-            lastProxiedUrl = proxy.url
+            lastProxiedUrl = currentProxy.url
             lastSource = 'request'
             console.warn(
               `🔀 [ForwardProxy:${requestId}] Proxy attempt ${attemptLabel} failed after ${Date.now() - startedAt}ms; trying another proxy: ${formatRequestError(error)}`
             )
+            if (store) store.pinnedProxyUrl = undefined
+            attempt += 1
+            proxy = nextPooledProxy()
           }
         }
 
