@@ -392,6 +392,43 @@ api.get('/providers/health/run', async (req: Request, res: Response) => {
 })
 
 /**
+ * POST /api/v2/providers/health/publish
+ *
+ * Accepts a provider health snapshot computed outside the serverless function
+ * (e.g. by the GitHub Actions runner) and stores it in Redis so the status
+ * endpoint can serve it. Uses the same CRON_SECRET authorization as /health/run.
+ */
+api.post('/providers/health/publish', async (req: Request, res: Response) => {
+  const secret = process.env.CRON_SECRET
+  const fromVercelCron =
+    req.headers['user-agent']?.startsWith('vercel-cron/') === true ||
+    typeof req.headers['x-vercel-cron-schedule'] === 'string' ||
+    req.headers['x-vercel-cron'] === '1'
+  const authorized =
+    (fromVercelCron &&
+      (!secret || req.headers['x-vercel-cron-auth'] === secret)) ||
+    (secret && req.query.cronSecret === secret) ||
+    (!secret && process.env.VERCEL !== '1')
+  if (!authorized) {
+    res.status(401).json({ success: false, error: 'Unauthorized' })
+    return
+  }
+
+  const status = req.body
+  if (!status || typeof status !== 'object' || Array.isArray(status)) {
+    res.status(400).json({ success: false, error: 'Invalid status payload' })
+    return
+  }
+
+  const stored = await setProviderStatus(status)
+  res.json({
+    success: true,
+    stored,
+    updatedAt: new Date().toISOString(),
+  })
+})
+
+/**
  * GET /api/v2/intro
  *
  * Returns the current branded intro configuration. Playback clients must

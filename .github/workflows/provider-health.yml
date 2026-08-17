@@ -8,11 +8,33 @@ on:
 jobs:
   run-health-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Trigger provider health check
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run provider health check
+        id: health
+        env:
+          PROVIDER_HEALTH_BASE_URL: ${{ vars.PROVIDER_HEALTH_URL }}
+          PROVIDER_HEALTH_CONCURRENCY: ${{ vars.PROVIDER_HEALTH_CONCURRENCY }}
+          PROVIDER_HEALTH_TIMEOUT_MS: ${{ vars.PROVIDER_HEALTH_TIMEOUT_MS }}
+          PROVIDER_HEALTH_MATRIX: ${{ vars.PROVIDER_HEALTH_MATRIX }}
+          PROVIDER_STATUS_FILE: /tmp/provider-status.json
+        run: node scripts/provider-health-monitor.mjs --once
+
+      - name: Publish status to API
+        if: always()
         run: |
           curl -fsS \
+            -X POST \
             -H "x-vercel-cron: 1" \
             -H "x-vercel-cron-auth: ${{ secrets.CRON_SECRET }}" \
-            "${{ vars.PROVIDER_HEALTH_URL }}/api/v2/providers/health/run" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/provider-status.json \
+            "${{ vars.PROVIDER_HEALTH_URL }}/api/v2/providers/health/publish" \
             -o /dev/null

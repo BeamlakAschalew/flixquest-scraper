@@ -5,10 +5,23 @@ const CACHE_PREFIX = 'flixquest:provider:'
 const PROVIDER_STATUS_KEY = 'flixquest:provider-status'
 
 const isCacheEnabled = process.env.REDIS_CACHE_ENABLED !== 'false'
-const redisUrl = process.env.REDIS_URL
+let redisUrl = process.env.REDIS_URL
 const redisHost = process.env.REDIS_HOST
 const redisPort = Number(process.env.REDIS_PORT) || 6379
 const redisPassword = process.env.REDIS_PASSWORD
+
+// Upstash provides a REST URL + token pair (also injected automatically by the
+// Vercel Upstash integration). Derive the equivalent ioredis connection string
+// so the same config works locally and on Vercel.
+if (!redisUrl && !redisHost && process.env.UPSTASH_REDIS_REST_URL) {
+  try {
+    const restHost = new URL(process.env.UPSTASH_REDIS_REST_URL).hostname
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || ''
+    redisUrl = `rediss://default:${encodeURIComponent(token)}@${restHost}:6379`
+  } catch {
+    redisUrl = undefined
+  }
+}
 
 let redisClient: Redis | null = null
 let isConnected = false
