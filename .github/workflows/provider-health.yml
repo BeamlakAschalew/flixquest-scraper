@@ -27,17 +27,28 @@ jobs:
           PROVIDER_STATUS_FILE: /tmp/provider-status.json
         run: node scripts/provider-health-monitor.mjs --once
 
+      - name: Debug provider health URL
+        env:
+          PROVIDER_HEALTH_URL: ${{ vars.PROVIDER_HEALTH_URL }}
+        run: |
+          echo "PROVIDER_HEALTH_URL=[${PROVIDER_HEALTH_URL}]"
+          echo "length: ${#PROVIDER_HEALTH_URL}"
+          printf '%s' "${PROVIDER_HEALTH_URL}" | od -c | head -20
+
       - name: Publish status to API
         if: always()
         env:
           PROVIDER_HEALTH_URL: ${{ vars.PROVIDER_HEALTH_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          curl -fsS \
+          TARGET="${PROVIDER_HEALTH_URL}/api/v2/providers/health/publish"
+          echo "POST ${TARGET}"
+          echo "CRON_SECRET length: ${#CRON_SECRET}"
+          curl -fsS -v \
             -X POST \
             -H "x-vercel-cron: 1" \
             -H "x-vercel-cron-auth: ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             --data-binary @/tmp/provider-status.json \
-            "${PROVIDER_HEALTH_URL}/api/v2/providers/health/publish" \
-            -o /dev/null
+            "${TARGET}" \
+            -o /dev/null 2>&1
