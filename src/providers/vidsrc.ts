@@ -1,434 +1,304 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
-/**
- * VidSrc streaming provider integration
- * TypeScript version - Standalone
- */
+const API_BASE_URL = 'https://data.vidsrcme.ru/api.php'
+const PLAYER_ORIGIN = 'https://cloudorchestranova.com'
+const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
+const USER_AGENT =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 
-// Constants
-const SOURCE_URL = 'https://vidsrc.xyz/embed'
-let BASEDOM = 'https://cloudnestra.com'
-
-// Default headers for requests
-const DEFAULT_HEADERS = {
-  'User-Agent':
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-  Accept: '*/*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'sec-ch-ua':
-    '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"Windows"',
+const API_HEADERS = {
+  Accept: 'application/json',
+  Origin: PLAYER_ORIGIN,
+  Referer: `${PLAYER_ORIGIN}/`,
+  'User-Agent': USER_AGENT,
 }
 
-/**
- * Helper function to make HTTP requests
- */
-async function makeRequest(
+const PLAYBACK_HEADERS = {
+  Accept: '*/*',
+  Origin: PLAYER_ORIGIN,
+  Referer: `${PLAYER_ORIGIN}/`,
+  'User-Agent': USER_AGENT,
+}
+
+interface VidSrcSubtitle {
+  file?: string
+  url?: string
+  src?: string
+  label?: string
+  lang?: string
+  language?: string
+  kind?: string
+  default?: boolean
+}
+
+interface VidSrcData {
+  stream_urls?: string | string[]
+  default_subs?: VidSrcSubtitle[]
+  subtitles?: VidSrcSubtitle[]
+}
+
+interface VidSrcWasmConfig {
+  w?: number | string
+  wasm_url?: string
+  wasm?: string
+}
+
+interface VidSrcResponse {
+  status_code?: number | string
+  status?: number | string
+  data?: VidSrcData
+  default_subs?: VidSrcSubtitle[]
+  subtitles?: VidSrcSubtitle[]
+  vs?: VidSrcWasmConfig
+}
+
+// VidSrc rotates the small decryptor once per time window. Compiling is more
+// expensive than instantiating, so reuse a compiled module within that window.
+const wasmModuleCache = new Map<string, Promise<WebAssembly.Module>>()
+
+async function fetchChecked(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const headers = {
-    ...DEFAULT_HEADERS,
-    ...(options.headers as Record<string, string>),
-  }
-
-  try {
-    const response = await fetch(url, {
-      method: options.method || 'GET',
-      headers,
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    return response
-  } catch (error) {
-    console.error(
-      `[VidSrc] Request failed for ${url}: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
-    throw error
-  }
-}
-
-/**
- * Parse HTML to extract server information
- */
-interface ServerInfo {
-  name: string
-  dataHash: string | null
-}
-
-async function serversLoad(
-  html: string
-): Promise<{ servers: ServerInfo[]; title: string }> {
-  const servers: ServerInfo[] = []
-  let title = ''
-
-  // Extract title
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/)
-  if (titleMatch) {
-    title = titleMatch[1].trim()
-  }
-
-  // Extract base domain from iframe
-  const iframeSrcMatch = html.match(/<iframe[^>]+src=["']([^"']+)["']/)
-  if (iframeSrcMatch) {
-    const baseFrameSrc = iframeSrcMatch[1]
-    try {
-      const fullUrl = baseFrameSrc.startsWith('//')
-        ? 'https:' + baseFrameSrc
-        : baseFrameSrc
-      BASEDOM = new URL(fullUrl).origin
-      console.log(`[VidSrc] Updated BASEDOM to: ${BASEDOM}`)
-    } catch {
-      // Fallback regex for origin
-      const originMatch = (
-        baseFrameSrc.startsWith('//') ? 'https:' + baseFrameSrc : baseFrameSrc
-      ).match(/^(https?:\/\/[^/]+)/)
-      if (originMatch && originMatch[1]) {
-        BASEDOM = originMatch[1]
-        console.log(
-          `[VidSrc] Updated BASEDOM via regex fallback to: ${BASEDOM}`
-        )
-      }
-    }
-  }
-
-  // Extract servers
-  const serverRegex =
-    /<div[^>]+class=["'][^"']*server[^"']*["'][^>]*data-hash=["']([^"']*)["'][^>]*>([^<]+)<\/div>/g
-  let match
-  while ((match = serverRegex.exec(html)) !== null) {
-    servers.push({
-      name: match[2].trim(),
-      dataHash: match[1] || null,
-    })
-  }
-
-  return { servers, title }
-}
-
-/**
- * Parse master M3U8 playlist
- */
-interface StreamQuality {
-  quality: string
-  url: string
-}
-
-async function parseMasterM3U8(
-  m3u8Content: string,
-  masterM3U8Url: string
-): Promise<StreamQuality[]> {
-  const lines = m3u8Content.split('\n').map(line => line.trim())
-  const streams: StreamQuality[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('#EXT-X-STREAM-INF:')) {
-      const infoLine = lines[i]
-      let quality = 'unknown'
-
-      const resolutionMatch = infoLine.match(/RESOLUTION=(\d+x\d+)/)
-      if (resolutionMatch) {
-        quality = resolutionMatch[1]
-      } else {
-        const bandwidthMatch = infoLine.match(/BANDWIDTH=(\d+)/)
-        if (bandwidthMatch) {
-          quality = `${Math.round(parseInt(bandwidthMatch[1]) / 1000)}kbps`
-        }
-      }
-
-      if (
-        i + 1 < lines.length &&
-        lines[i + 1] &&
-        !lines[i + 1].startsWith('#')
-      ) {
-        const streamUrlPart = lines[i + 1]
-        try {
-          const fullStreamUrl = new URL(streamUrlPart, masterM3U8Url).href
-          streams.push({ quality, url: fullStreamUrl })
-        } catch (e) {
-          console.error(
-            `[VidSrc] Error constructing URL for stream: ${streamUrlPart}`,
-            e
-          )
-          streams.push({ quality, url: streamUrlPart })
-        }
-        i++
-      }
-    }
-  }
-
-  // Sort by quality (highest first)
-  streams.sort((a, b) => {
-    const getHeight = (q: string) => {
-      const match = q.match(/(\d+)x(\d+)/)
-      return match ? parseInt(match[2], 10) : 0
-    }
-    return getHeight(b.quality) - getHeight(a.quality)
+  const response = await fetch(url, {
+    ...options,
+    signal: options.signal || AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
-
-  return streams
-}
-
-/**
- * Handle PRORCP extraction
- */
-async function PRORCPhandler(prorcp: string): Promise<StreamQuality[] | null> {
-  try {
-    const prorcpUrl = `${BASEDOM}/prorcp/${prorcp}`
-    console.log(`[VidSrc] Fetching PRORCP: ${prorcpUrl}`)
-
-    const prorcpFetch = await makeRequest(prorcpUrl, {
-      headers: {
-        'sec-fetch-dest': 'script',
-        'sec-fetch-mode': 'no-cors',
-        'sec-fetch-site': 'same-origin',
-        Referer: `${BASEDOM}/`,
-        'Referrer-Policy': 'origin',
-      },
-    })
-
-    const prorcpResponse = await prorcpFetch.text()
-    const regex = /file:\s*'([^']*)'/gm
-    const match = regex.exec(prorcpResponse)
-
-    if (match && match[1]) {
-      const masterM3U8Url = match[1]
-      console.log(`[VidSrc] Found master M3U8: ${masterM3U8Url}`)
-
-      const m3u8FileFetch = await makeRequest(masterM3U8Url, {
-        headers: { Referer: prorcpUrl, Accept: '*/*' },
-      })
-
-      const m3u8Content = await m3u8FileFetch.text()
-      return parseMasterM3U8(m3u8Content, masterM3U8Url)
-    }
-
-    console.warn('[VidSrc] No master M3U8 URL found in prorcp response')
-    return null
-  } catch (error) {
-    console.error(
-      `[VidSrc] Error in PRORCPhandler: ${error instanceof Error ? error.message : 'Unknown error'}`
+  if (!response.ok) {
+    const failedUrl = new URL(response.url || url)
+    throw new Error(
+      `HTTP ${response.status} from ${failedUrl.hostname}${failedUrl.pathname}`
     )
-    return null
   }
+  return response
 }
 
-/**
- * Handle SRCRCP extraction
- */
-async function SRCRCPhandler(
-  srcrcpPath: string,
-  refererForSrcrcp: string
-): Promise<StreamQuality[] | null> {
-  try {
-    const srcrcpUrl = BASEDOM + srcrcpPath
-    console.log(`[VidSrc] Fetching SRCRCP: ${srcrcpUrl}`)
+function decodeBase64(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, 'base64'))
+}
 
-    const response = await makeRequest(srcrcpUrl, {
-      headers: {
-        'sec-fetch-dest': 'iframe',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'same-origin',
-        Referer: refererForSrcrcp,
-        'Referrer-Policy': 'origin',
-      },
-    })
+function validatedWasmUrl(value: string): string {
+  const url = new URL(value)
+  if (url.protocol !== 'https:' || url.hostname !== 'data.vidsrcme.ru') {
+    throw new Error('VidSrc returned an unexpected WASM URL')
+  }
+  return url.href
+}
 
-    const responseText = await response.text()
+function compileWasm(config: VidSrcWasmConfig): Promise<WebAssembly.Module> {
+  const cacheKey = String(config.w ?? config.wasm_url ?? config.wasm ?? '')
+  const existing = wasmModuleCache.get(cacheKey)
+  if (existing) return existing
 
-    // Method 1: Check for "file: '...'"
-    const fileRegex = /file:\s*'([^']*)'/gm
-    const fileMatch = fileRegex.exec(responseText)
-    if (fileMatch && fileMatch[1]) {
-      const masterM3U8Url = fileMatch[1]
-      console.log(`[VidSrc] Found M3U8 URL (file match): ${masterM3U8Url}`)
-
-      const m3u8FileFetch = await makeRequest(masterM3U8Url, {
-        headers: { Referer: srcrcpUrl, Accept: '*/*' },
+  const compiled = (async () => {
+    let bytes: Uint8Array
+    if (config.wasm_url) {
+      const response = await fetchChecked(validatedWasmUrl(config.wasm_url), {
+        headers: { Accept: 'application/wasm', 'User-Agent': USER_AGENT },
       })
-
-      const m3u8Content = await m3u8FileFetch.text()
-      return parseMasterM3U8(m3u8Content, masterM3U8Url)
+      bytes = new Uint8Array(await response.arrayBuffer())
+    } else if (config.wasm) {
+      bytes = decodeBase64(config.wasm)
+    } else {
+      throw new Error('VidSrc response did not include a decryptor')
     }
 
-    // Method 2: Check if response is M3U8 playlist directly
-    if (responseText.trim().startsWith('#EXTM3U')) {
-      console.log('[VidSrc] Response is M3U8 playlist directly')
-      return parseMasterM3U8(responseText, srcrcpUrl)
-    }
+    // TypeScript's Node typings expose Uint8Array.buffer as ArrayBufferLike;
+    // WebAssembly.compile requires an ArrayBuffer-backed BufferSource.
+    const binary = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    ) as ArrayBuffer
+    return WebAssembly.compile(binary)
+  })()
 
-    // Method 3: Look for M3U8 URLs in script tags
-    const scriptRegex = /<script[^>]*>(.*?)<\/script>/gs
-    const scriptMatches = responseText.matchAll(scriptRegex)
-
-    for (const scriptMatch of scriptMatches) {
-      const scriptContent = scriptMatch[1]
-
-      // Try various patterns
-      const patterns = [
-        /sources\s*[:=]\s*\[.*?file\s*:\s*['"]([^'"]+)['"]/s,
-        /file\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-        /src\s*:\s*['"]([^'"]+\.m3u8[^'"]*)['"]/i,
-        /loadSource\(['"]([^'"]+\.m3u8[^'"]*)['"]\)/i,
-        /['"](https?:\/\/[^'"\s]+\.m3u8[^'"\s]*)['"]/i,
-      ]
-
-      for (const pattern of patterns) {
-        const match = scriptContent.match(pattern)
-        if (match && match[1]) {
-          const m3u8Url = match[1]
-          console.log(`[VidSrc] Found M3U8 URL in script: ${m3u8Url}`)
-
-          const absoluteM3u8Url = m3u8Url.startsWith('http')
-            ? m3u8Url
-            : new URL(m3u8Url, srcrcpUrl).href
-
-          const m3u8FileFetch = await makeRequest(absoluteM3u8Url, {
-            headers: { Referer: srcrcpUrl, Accept: '*/*' },
-          })
-
-          const m3u8Content = await m3u8FileFetch.text()
-          return parseMasterM3U8(m3u8Content, absoluteM3u8Url)
-        }
-      }
-    }
-
-    console.warn(`[VidSrc] No stream found for SRCRCP: ${srcrcpUrl}`)
-    return null
-  } catch (error) {
-    console.error(
-      `[VidSrc] Error in SRCRCPhandler: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
-    return null
+  // Only the current and immediately previous windows are useful.
+  wasmModuleCache.set(cacheKey, compiled)
+  while (wasmModuleCache.size > 2) {
+    const oldestKey = wasmModuleCache.keys().next().value
+    if (oldestKey !== undefined) wasmModuleCache.delete(oldestKey)
   }
+  compiled.catch(() => wasmModuleCache.delete(cacheKey))
+  return compiled
 }
 
-/**
- * Extract RCP data from HTML
- */
-async function rcpGrabber(html: string): Promise<{
-  metadata: { image: string }
-  data: string
-} | null> {
-  const regex = /src:\s*'([^']*)'/
-  const match = html.match(regex)
-  if (!match || !match[1]) return null
-  return { metadata: { image: '' }, data: match[1] }
-}
+async function decryptStreamUrls(
+  encrypted: string,
+  config?: VidSrcWasmConfig
+): Promise<string[]> {
+  if (!config) throw new Error('VidSrc encrypted streams have no decryptor')
 
-/**
- * Build URL for embed page
- */
-function getUrl(id: string, type: 'movie' | 'tv'): string {
-  if (type === 'movie') {
-    return `${SOURCE_URL}/movie/${id}`
-  } else {
-    const arr = id.split(':')
-    return `${SOURCE_URL}/tv/${arr[0]}/${arr[1]}-${arr[2]}`
+  const module = await compileWasm(config)
+  const instance = await WebAssembly.instantiate(module, {})
+  const memory = instance.exports.memory
+  const allocate = instance.exports.alloc
+  const decrypt = instance.exports.decrypt
+  if (
+    !(memory instanceof WebAssembly.Memory) ||
+    typeof allocate !== 'function' ||
+    typeof decrypt !== 'function'
+  ) {
+    throw new Error('VidSrc decryptor has invalid exports')
   }
+
+  const bytes = decodeBase64(encrypted)
+  const pointer = allocate(bytes.length) as number
+  new Uint8Array(memory.buffer, pointer, bytes.length).set(bytes)
+  const outputLength = decrypt(pointer, bytes.length) as number
+  if (!Number.isSafeInteger(outputLength) || outputLength < 0) {
+    throw new Error('VidSrc decryptor returned an invalid length')
+  }
+
+  const outputStart = pointer + 12
+  if (outputStart + outputLength > memory.buffer.byteLength) {
+    throw new Error('VidSrc decryptor output exceeded its memory')
+  }
+  const text = new TextDecoder().decode(
+    new Uint8Array(memory.buffer, outputStart, outputLength)
+  )
+  return text
+    .split('\n')
+    .map(value => value.trim())
+    .filter(Boolean)
 }
 
-/**
- * Main function to get stream content
- */
-async function getStreamContent(
-  id: string,
-  type: 'movie' | 'tv'
-): Promise<ProviderLink[]> {
-  const url = getUrl(id, type)
-  console.log(`[VidSrc] Fetching embed page: ${url}`)
+function normalizeSubtitles(response: VidSrcResponse): Subtitle[] {
+  const entries = [
+    ...(response.default_subs || []),
+    ...(response.subtitles || []),
+    ...(response.data?.default_subs || []),
+    ...(response.data?.subtitles || []),
+  ]
 
-  try {
-    const embedRes = await makeRequest(url, {
-      headers: { Referer: SOURCE_URL },
-    })
-    const embedResp = await embedRes.text()
-    const { servers, title } = await serversLoad(embedResp)
-
-    console.log(`[VidSrc] Found ${servers.length} servers`)
-
-    // Process servers in parallel
-    const serverPromises = servers.map(async server => {
-      if (!server.dataHash) return null
-
-      try {
-        const rcpUrl = `${BASEDOM}/rcp/${server.dataHash}`
-        const rcpRes = await makeRequest(rcpUrl, {
-          headers: {
-            'sec-fetch-dest': 'iframe',
-            Referer: url,
-          },
-        })
-
-        const rcpHtml = await rcpRes.text()
-        const rcpData = await rcpGrabber(rcpHtml)
-
-        if (!rcpData || !rcpData.data) {
-          console.warn(`[VidSrc] Skipping server ${server.name} - no rcp data`)
-          return null
-        }
-
-        let streamDetails: StreamQuality[] | null = null
-
-        if (rcpData.data.startsWith('/prorcp/')) {
-          streamDetails = await PRORCPhandler(
-            rcpData.data.replace('/prorcp/', '')
-          )
-        } else if (rcpData.data.startsWith('/srcrcp/')) {
-          // Skip known problematic servers
-          if (server.name === 'Superembed' || server.name === '2Embed') {
-            console.warn(
-              `[VidSrc] Skipping known problematic server: ${server.name}`
-            )
-            return null
+  return Array.from(
+    new Map(
+      entries.flatMap(entry => {
+        const value = entry.file || entry.url || entry.src
+        if (!value) return []
+        try {
+          const url = new URL(value)
+          if (!['http:', 'https:'].includes(url.protocol)) return []
+          const subtitle: Subtitle = {
+            file: url.href,
+            label: entry.label || entry.language || entry.lang || 'Unknown',
+            kind: entry.kind || 'captions',
+            ...(entry.default === undefined
+              ? {}
+              : { default: Boolean(entry.default) }),
           }
-          streamDetails = await SRCRCPhandler(rcpData.data, rcpUrl)
-        } else {
-          console.warn(
-            `[VidSrc] Unhandled rcp data type for ${server.name}: ${rcpData.data.substring(0, 50)}`
-          )
-          return null
+          return [[`${subtitle.file}\n${subtitle.label}`, subtitle] as const]
+        } catch {
+          return []
         }
+      })
+    ).values()
+  )
+}
 
-        if (streamDetails && streamDetails.length > 0) {
-          return streamDetails.map(stream => ({
-            server: server.name,
-            url: stream.url,
-            isM3U8: true,
-            quality: stream.quality,
-            subtitles: [] as Subtitle[], // VidSrc doesn't provide subtitles directly
-          }))
-        }
+async function addHostTokens(streamUrls: string[]): Promise<string[]> {
+  const tokenByOrigin = new Map<string, Promise<string>>()
 
-        return null
-      } catch (e) {
-        console.error(
-          `[VidSrc] Error processing server ${server.name}: ${e instanceof Error ? e.message : 'Unknown error'}`
-        )
-        return null
-      }
+  const getToken = (origin: string): Promise<string> => {
+    const existing = tokenByOrigin.get(origin)
+    if (existing) return existing
+    const pending = fetchChecked(`${origin}/generate.php`, {
+      headers: PLAYBACK_HEADERS,
     })
+      .then(response => response.text())
+      .then(value => value.trim())
+      .catch(() => '')
+    tokenByOrigin.set(origin, pending)
+    return pending
+  }
 
-    const results = await Promise.all(serverPromises)
-
-    // Flatten and filter valid results
-    const allLinks: ProviderLink[] = []
-    for (const result of results) {
-      if (result && Array.isArray(result)) {
-        allLinks.push(...result)
+  return Promise.all(
+    streamUrls.map(async value => {
+      const url = new URL(value)
+      const token = await getToken(url.origin)
+      if (!token) return url.href
+      if (url.href.includes('__TOKEN__')) {
+        return url.href.replaceAll('__TOKEN__', encodeURIComponent(token))
       }
+      url.searchParams.set('token', token)
+      return url.href
+    })
+  )
+}
+
+function normalizeQuality(url: URL): string {
+  const match = url.pathname.match(
+    /(?:^|[/_-])(2160|1080|720|480|360)p?(?:[/_.-]|$)/i
+  )
+  return match ? `${match[1]}p` : 'auto'
+}
+
+async function getStreams(
+  tmdbId: string,
+  mediaType: 'movie' | 'tv',
+  season?: number,
+  episode?: number
+): Promise<ProviderLink[]> {
+  try {
+    if (!/^\d+$/.test(tmdbId)) throw new Error('TMDB ID must be numeric')
+    if (
+      mediaType === 'tv' &&
+      (!Number.isInteger(season) ||
+        !Number.isInteger(episode) ||
+        (season || 0) < 1 ||
+        (episode || 0) < 1)
+    ) {
+      throw new Error('Season and episode must be positive integers')
     }
 
-    console.log(`[VidSrc] Found ${allLinks.length} total stream links`)
-    return allLinks
+    const apiUrl = new URL(API_BASE_URL)
+    apiUrl.searchParams.set('type', mediaType)
+    apiUrl.searchParams.set('tmdb', tmdbId)
+    if (mediaType === 'tv') {
+      apiUrl.searchParams.set('season', String(season))
+      apiUrl.searchParams.set('episode', String(episode))
+    }
+    apiUrl.searchParams.set('stream_urls', '')
+
+    const response = (await (
+      await fetchChecked(apiUrl.href, { headers: API_HEADERS })
+    ).json()) as VidSrcResponse
+    const status = String(response.status_code ?? response.status ?? '200')
+    if (status !== '200' || !response.data?.stream_urls) return []
+
+    const rawStreams = Array.isArray(response.data.stream_urls)
+      ? response.data.stream_urls
+      : await decryptStreamUrls(response.data.stream_urls, response.vs)
+    const validStreams = Array.from(
+      new Set(
+        rawStreams.flatMap(value => {
+          try {
+            const url = new URL(value)
+            return ['http:', 'https:'].includes(url.protocol) ? [url.href] : []
+          } catch {
+            return []
+          }
+        })
+      )
+    )
+    const streams = await addHostTokens(validStreams)
+    const subtitles = normalizeSubtitles(response)
+
+    return streams.map((value, index) => {
+      const url = new URL(value)
+      return {
+        server: `VidSrc | Server ${index + 1}`,
+        url: url.href,
+        isM3U8: /\.m3u8(?:$|[?#])/i.test(url.href),
+        quality: normalizeQuality(url),
+        subtitles,
+        headers: PLAYBACK_HEADERS,
+        requiresProxy: true,
+      }
+    })
   } catch (error) {
     console.error(
-      `[VidSrc] Error in getStreamContent: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `[VidSrc] ${error instanceof Error ? error.message : 'Unknown provider error'}`
     )
     return []
   }
@@ -437,19 +307,8 @@ async function getStreamContent(
 export const vidsrcProvider: Provider = {
   name: 'VidSrc',
   id: 'vidsrc',
-
-  async streamMovie(tmdbId: string): Promise<ProviderLink[]> {
-    // VidSrc uses IMDB IDs, but we'll try with TMDB ID
-    return getStreamContent(tmdbId, 'movie')
-  },
-
-  async streamTV(
-    tmdbId: string,
-    season: number,
-    episode: number
-  ): Promise<ProviderLink[]> {
-    // Format: tmdbId:season:episode
-    const id = `${tmdbId}:${season}:${episode}`
-    return getStreamContent(id, 'tv')
-  },
+  alias: 'Yeha',
+  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
+  streamTV: (tmdbId, season, episode) =>
+    getStreams(tmdbId, 'tv', season, episode),
 }

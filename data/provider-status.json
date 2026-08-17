@@ -1,0 +1,98 @@
+{
+  "success": true,
+  "startedAt": "2026-08-16T18:28:22.417Z",
+  "updatedAt": "2026-08-16T18:31:50.822Z",
+  "intervalMs": 900000,
+  "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
+  "summary": {
+    "total": 14,
+    "online": 10,
+    "offline": 4
+  },
+  "providers": [
+    {
+      "id": "cinejoy",
+      "alias": "Shewa",
+      "status": "online",
+      "requestTimeMs": 28342
+    },
+    {
+      "id": "videasy",
+      "alias": "Abyssinia",
+      "status": "offline",
+      "requestTimeMs": 3515
+    },
+    {
+      "id": "showbox",
+      "alias": "Adwa",
+      "status": "online",
+      "requestTimeMs": 28203
+    },
+    {
+      "id": "vidfast",
+      "alias": "Lalibela",
+      "status": "offline",
+      "requestTimeMs": 6596
+    },
+    {
+      "id": "vidsrc",
+      "alias": "Yeha",
+      "status": "online",
+      "requestTimeMs": 6111
+    },
+    {
+      "id": "zstream",
+      "alias": "Axum",
+      "status": "offline",
+      "requestTimeMs": 5183
+    },
+    {
+      "id": "vidrock",
+      "alias": "Zagwe",
+      "status": "online",
+      "requestTimeMs": 6081
+    },
+    {
+      "id": "vidnest",
+      "alias": "Wuchale",
+      "status": "online",
+      "requestTimeMs": 196604
+    },
+    {
+      "id": "vidup",
+      "alias": "Gura",
+      "status": "offline",
+      "requestTimeMs": 2552
+    },
+    {
+      "id": "goated",
+      "alias": "Shire",
+      "status": "online",
+      "requestTimeMs": 3463
+    },
+    {
+      "id": "bingr",
+      "alias": "Roha",
+      "status": "online",
+      "requestTimeMs": 30559
+    },
+    {
+      "id": "rive",
+      "alias": "Rive",
+      "status": "online",
+      "requestTimeMs": 21044
+    },
+    {
+      "id": "vidrift",
+      "alias": "VidRift",
+      "status": "online",
+      "requestTimeMs": 37389
+    },
+    {
+      "id": "vuflix",
+      "alias": "Adulis",
+      "status": "online",
+      "requestTimeMs": 4986
+    }
+  ]
+}

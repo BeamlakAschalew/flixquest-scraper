@@ -6,16 +6,18 @@ A powerful Express.js API for scraping streaming links for movies and TV shows u
 
 - 🎬 **Movie Streaming**: Get streaming links for movies using TMDB ID
 - 📺 **TV Show Streaming**: Get streaming links for TV show episodes using TMDB ID, season, and episode number
+- 📡 **Live TV and EPG**: Lists DLHD 24/7 channels, extracts live HLS streams with playback headers, and exposes the categorized schedule
 - 🔍 **Automatic Metadata Fetching**: Automatically fetches movie/show metadata from TMDB API
-- 🌐 **Multiple Providers**: Supports 6 streaming providers (Vixsrc, Vidsrc, Vidzee, UHDMovies, Showbox, 4K HD Hub)
+- 🌐 **Multiple Providers**: Supports 33 streaming providers, including GOATED, Bingr, 4KHDHub, StreamFlix, Kisskh, ToonHub, Cuevana, UHDMovies, VidEasy, and NetMirror
 - 🔌 **Modular Architecture**: Easy to add new providers
 - 📝 **TypeScript**: Full TypeScript support with type definitions
 - ⚡ **Fast**: Built with Express.js for high performance
+- 🔗 **Direct stream links**: Responses contain raw provider URLs and never internal or forward-proxy URLs
 - 🚀 **Deployment Ready**: Supports Vercel, Netlify, and Render deployments
 
 ## Prerequisites
 
-- Node.js (v18 or higher recommended)
+- Node.js 22 or higher
 - pnpm (or npm/yarn)
 - TMDB API Key ([Get one here](https://www.themoviedb.org/settings/api))
 
@@ -44,6 +46,9 @@ cp .env.example .env
 
 ```env
 TMDB_API_KEY=your_actual_api_key_here
+INTRO_VIDEO_URL=https://cdn.example.com/flixquest-intro.mp4
+INTRO_VIDEO_ENABLED=true
+STREAM_PROXY_SECRET=your_long_random_secret
 PORT=3000
 FEBBOX_COOKIE=your_febbox_cookir_for_showbox
 SHOWBOX_PROXY_URL_VALUE=your_proxy_for_showbox
@@ -66,6 +71,45 @@ pnpm start
 
 ## API Endpoints
 
+### Provider health status
+
+The API starts a background provider health monitor by default. Every fifteen
+minutes it checks providers concurrently. Each provider tries the audit title
+list sequentially until one title returns a validated stream; only providers
+that exhaust all of their titles are marked offline.
+
+```http
+GET /api/v2/providers/status
+```
+
+Each provider entry contains only `id`, `alias`, `status`, and the total
+`requestTimeMs` for its latest check.
+
+Status is atomically persisted to `data/provider-status.json`. Set
+`PROVIDER_STATUS_FILE` to a path on a persistent disk in production. Useful
+settings are `PROVIDER_HEALTH_INTERVAL_MS`, `PROVIDER_HEALTH_CONCURRENCY`,
+`PROVIDER_HEALTH_TIMEOUT_MS`, and `PROVIDER_HEALTH_MONITOR_ENABLED=false`.
+
+Run a standalone check with `pnpm providers:health:once`, or run the standalone
+fifteen-minute monitor with `pnpm providers:health`.
+
+**Vercel:** serverless functions freeze between requests, so the background
+monitor does not run. Instead `.github/workflows/provider-health.yml` runs a
+GitHub Actions cron every fifteen minutes that calls
+`GET /api/v2/providers/health/run`. The on-demand check writes its result to
+Redis when `REDIS_URL`/`REDIS_HOST` is configured, and `/api/v2/providers/status`
+reads from Redis first, then the file.
+
+```http
+GET /api/v2/providers/health/run
+```
+
+Set the workflow variables/secrets in GitHub:
+- `PROVIDER_HEALTH_URL` — the production URL (e.g. `https://flixquest-scraper.vercel.app`).
+- `CRON_SECRET` — must match the `CRON_SECRET` environment variable on Vercel;
+  the workflow sends it as the `x-vercel-cron-auth` header. A manual trigger
+  outside the workflow can pass `?cronSecret=<CRON_SECRET>`.
+
 ### 1. Health Check
 
 Check API status and list available endpoints.
@@ -83,16 +127,12 @@ curl "http://localhost:3000/"
 ```json
 {
   "name": "FlixQuest Scraper API",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "status": "running",
   "endpoints": {
-    "streamMovie": "GET /stream-movie?tmdbId={id}",
-    "streamTV": "GET /stream-tv?tmdbId={id}&season={num}&episode={num}",
-    "providerStreamMovie": "GET /:provider/stream-movie?tmdbId={id}",
-    "providerStreamTV": "GET /:provider/stream-tv?tmdbId={id}&season={num}&episode={num}",
-    "providers": "GET /providers",
-    "sources": "GET /sources",
-    "embeds": "GET /embeds"
+    "streamMovie": "GET /v2/stream-movie?tmdbId={id}&provider={providerId}",
+    "streamTV": "GET /v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}",
+    "providers": "GET /v2/providers"
   },
   "availableProviders": [
     "vixsrc",
@@ -100,7 +140,13 @@ curl "http://localhost:3000/"
     "vidzee",
     "uhdmovies",
     "showbox",
-    "4khdhub"
+    "4khdhub",
+    "4khdhubnew",
+    "dahmermovies",
+    "dahmermovies-tv",
+    "streamflix",
+    "videasy",
+    "notorrent"
   ]
 }
 ```
@@ -109,12 +155,12 @@ curl "http://localhost:3000/"
 
 Get all available streaming providers.
 
-**Endpoint:** `GET /providers`
+**Endpoint:** `GET /v2/providers`
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/providers"
+curl "http://localhost:3000/v2/providers"
 ```
 
 **Response:**
@@ -128,29 +174,33 @@ curl "http://localhost:3000/providers"
     { "id": "vidzee", "name": "Vidzee" },
     { "id": "uhdmovies", "name": "UHDMovies" },
     { "id": "showbox", "name": "Showbox" },
-    { "id": "4khdhub", "name": "4K HD Hub" }
+    { "id": "4khdhub", "name": "4KHDHub" },
+    { "id": "4khdhubnew", "name": "4KHDHub-NEW" },
+    { "id": "dahmermovies", "name": "DahmerMovies" },
+    { "id": "dahmermovies-tv", "name": "DahmerMovies-TV" },
+    { "id": "streamflix", "name": "StreamFlix" },
+    { "id": "videasy", "name": "VidEasy" },
+    { "id": "notorrent", "name": "NoTorrent" }
   ]
 }
 ```
 
-### 3. Stream Movie (Provider-Specific)
+### 3. Stream Movie
 
 Get streaming links for a movie using TMDB ID from a specific provider.
 
-**Endpoint:** `GET /:provider/stream-movie`
-
-**Path Parameters:**
-
-- `provider` (string, required): Provider ID (e.g., `vixsrc`, `vidsrc`, `vidzee`, `uhdmovies`, `showbox`, `4khdhub`)
+**Endpoint:** `GET /v2/stream-movie`
 
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the movie
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly.
+- `noProxy` (boolean, optional): Set `true` (or `proxy=false`) to bypass both the API stream proxy (`requiresProxy`) and provider-level inner proxies, returning raw unproxied upstream URLs directly.
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/vixsrc/stream-movie?tmdbId=556574"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
 ```
 
 **Response:**
@@ -184,26 +234,24 @@ curl "http://localhost:3000/vixsrc/stream-movie?tmdbId=556574"
 }
 ```
 
-### 4. Stream TV Show (Provider-Specific)
+### 4. Stream TV Show
 
 Get streaming links for a TV show episode using TMDB ID, season, and episode number from a specific provider.
 
-**Endpoint:** `GET /:provider/stream-tv`
-
-**Path Parameters:**
-
-- `provider` (string, required): Provider ID (e.g., `vixsrc`, `vidsrc`, `vidzee`, `uhdmovies`, `showbox`, `4khdhub`)
+**Endpoint:** `GET /v2/stream-tv`
 
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the TV show
 - `season` (number, required): Season number
 - `episode` (number, required): Episode number
+- `provider` (string, required): Provider ID returned by `GET /v2/providers`
+- `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly. Anti-hotlink-protected streams remain proxied so browser playback does not fail with 403.
 
 **Example:**
 
 ```bash
-curl "http://localhost:3000/vixsrc/stream-tv?tmdbId=2316&season=1&episode=1"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc"
 ```
 
 **Response:**
@@ -237,6 +285,139 @@ curl "http://localhost:3000/vixsrc/stream-tv?tmdbId=2316&season=1&episode=1"
 }
 ```
 
+Vixsrc and VidEasy discovery and validation, and may be enabled for other
+providers, but its URL is removed from stream, HLS variant, and subtitle
+results. TMDB metadata calls bypass `fProxy`. Clients should apply any `headers`
+included with a link when requesting it.
+
+### 5. DLHD Live Channels
+
+List the current channels scraped from `https://dlhd.st/24-7-channels.php`.
+
+**Endpoint:** `GET /api/v2/dlhd/channels`
+
+Optional query parameters:
+
+- `search` or `q`: Filter by channel name or ID.
+- `refresh=true`: Bypass the 15-minute in-memory channel cache.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/channels?search=ABC"
+```
+
+### 6. DLHD Channel Stream
+
+Extract a fresh HLS master playlist for a numeric DLHD channel ID. The returned
+`headers` must be sent with the master playlist, child playlists, and media
+segments. Stream responses use `Cache-Control: no-store` because the URL token
+is short-lived.
+
+**Endpoint:** `GET /api/v2/dlhd/channels/{id}/stream`
+
+The shorter alias `GET /api/v2/dlhd/stream/{id}` is also supported.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/channels/51/stream"
+```
+
+```json
+{
+  "success": true,
+  "source": "dlhd",
+  "channel": { "id": "51", "name": "ABC USA" },
+  "stream": {
+    "url": "https://stream-host.example/secure/token/premium51/index.m3u8",
+    "isM3U8": true,
+    "headers": {
+      "Accept": "*/*",
+      "Origin": "https://player-host.example",
+      "Referer": "https://player-host.example/",
+      "User-Agent": "Mozilla/5.0 ..."
+    },
+    "embedUrl": "https://player-host.example/premiumtv/daddy3.php?id=51",
+    "expiresAt": "2026-08-08T21:46:21.000Z"
+  }
+}
+```
+
+### 7. DLHD Categorized EPG
+
+Return DLHD's schedule nested as `days -> categories -> events -> channels`.
+Times are reported in the site's advertised `UK GMT` timezone.
+
+**Endpoint:** `GET /api/v2/dlhd/epg`
+
+Optional query parameters:
+
+- `date=YYYY-MM-DD`: Select a schedule day.
+- `category`: Case-insensitive category filter.
+- `search` or `q`: Search event titles, times, and channel names.
+- `refresh=true`: Bypass the five-minute in-memory EPG cache.
+
+```bash
+curl "http://localhost:3000/api/v2/dlhd/epg?category=PPV&date=2026-08-08"
+```
+
+### 8. Cache Stats
+
+Check Redis caching layer connection health and key statistics.
+
+**Endpoint:** `GET /api/v2/cache/stats`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "cache": {
+    "enabled": true,
+    "connected": true,
+    "defaultTtlSeconds": 7200,
+    "providerKeysCount": 42
+  }
+}
+```
+
+### 9. Flush Provider Cache
+
+Clear all cached provider stream responses.
+
+**Endpoint:** `POST /api/v2/cache/flush`
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "Flushed 42 cached provider item(s)",
+  "clearedCount": 42
+}
+```
+
+## ⚡ Redis Caching Layer
+
+FlixQuest Scraper includes a fault-tolerant Redis caching layer that caches the full responses of provider scraping calls. This dramatically speeds up repeated streaming requests (from several seconds to < 10ms).
+
+### Features
+- **Seamless Fallback**: If Redis is not configured or fails to connect, the scraper operates normally without interruption.
+- **Cache Headers**: Every stream response includes an `X-Cache` header:
+  - `X-Cache: HIT`: Response served instantly from Redis cache.
+  - `X-Cache: MISS`: Response scraped live from upstream provider and cached.
+  - `X-Cache: BYPASS`: Cache bypassed via client parameter or header.
+- **Cache Bypass**: Bypass the cache and force a fresh scrape by adding `?skipCache=true`, `?nocache=true`, or `?refresh=true` to your query, or by sending the `X-Cache-Bypass: true` HTTP header.
+- **Configurable Expiration**: Default TTL is 2 hours (7200 seconds), configurable via `REDIS_CACHE_TTL`.
+
+### Environment Configuration
+```env
+REDIS_URL=redis://default:password@localhost:6379
+# OR discrete connection fields:
+# REDIS_HOST=localhost
+# REDIS_PORT=6379
+# REDIS_PASSWORD=secret
+REDIS_CACHE_TTL=7200
+REDIS_CACHE_ENABLED=true
+```
+
 ## Project Structure
 
 ```
@@ -254,7 +435,12 @@ flixquest-scraper/
 │   │   ├── vidzee.ts         # Vidzee provider implementation
 │   │   ├── uhdmovies.ts      # UHDMovies provider implementation
 │   │   ├── showbox.ts        # Showbox provider implementation
-│   │   └── fourkhdhub.ts     # 4K HD Hub provider implementation
+│   │   ├── fourkhdhub.ts     # 4K HD Hub provider implementation
+│   │   ├── dahmermovies.ts   # DahmerMovies provider implementation
+│   │   ├── dahmermovies-tv.ts # DahmerMovies direct-link variant
+│   │   ├── streamflix.ts     # StreamFlix provider implementation
+│   │   ├── videasy.ts        # VidEasy provider implementation
+│   │   └── notorrent.ts      # NoTorrent provider implementation
 │   └── utils/
 │       └── tmdb.ts           # TMDB API helper functions
 ├── dist/                     # Compiled JavaScript output (gitignored)
@@ -347,6 +533,41 @@ interface Provider {
 - `uhdmovies` - UHDMovies provider
 - `showbox` - Showbox provider
 - `4khdhub` - 4K HD Hub provider
+- `4khdhubnew` - 4KHDHub-NEW broad-search provider
+- `dahmermovies` - DahmerMovies direct-file provider
+- `dahmermovies-tv` - DahmerMovies direct-link/Android TV variant
+- `streamflix` - StreamFlix movie and episode provider
+- `videasy` - VidEasy multi-server provider
+- `videasy2` - VidEasy WASM-backed multi-server provider
+- `notorrent` - NoTorrent Stremio-addon provider
+- `bollyflix` - BollyFlix live-catalog direct-file provider
+- `playimdb` - PlayIMDb direct-stream provider
+- `vidlink` - Vidlink multi-quality provider
+- `netmirror` - NetMirror multi-quality movie and episode provider
+- `tamilian` - Tamilian 1080p movie provider
+- `vidfast` - VidFast multi-server movie and episode provider
+- `castle` - Castle multi-quality movie and episode provider
+- `peachify` - Peachify multi-mirror movie and episode provider
+- `movieblast` - MovieBlast signed-link movie and episode provider
+- `purstream` - PurStream English/French movie and episode provider
+- `movix` - Movix Hollywood movie and episode aggregator
+- `xpass` - XPass multi-server movie and episode provider
+- `kisskh` - Asian drama/movie provider with original audio and English subtitles
+- `dramafull` - Additional Asian and K-drama fallback provider
+- `toonhub` - English/Hindi/Japanese anime and cartoon provider
+- `cuevana` - Castilian and Latin-American Spanish movie and episode provider
+- `jetfilmizle` - Turkish movie and episode provider with multi-audio HLS
+- `vidrock` - VidRock AES-GCM-decrypted multi-server movie and episode provider
+- `vidnest` - VidNest multi-server movie and episode provider (custom-base64 payloads)
+- `vidup` - VidUp multi-server movie and episode provider
+- `goated` - GOATED proof-of-work resolver with adaptive HLS quality detection
+- `bingr` - Bingr nine-server provider with explicit quality/language metadata
+- `rive` - Rive multi-resolver provider with direct HLS/MP4 streams and subtitles
+- `vidrift` - VidRift Earth resolver with distinct CDN roots and adaptive HLS qualities
+- `vuflix` - Vuflix dynamic multi-source provider with Sigma, 4K, Upsilon, and every currently advertised backend
+
+For catalog, audio-language, and quality details, see
+[`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).
 
 ## Error Handling
 
@@ -383,6 +604,8 @@ Create a `.env` file in the root directory (see `.env.example` for reference):
 | Variable       | Description                                                            | Required | Default |
 | -------------- | ---------------------------------------------------------------------- | -------- | ------- |
 | `TMDB_API_KEY` | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -       |
+| `INTRO_VIDEO_URL` | Absolute HTTP(S) URL for the branded pre-stream intro               | No       | -       |
+| `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                  | No       | Enabled when a URL is set |
 | `PORT`         | Server port                                                            | No       | `3000`  |
 | `NODE_ENV`     | Environment mode (`production` or `development`)                       | No       | -       |
 

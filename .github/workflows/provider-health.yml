@@ -1,0 +1,18 @@
+name: provider-health
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  run-health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger provider health check
+        run: |
+          curl -fsS \
+            -H "x-vercel-cron: 1" \
+            -H "x-vercel-cron-auth: ${{ secrets.CRON_SECRET }}" \
+            "${{ vars.PROVIDER_HEALTH_URL }}/api/v2/providers/health/run" \
+            -o /dev/null

@@ -34,13 +34,13 @@ pnpm dev
 **TMDB ID**: 556574
 
 ```bash
-curl "http://localhost:3000/stream-movie?tmdbId=556574"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
 ```
 
 Or visit in browser:
 
 ```
-http://localhost:3000/stream-movie?tmdbId=556574
+http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc
 ```
 
 **Expected Response:**
@@ -48,19 +48,22 @@ http://localhost:3000/stream-movie?tmdbId=556574
 ```json
 {
   "success": true,
+  "provider": "vixsrc",
   "media": {
     "type": "movie",
     "title": "Hamilton",
     "releaseYear": 2020,
     "tmdbId": "556574"
   },
-  "stream": {
-    "sourceId": "flixhq",
-    "type": "hls",
-    "playlist": "https://...",
-    "captions": [...],
-    "flags": []
-  }
+  "links": [
+    {
+      "server": "vixsrc",
+      "url": "https://...",
+      "isM3U8": true,
+      "quality": "1080p",
+      "subtitles": []
+    }
+  ]
 }
 ```
 
@@ -69,13 +72,13 @@ http://localhost:3000/stream-movie?tmdbId=556574
 **TMDB ID**: 2316
 
 ```bash
-curl "http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc"
 ```
 
 Or visit in browser:
 
 ```
-http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1
+http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc
 ```
 
 **Expected Response:**
@@ -83,19 +86,22 @@ http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1
 ```json
 {
   "success": true,
+  "provider": "vixsrc",
   "media": {
     "type": "show",
     "title": "The Office - S1E1",
     "releaseYear": 2005,
     "tmdbId": "2316"
   },
-  "stream": {
-    "sourceId": "flixhq",
-    "type": "hls",
-    "playlist": "https://...",
-    "captions": [...],
-    "flags": []
-  }
+  "links": [
+    {
+      "server": "vixsrc",
+      "url": "https://...",
+      "isM3U8": true,
+      "quality": "1080p",
+      "subtitles": []
+    }
+  ]
 }
 ```
 
@@ -104,37 +110,43 @@ http://localhost:3000/stream-tv?tmdbId=2316&season=1&episode=1
 #### Breaking Bad S1E1
 
 ```bash
-curl "http://localhost:3000/stream-tv?tmdbId=1396&season=1&episode=1"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=1396&season=1&episode=1&provider=vixsrc"
 ```
 
 #### The Shawshank Redemption
 
 ```bash
-curl "http://localhost:3000/stream-movie?tmdbId=278"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=278&provider=vixsrc"
 ```
 
 #### Inception
 
 ```bash
-curl "http://localhost:3000/stream-movie?tmdbId=27205"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=27205&provider=vixsrc"
+```
+
+#### Fight Club via DahmerMovies
+
+```bash
+curl "http://localhost:3000/v2/stream-movie?tmdbId=550&provider=dahmermovies"
+```
+
+#### Fight Club via NoTorrent
+
+```bash
+curl "http://localhost:3000/v2/stream-movie?tmdbId=550&provider=notorrent"
 ```
 
 #### Stranger Things S1E1
 
 ```bash
-curl "http://localhost:3000/stream-tv?tmdbId=66732&season=1&episode=1"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=66732&season=1&episode=1&provider=vixsrc"
 ```
 
-### 4. List Available Sources
+### 4. List Available Providers
 
 ```bash
-curl "http://localhost:3000/sources"
-```
-
-### 5. List Available Embeds
-
-```bash
-curl "http://localhost:3000/embeds"
+curl "http://localhost:3000/v2/providers"
 ```
 
 ## Using in Your Application
@@ -145,44 +157,44 @@ curl "http://localhost:3000/embeds"
 // Fetch a movie stream
 async function getMovieStream(tmdbId: string) {
   const response = await fetch(
-    `http://localhost:3000/stream-movie?tmdbId=${tmdbId}`
-  );
-  const data = await response.json();
+    `http://localhost:3000/v2/stream-movie?tmdbId=${tmdbId}&provider=vixsrc`
+  )
+  const data = await response.json()
 
   if (data.success) {
-    console.log("Stream URL:", data.stream.playlist);
-    console.log("Captions:", data.stream.captions);
-    return data.stream;
+    console.log('Stream URL:', data.links[0].url)
+    console.log('Captions:', data.links[0].subtitles)
+    return data.links
   } else {
-    console.error("Error:", data.error);
-    throw new Error(data.error);
+    console.error('Error:', data.error)
+    throw new Error(data.error)
   }
 }
 
 // Fetch a TV show stream
 async function getTVStream(tmdbId: string, season: number, episode: number) {
   const response = await fetch(
-    `http://localhost:3000/stream-tv?tmdbId=${tmdbId}&season=${season}&episode=${episode}`
-  );
-  const data = await response.json();
+    `http://localhost:3000/v2/stream-tv?tmdbId=${tmdbId}&season=${season}&episode=${episode}&provider=vixsrc`
+  )
+  const data = await response.json()
 
   if (data.success) {
-    console.log("Stream URL:", data.stream.playlist);
-    return data.stream;
+    console.log('Stream URL:', data.links[0].url)
+    return data.links
   } else {
-    console.error("Error:", data.error);
-    throw new Error(data.error);
+    console.error('Error:', data.error)
+    throw new Error(data.error)
   }
 }
 
 // Example usage
-getMovieStream("556574").then((stream) => {
-  console.log("Got stream for Hamilton:", stream);
-});
+getMovieStream('556574').then(stream => {
+  console.log('Got stream for Hamilton:', stream)
+})
 
-getTVStream("2316", 1, 1).then((stream) => {
-  console.log("Got stream for The Office S1E1:", stream);
-});
+getTVStream('2316', 1, 1).then(stream => {
+  console.log('Got stream for The Office S1E1:', stream)
+})
 ```
 
 ### Python
@@ -193,27 +205,27 @@ import requests
 # Fetch a movie stream
 def get_movie_stream(tmdb_id):
     response = requests.get(
-        f'http://localhost:3000/stream-movie?tmdbId={tmdb_id}'
+        f'http://localhost:3000/v2/stream-movie?tmdbId={tmdb_id}&provider=vixsrc'
     )
     data = response.json()
 
     if data['success']:
-        print(f"Stream URL: {data['stream']['playlist']}")
-        return data['stream']
+        print(f"Stream URL: {data['links'][0]['url']}")
+        return data['links']
     else:
         raise Exception(data['error'])
 
 # Fetch a TV show stream
 def get_tv_stream(tmdb_id, season, episode):
     response = requests.get(
-        f'http://localhost:3000/stream-tv',
-        params={'tmdbId': tmdb_id, 'season': season, 'episode': episode}
+        f'http://localhost:3000/v2/stream-tv',
+        params={'tmdbId': tmdb_id, 'season': season, 'episode': episode, 'provider': 'vixsrc'}
     )
     data = response.json()
 
     if data['success']:
-        print(f"Stream URL: {data['stream']['playlist']}")
-        return data['stream']
+        print(f"Stream URL: {data['links'][0]['url']}")
+        return data['links']
     else:
         raise Exception(data['error'])
 
