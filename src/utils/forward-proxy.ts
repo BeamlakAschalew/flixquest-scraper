@@ -233,7 +233,10 @@ export function isForwardProxyUrl(
 
 function shouldRetryForwardProxyResponse(response: Response): boolean {
   return (
-    response.status === 408 || response.status === 429 || response.status >= 500
+    response.status === 403 ||
+    response.status === 408 ||
+    response.status === 429 ||
+    response.status >= 500
   )
 }
 
