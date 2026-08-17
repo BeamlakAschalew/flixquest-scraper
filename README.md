@@ -565,6 +565,9 @@ interface Provider {
 - `rive` - Rive multi-resolver provider with direct HLS/MP4 streams and subtitles
 - `vidrift` - VidRift Earth resolver with distinct CDN roots and adaptive HLS qualities
 - `vuflix` - Vuflix dynamic multi-source provider with Sigma, 4K, Upsilon, and every currently advertised backend
+- `cinevaro` - Cinevaro first-party resolver using direct JSON and adaptive HLS requests
+- `fsharetv` - FshareTV movie resolver with explicit 360p/480p/720p/1080p MP4 tiers when available
+- `vyla` - Vyla movie and episode resolver using direct MP4/HLS sources up to 1080p
 
 For catalog, audio-language, and quality details, see
 [`src/providers/PROVIDER_GUIDE.md`](src/providers/PROVIDER_GUIDE.md).

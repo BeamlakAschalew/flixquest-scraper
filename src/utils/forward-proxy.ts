@@ -1,6 +1,14 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { lookup } from 'node:dns/promises'
 import {
+  fetchThroughConnectProxy,
+  getConnectProxyPool,
+  maxConnectProxyAttempts,
+  nextPooledProxy,
+  reportPooledProxyFailure,
+  reportPooledProxySuccess,
+} from './connect-proxy.js'
+import {
   formatRequestError,
   redactUrl,
   responseBodySnippet,
@@ -358,26 +366,84 @@ export function setupForwardProxyPatch() {
         return originalFetch(input, init)
       }
 
-      const proxyCandidates = getForwardProxyCandidates(store)
+      const requestId = `${process.pid}-${++requestSequence}`
+      const startedAt = Date.now()
+      const requestTemplate =
+        input instanceof Request
+          ? new Request(input, init)
+          : new Request(targetUrlStr, init)
 
-      if (proxyCandidates.length > 0) {
-        const requestId = `${process.pid}-${++requestSequence}`
-        const startedAt = Date.now()
-        const requestTemplate =
-          input instanceof Request
-            ? new Request(input, init)
-            : new Request(targetUrlStr, init)
+      const relayCandidates = getForwardProxyCandidates(store)
+      const connectPool = getConnectProxyPool()
+      const connectAttempts = connectPool?.size()
+        ? maxConnectProxyAttempts()
+        : 0
+      const hasCandidates = connectAttempts > 0 || relayCandidates.length > 0
 
-        for (const [index, candidate] of proxyCandidates.entries()) {
+      if (hasCandidates) {
+        let lastError: unknown
+        let lastProxiedUrl = ''
+        let lastSource: ForwardProxyCandidate['source'] = 'default'
+
+        for (let attempt = 0; attempt < connectAttempts; attempt++) {
+          const proxy = nextPooledProxy()
+          if (!proxy) break
+
+          const attemptLabel = `connect:${attempt + 1}/${connectAttempts}`
+          console.log(
+            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attemptLabel} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(proxy.url)}`
+          )
+
+          try {
+            const response = await fetchThroughConnectProxy(
+              targetUrlStr,
+              proxy,
+              requestTemplate,
+              undefined,
+              requestTemplate.signal
+            )
+            const elapsedMs = Date.now() - startedAt
+
+            console.log(
+              `🔀 [ForwardProxy:${requestId}] Response after ${elapsedMs}ms: ${responseDiagnostics(response)}`
+            )
+            if (!response.ok) {
+              console.warn(
+                `🔀 [ForwardProxy:${requestId}] Non-2xx body: ${await responseBodySnippet(response)}`
+              )
+            }
+
+            if (shouldRetryForwardProxyResponse(response)) {
+              reportPooledProxyFailure(proxy, `HTTP ${response.status}`)
+              console.warn(
+                `🔀 [ForwardProxy:${requestId}] Proxy returned ${response.status}; trying another proxy`
+              )
+              continue
+            }
+
+            reportPooledProxySuccess(proxy)
+            return response
+          } catch (error) {
+            reportPooledProxyFailure(proxy, formatRequestError(error))
+            lastError = error
+            lastProxiedUrl = proxy.url
+            lastSource = 'request'
+            console.warn(
+              `🔀 [ForwardProxy:${requestId}] Proxy attempt ${attemptLabel} failed after ${Date.now() - startedAt}ms; trying another proxy: ${formatRequestError(error)}`
+            )
+          }
+        }
+
+        for (const [index, candidate] of relayCandidates.entries()) {
           const proxiedUrl = buildForwardProxyUrl(
             candidate.baseUrl,
             targetUrlStr
           )
-          const hasFallback = index < proxyCandidates.length - 1
+          const hasFallback = index < relayCandidates.length - 1
           const attempt = index + 1
 
           console.log(
-            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attempt}/${proxyCandidates.length} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(proxiedUrl)}`
+            `🔀 [ForwardProxy:${requestId}] Routing attempt ${attempt}/${relayCandidates.length} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(proxiedUrl)}`
           )
 
           try {
@@ -411,19 +477,25 @@ export function setupForwardProxyPatch() {
               continue
             }
 
-            const failure = await createForwardProxyFailure(
-              error,
-              requestId,
-              startedAt,
-              targetUrlStr,
-              proxiedUrl,
-              candidate.source
-            )
-            console.error(
-              `🔀 [ForwardProxy:${requestId}] ${formatRequestError(failure)}`
-            )
-            throw failure
+            lastError = error
+            lastProxiedUrl = proxiedUrl
+            lastSource = candidate.source
           }
+        }
+
+        if (lastError) {
+          const failure = await createForwardProxyFailure(
+            lastError,
+            requestId,
+            startedAt,
+            targetUrlStr,
+            lastProxiedUrl,
+            lastSource
+          )
+          console.error(
+            `🔀 [ForwardProxy:${requestId}] ${formatRequestError(failure)}`
+          )
+          throw failure
         }
       }
     }

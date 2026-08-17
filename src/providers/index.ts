@@ -48,6 +48,9 @@ import { bingrProvider } from './bingr.js'
 import { riveProvider } from './rive.js'
 import { vidRiftProvider } from './vidrift.js'
 import { vuflixProvider } from './vuflix.js'
+import { cinevaroProvider } from './cinevaro.js'
+import { fshareTvProvider } from './fsharetv.js'
+import { vylaProvider } from './vyla.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
@@ -103,6 +106,9 @@ const rawProviders = {
   rive: riveProvider,
   vidrift: vidRiftProvider,
   vuflix: vuflixProvider,
+  cinevaro: cinevaroProvider,
+  fsharetv: fshareTvProvider,
+  vyla: vylaProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -119,7 +125,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   '4khdhub': false,
   '4khdhubnew': false,
   uhdmovies: false,
-  streamflix: false,
+  streamflix: true,
   notorrent: false,
   vidlink: false,
   netmirror: false,
@@ -151,7 +157,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   vidup: true,
   rabbitmeow: false,
   primesrc: false,
-  smashystream: false,
+  smashystream: true,
   '2embed': false,
   multiembed: false,
   '111movies': false,
@@ -160,6 +166,9 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   rive: true,
   vidrift: true,
   vuflix: true,
+  cinevaro: true,
+  fsharetv: true,
+  vyla: true,
 }
 
 function isProviderId(id: string): id is ProviderId {

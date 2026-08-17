@@ -65,6 +65,7 @@ const API_PREFIX = '/api/v2'
 // - rive: resolver backends return short-lived signed HLS/MP4 URLs.
 // - vidrift: source discovery uses a short-lived playback token and rotating media URLs.
 // - vuflix: its provider catalog returns short-lived playback and media-proxy tokens.
+// - vyla: its API returns short-lived source and playback URLs.
 const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vidsrc',
   'vidup',
@@ -78,6 +79,9 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'rive',
   'vidrift',
   'vuflix',
+  'cinevaro',
+  'fsharetv',
+  'vyla',
 ])
 
 app.set('trust proxy', 1)

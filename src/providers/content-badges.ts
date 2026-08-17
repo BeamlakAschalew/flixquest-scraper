@@ -72,4 +72,9 @@ export const PROVIDER_CONTENT_BADGES: Readonly<Record<string, string>> = {
   vidrift: 'Hollywood: original audio',
   vuflix:
     'Hollywood: English, original, Hindi | TV: English, original, Hindi | Optional German audio',
+  cinevaro:
+    'Hollywood: original audio | TV: original audio | Adaptive quality varies by title',
+  fsharetv:
+    'Hollywood: original audio | Movies only | Explicit quality files vary by title',
+  vyla: 'Hollywood: original audio | TV: original audio | MP4/HLS quality varies by title',
 }
