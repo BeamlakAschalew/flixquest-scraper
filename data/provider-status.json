@@ -1,128 +1,68 @@
 {
   "success": true,
-  "startedAt": "2026-08-17T16:47:01.637Z",
-  "updatedAt": "2026-08-17T16:49:35.238Z",
+  "startedAt": "2026-08-17T18:41:09.875Z",
+  "updatedAt": "2026-08-17T18:43:32.877Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
-    "total": 19,
-    "online": 8,
-    "offline": 11
+    "total": 9,
+    "online": 9,
+    "offline": 0
   },
   "providers": [
     {
-      "id": "cinejoy",
-      "alias": "Shewa",
-      "status": "offline",
-      "requestTimeMs": 25104
+      "id": "vuflix",
+      "alias": "Adulis",
+      "status": "online",
+      "requestTimeMs": 11909
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
-      "status": "offline",
-      "requestTimeMs": 153554
+      "status": "online",
+      "requestTimeMs": 36217
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 18447
-    },
-    {
-      "id": "streamflix",
-      "alias": "Axum",
-      "status": "online",
-      "requestTimeMs": 9871
+      "requestTimeMs": 27307
     },
     {
       "id": "vidfast",
       "alias": "Lalibela",
       "status": "online",
-      "requestTimeMs": 129654
+      "requestTimeMs": 13667
+    },
+    {
+      "id": "streamflix",
+      "alias": "Axum",
+      "status": "online",
+      "requestTimeMs": 10961
     },
     {
       "id": "vidsrc",
       "alias": "Yeha",
       "status": "online",
-      "requestTimeMs": 5776
-    },
-    {
-      "id": "zstream",
-      "alias": "Axum",
-      "status": "online",
-      "requestTimeMs": 24779
+      "requestTimeMs": 9519
     },
     {
       "id": "vidrock",
       "alias": "Zagwe",
       "status": "online",
-      "requestTimeMs": 8451
+      "requestTimeMs": 10781
     },
     {
       "id": "vidnest",
       "alias": "Wuchale",
       "status": "online",
-      "requestTimeMs": 57184
+      "requestTimeMs": 119789
     },
     {
       "id": "vidup",
       "alias": "Gura",
       "status": "online",
-      "requestTimeMs": 78340
-    },
-    {
-      "id": "smashystream",
-      "alias": "Qwara",
-      "status": "offline",
-      "requestTimeMs": 62816
-    },
-    {
-      "id": "goated",
-      "alias": "Shire",
-      "status": "offline",
-      "requestTimeMs": 1341
-    },
-    {
-      "id": "bingr",
-      "alias": "Roha",
-      "status": "offline",
-      "requestTimeMs": 24873
-    },
-    {
-      "id": "rive",
-      "alias": "Rive",
-      "status": "offline",
-      "requestTimeMs": 14031
-    },
-    {
-      "id": "vidrift",
-      "alias": "VidRift",
-      "status": "offline",
-      "requestTimeMs": 7
-    },
-    {
-      "id": "vuflix",
-      "alias": "Adulis",
-      "status": "offline",
-      "requestTimeMs": 7
-    },
-    {
-      "id": "cinevaro",
-      "alias": "Cinevaro",
-      "status": "offline",
-      "requestTimeMs": 7
-    },
-    {
-      "id": "fsharetv",
-      "alias": "FshareTV",
-      "status": "offline",
-      "requestTimeMs": 6
-    },
-    {
-      "id": "vyla",
-      "alias": "Vyla",
-      "status": "offline",
-      "requestTimeMs": 3
+      "requestTimeMs": 38658
     }
   ]
 }
