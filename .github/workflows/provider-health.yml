@@ -29,12 +29,15 @@ jobs:
 
       - name: Publish status to API
         if: always()
+        env:
+          PROVIDER_HEALTH_URL: ${{ vars.PROVIDER_HEALTH_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           curl -fsS \
             -X POST \
             -H "x-vercel-cron: 1" \
-            -H "x-vercel-cron-auth: ${{ secrets.CRON_SECRET }}" \
+            -H "x-vercel-cron-auth: ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
             --data-binary @/tmp/provider-status.json \
-            "${{ vars.PROVIDER_HEALTH_URL }}/api/v2/providers/health/publish" \
+            "${PROVIDER_HEALTH_URL}/api/v2/providers/health/publish" \
             -o /dev/null
