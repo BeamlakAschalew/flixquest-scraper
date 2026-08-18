@@ -1,12 +1,12 @@
 {
   "success": true,
-  "startedAt": "2026-08-17T18:41:09.875Z",
-  "updatedAt": "2026-08-17T18:43:32.877Z",
+  "startedAt": "2026-08-18T19:05:06.421Z",
+  "updatedAt": "2026-08-18T19:05:41.701Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
-    "total": 9,
-    "online": 9,
+    "total": 10,
+    "online": 10,
     "offline": 0
   },
   "providers": [
@@ -14,55 +14,61 @@
       "id": "vuflix",
       "alias": "Adulis",
       "status": "online",
-      "requestTimeMs": 11909
+      "requestTimeMs": 4168
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 36217
+      "requestTimeMs": 24118
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 27307
+      "requestTimeMs": 19483
     },
     {
       "id": "vidfast",
       "alias": "Lalibela",
       "status": "online",
-      "requestTimeMs": 13667
+      "requestTimeMs": 11105
     },
     {
       "id": "streamflix",
       "alias": "Axum",
       "status": "online",
-      "requestTimeMs": 10961
+      "requestTimeMs": 4614
     },
     {
       "id": "vidsrc",
       "alias": "Yeha",
       "status": "online",
-      "requestTimeMs": 9519
+      "requestTimeMs": 2817
     },
     {
       "id": "vidrock",
       "alias": "Zagwe",
       "status": "online",
-      "requestTimeMs": 10781
+      "requestTimeMs": 5023
     },
     {
       "id": "vidnest",
       "alias": "Wuchale",
       "status": "online",
-      "requestTimeMs": 119789
+      "requestTimeMs": 8894
     },
     {
       "id": "vidup",
       "alias": "Gura",
       "status": "online",
-      "requestTimeMs": 38658
+      "requestTimeMs": 19130
+    },
+    {
+      "id": "cinejoy",
+      "alias": "Shewa",
+      "status": "online",
+      "requestTimeMs": 14975
     }
   ]
 }

@@ -1,6 +1,11 @@
 /* eslint-disable no-unused-vars */
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import {
+  fetchCinejoyMovie,
+  fetchCinejoyServers,
+  fetchCinejoyTv,
+} from './cinejoy-gateway.js'
 
 const API_BASE = 'https://api.shegu.st'
 const ORIGIN = 'https://cinejoy.to'
@@ -354,23 +359,30 @@ function formatResponse(
 
 async function fetchServers(): Promise<CinejoyServer[]> {
   try {
-    const gateway = await loadGateway()
-    const servers = (await withTimeout(gateway.d())).filter(
+    const servers = (await withTimeout(fetchCinejoyServers())).filter(
       server => server.name && server.status !== 'down'
     )
     return servers.length ? servers : FALLBACK_SERVERS
   } catch {
     try {
-      const response = await fetch(`${API_BASE}/servers`, {
-        headers: API_HEADERS,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
-      if (!response.ok) return FALLBACK_SERVERS
-      const data = (await response.json()) as { servers?: CinejoyServer[] }
-      const servers = (data.servers || []).filter(server => server.name)
+      const gateway = await loadGateway()
+      const servers = (await withTimeout(gateway.d())).filter(
+        server => server.name && server.status !== 'down'
+      )
       return servers.length ? servers : FALLBACK_SERVERS
     } catch {
-      return FALLBACK_SERVERS
+      try {
+        const response = await fetch(`${API_BASE}/servers`, {
+          headers: API_HEADERS,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+        if (!response.ok) return FALLBACK_SERVERS
+        const data = (await response.json()) as { servers?: CinejoyServer[] }
+        const servers = (data.servers || []).filter(server => server.name)
+        return servers.length ? servers : FALLBACK_SERVERS
+      } catch {
+        return FALLBACK_SERVERS
+      }
     }
   }
 }
@@ -382,12 +394,26 @@ async function fetchServer(
   season?: number,
   episode?: number
 ): Promise<ProviderLink[]> {
-  const gateway = await loadGateway()
-  const response =
-    mediaType === 'movie'
-      ? await withTimeout(gateway.n(server.name, tmdbId))
-      : await withTimeout(gateway.o(server.name, tmdbId, season!, episode!))
-  return formatResponse(server, response)
+  try {
+    const response =
+      mediaType === 'movie'
+        ? await withTimeout(fetchCinejoyMovie(server.name, tmdbId))
+        : await withTimeout(
+            fetchCinejoyTv(server.name, tmdbId, season!, episode!)
+          )
+    return formatResponse(server, response)
+  } catch (standaloneError) {
+    try {
+      const gateway = await loadGateway()
+      const response =
+        mediaType === 'movie'
+          ? await withTimeout(gateway.n(server.name, tmdbId))
+          : await withTimeout(gateway.o(server.name, tmdbId, season!, episode!))
+      return formatResponse(server, response)
+    } catch (gatewayError) {
+      throw gatewayError instanceof Error ? gatewayError : standaloneError
+    }
+  }
 }
 
 async function getStreams(
