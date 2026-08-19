@@ -55,11 +55,13 @@ const API_PREFIX = '/api/v2'
 //   load; resolved stream endpoints are session-bound.
 // - vidnest: several servers return signed URLs with expiry parameters
 //   (moviebox sign/t, beta t/s/e, alfa ?v=).
-// - aether: several workers (link, meridian, nebula, lul) hand out signed
+// - aether: its live workers hand out signed
 //   or tokenized stream URLs that can expire within the cache window.
 // - artemis: Celestial stream URLs are returned by a short-lived catalog
 //   lookup and can expire independently of the two-hour cache TTL.
 // - zstream: Neko/Shibuya/Vault hand out short-lived tokenized stream URLs.
+// - movy: Miami streams and subtitle URLs are seed-derived and short-lived.
+// - coreflix: VidCore server tokens and source URLs rotate per player session.
 // - vidfast: the protected server tokens and resolved CDN URLs are session-bound.
 // - goated: reallyfast.xyz returns short-lived signed CDN playlists.
 // - bingr: several servers return signed or session-bound media URLs.
@@ -74,6 +76,8 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'aether',
   'artemis',
   'zstream',
+  'movy',
+  'coreflix',
   'vidfast',
   'goated',
   'bingr',

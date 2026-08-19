@@ -5,7 +5,7 @@ import {
   createHmac,
   randomBytes,
 } from 'node:crypto'
-import type { Provider, ProviderLink } from '../types/index.js'
+import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
@@ -64,6 +64,94 @@ interface SignedRequest {
   'X-PS-Sig': string
   _pk: string
   z: string
+}
+
+function hlsAttribute(line: string, name: string): string | undefined {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = line.match(
+    new RegExp(
+      `(?:^|,)\\s*${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^,\\r\\n]*))`,
+      'i'
+    )
+  )
+  return (match?.[1] ?? match?.[2] ?? match?.[3])?.trim()
+}
+
+async function expandHlsLink(link: ProviderLink): Promise<ProviderLink[]> {
+  if (!link.isM3U8) return [link]
+
+  const response = await fetch(link.url, {
+    headers: link.headers,
+    redirect: 'follow',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  if (!response.ok) throw new Error(`manifest HTTP ${response.status}`)
+  const manifest = await response.text()
+  if (!manifest.includes('#EXTM3U')) throw new Error('invalid HLS manifest')
+
+  const masterUrl = response.url || link.url
+  const lines = manifest.split(/\r?\n/)
+  const subtitles: Subtitle[] = []
+  const variants: Array<{ url: string; quality: string }> = []
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index].trim()
+    if (line.startsWith('#EXT-X-MEDIA:') && /TYPE=SUBTITLES/i.test(line)) {
+      const uri = hlsAttribute(line, 'URI')
+      if (uri) {
+        subtitles.push({
+          file: new URL(uri, masterUrl).href,
+          label:
+            hlsAttribute(line, 'NAME') ||
+            hlsAttribute(line, 'LANGUAGE') ||
+            'Unknown',
+          kind: 'captions',
+          default: /(?:^|,)\s*DEFAULT=YES(?:,|$)/i.test(line),
+        })
+      }
+      continue
+    }
+    if (!line.startsWith('#EXT-X-STREAM-INF:')) continue
+
+    const uri = lines
+      .slice(index + 1)
+      .map(candidate => candidate.trim())
+      .find(candidate => candidate && !candidate.startsWith('#'))
+    if (!uri) continue
+    const height = hlsAttribute(line, 'RESOLUTION')?.match(/x\s*(\d+)/i)?.[1]
+    variants.push({
+      url: new URL(uri, masterUrl).href,
+      quality: height ? `${height}p` : 'auto',
+    })
+  }
+
+  const uniqueSubtitles = Array.from(
+    new Map(
+      [...link.subtitles, ...subtitles].map(subtitle => [
+        `${subtitle.file}\n${subtitle.label}`,
+        subtitle,
+      ])
+    ).values()
+  )
+  if (variants.length === 0) return [{ ...link, subtitles: uniqueSubtitles }]
+
+  const variantLinks = Array.from(
+    new Map(variants.map(variant => [variant.url, variant] as const)).values()
+  ).map(variant => ({
+    ...link,
+    server: `${link.server} | ${variant.quality}`,
+    url: masterUrl,
+    quality: variant.quality,
+    subtitles: uniqueSubtitles,
+    hlsVariant: variant.url,
+  }))
+
+  // Keep the unfiltered master as a fallback as well as exposing each
+  // declared quality. Some Fontaine titles advertise only one rendition.
+  return [
+    { ...link, url: masterUrl, subtitles: uniqueSubtitles },
+    ...variantLinks,
+  ]
 }
 
 function isValidTmdbId(tmdbId: string): boolean {
@@ -456,7 +544,19 @@ async function lookupStreams(
     )
   })
 
-  return Array.from(new Map(links.map(link => [link.url, link])).values())
+  const uniqueLinks = Array.from(
+    new Map(links.map(link => [link.url, link] as const)).values()
+  )
+  const expanded = await Promise.allSettled(uniqueLinks.map(expandHlsLink))
+  return Array.from(
+    new Map(
+      expanded
+        .flatMap((result, index) =>
+          result.status === 'fulfilled' ? result.value : [uniqueLinks[index]]
+        )
+        .map(link => [`${link.url}|${link.hlsVariant || ''}`, link] as const)
+    ).values()
+  )
 }
 
 export const zstreamProvider: Provider = {

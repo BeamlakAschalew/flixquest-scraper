@@ -78,7 +78,9 @@ function standardSource(
   }
 }
 
-const ALL_SOURCES: AetherSource[] = [
+// These workers currently return usable streams. Excluding the dead workers
+// avoids a long tail of 404/5xx waits on every Aether request.
+const SOURCES: AetherSource[] = [
   standardSource(
     'lul',
     'Lul 👾',
@@ -91,27 +93,6 @@ const ALL_SOURCES: AetherSource[] = [
     'Original / English',
     'https://link.aether.cx'
   ),
-  {
-    ...standardSource(
-      'nebula',
-      'Nebula 🌌',
-      'Original / English',
-      'https://nebula.aether.cx'
-    ),
-    movieUrl: tmdbId =>
-      `https://nebula.aether.cx/movie/${encodeURIComponent(tmdbId)}?ser=cf`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://nebula.aether.cx/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}?ser=cf`,
-  },
-  {
-    id: 'meridian',
-    name: 'Meridian 🪐',
-    audio: 'Original / English',
-    movieUrl: tmdbId =>
-      `https://meridian.aether.bar/movie/${encodeURIComponent(tmdbId)}`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://meridian.aether.bar/show/${encodeURIComponent(tmdbId)}/${season}/${episode}`,
-  },
   standardSource(
     'tiki',
     'Tiki 🗿',
@@ -119,75 +100,12 @@ const ALL_SOURCES: AetherSource[] = [
     'https://tiki.aether.cx'
   ),
   standardSource(
-    'vidy',
-    'Vidy 📺',
-    'Original / English',
-    'https://vidy.aether.cx'
-  ),
-  standardSource(
     'vine',
     'Vine 🇩🇪',
     'Original / English',
     'https://vine.aether.cx'
   ),
-  {
-    id: 'fast',
-    name: 'Fast ⚡',
-    audio: 'Original / English',
-    movieUrl: tmdbId =>
-      `https://fast.aether.cx/scrape?type=movie&tmdbId=${encodeURIComponent(tmdbId)}`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://fast.aether.cx/scrape?type=show&tmdbId=${encodeURIComponent(tmdbId)}&season=${season}&episode=${episode}`,
-  },
-  {
-    ...standardSource(
-      'subtitulado',
-      'Subtitulado 🇪🇸',
-      'Original audio, Spanish subtitles',
-      'https://sol.aether.bar'
-    ),
-    movieUrl: tmdbId =>
-      `https://sol.aether.bar/movie/${encodeURIComponent(tmdbId)}?lang=sub`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://sol.aether.bar/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}?lang=sub`,
-  },
-  {
-    ...standardSource(
-      'latino',
-      'Latino 🇲🇽',
-      'Latin-American Spanish',
-      'https://sol.aether.bar'
-    ),
-    movieUrl: tmdbId =>
-      `https://sol.aether.bar/movie/${encodeURIComponent(tmdbId)}?lang=lat`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://sol.aether.bar/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}?lang=lat`,
-  },
-  {
-    ...standardSource(
-      'castellano',
-      'Castellano 🇪🇸',
-      'Castilian Spanish',
-      'https://sol.aether.bar'
-    ),
-    movieUrl: tmdbId =>
-      `https://sol.aether.bar/movie/${encodeURIComponent(tmdbId)}?lang=esp`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://sol.aether.bar/tv/${encodeURIComponent(tmdbId)}/${season}/${episode}?lang=esp`,
-  },
-  standardSource('cowflix', 'Cowflix 🇩🇪', 'German', 'https://cow.aether.bar'),
-  {
-    id: 'gallic',
-    name: 'Gallic 🇫🇷',
-    audio: 'French',
-    movieUrl: tmdbId =>
-      `https://baguette.aether.cx/api/movie/${encodeURIComponent(tmdbId)}`,
-    tvUrl: (tmdbId, season, episode) =>
-      `https://baguette.aether.cx/api/tv/${encodeURIComponent(tmdbId)}?s=${season}&e=${episode}`,
-  },
 ]
-
-const SOURCES = ALL_SOURCES
 
 function validHttpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -258,6 +176,7 @@ function parsePayload(
       ...formatSubtitles([...(entry.subtitles || []), ...(entry.tracks || [])]),
     ]
     const descriptor = entry.name || entry.label || entry.server
+    if (/\batlas\b/i.test(descriptor || '')) return []
     const quality =
       entry.quality ||
       (descriptor && /\b(?:\d{3,4}p|4k|uhd|hd)\b/i.test(descriptor)

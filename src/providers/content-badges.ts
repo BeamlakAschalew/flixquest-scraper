@@ -77,4 +77,7 @@ export const PROVIDER_CONTENT_BADGES: Readonly<Record<string, string>> = {
   fsharetv:
     'Hollywood: original audio | Movies only | Explicit quality files vary by title',
   vyla: 'Hollywood: original audio | TV: original audio | MP4/HLS quality varies by title',
+  movy: 'Hollywood: original audio | Movies and TV | Up to 2160p observed',
+  coreflix:
+    'Hollywood: original audio | Movies and TV | Multiple independent VidCore servers',
 }
