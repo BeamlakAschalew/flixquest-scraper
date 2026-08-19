@@ -3,6 +3,24 @@ import { Redis, RedisOptions } from 'ioredis'
 const DEFAULT_TTL_SECONDS = Number(process.env.REDIS_CACHE_TTL) || 7200 // 2 hours default
 const CACHE_PREFIX = 'flixquest:provider:'
 const PROVIDER_STATUS_KEY = 'flixquest:provider-status'
+const FORWARD_PROXY_PREFERENCE_PREFIX = 'flixquest:fproxy:preferred:'
+const FORWARD_PROXY_BLOCKED_PREFIX = 'flixquest:fproxy:blocked:'
+
+const configuredProxyPreferenceTtl = Number(
+  process.env.FORWARD_PROXY_PREFERENCE_TTL_SECONDS
+)
+const configuredProxyFailureTtl = Number(
+  process.env.FORWARD_PROXY_FAILURE_TTL_SECONDS
+)
+export const FORWARD_PROXY_PREFERENCE_TTL_SECONDS =
+  Number.isFinite(configuredProxyPreferenceTtl) &&
+  configuredProxyPreferenceTtl > 0
+    ? configuredProxyPreferenceTtl
+    : 24 * 60 * 60
+export const FORWARD_PROXY_FAILURE_TTL_SECONDS =
+  Number.isFinite(configuredProxyFailureTtl) && configuredProxyFailureTtl > 0
+    ? configuredProxyFailureTtl
+    : 10 * 60
 
 const isCacheEnabled = process.env.REDIS_CACHE_ENABLED !== 'false'
 let redisUrl = process.env.REDIS_URL
@@ -90,6 +108,130 @@ export function isRedisAvailable(): boolean {
 
 export function getDefaultTtl(): number {
   return DEFAULT_TTL_SECONDS
+}
+
+function normalizedProviderKey(providerId: string): string {
+  return encodeURIComponent(providerId.toLowerCase().trim())
+}
+
+function forwardProxyPreferenceKey(providerId: string): string {
+  return `${FORWARD_PROXY_PREFERENCE_PREFIX}${normalizedProviderKey(providerId)}`
+}
+
+function forwardProxyBlockedKey(providerId: string): string {
+  return `${FORWARD_PROXY_BLOCKED_PREFIX}${normalizedProviderKey(providerId)}`
+}
+
+export interface ProviderProxyRouting {
+  preferredProxyId?: string
+  blockedProxyIds: string[]
+}
+
+/**
+ * Load the last known good proxy and recently rejected proxies for a provider.
+ * Redis failures intentionally degrade to the normal in-memory round robin.
+ */
+export async function getProviderProxyRouting(
+  providerId: string
+): Promise<ProviderProxyRouting> {
+  if (!providerId || !isRedisAvailable() || !redisClient) {
+    return { blockedProxyIds: [] }
+  }
+
+  try {
+    const results = await redisClient
+      .pipeline()
+      .get(forwardProxyPreferenceKey(providerId))
+      .smembers(forwardProxyBlockedKey(providerId))
+      .exec()
+    const preferredProxyId = results?.[0]?.[1]
+    const blockedProxyIds = results?.[1]?.[1]
+
+    return {
+      preferredProxyId:
+        typeof preferredProxyId === 'string' ? preferredProxyId : undefined,
+      blockedProxyIds: Array.isArray(blockedProxyIds)
+        ? blockedProxyIds.filter(
+            (proxyId): proxyId is string => typeof proxyId === 'string'
+          )
+        : [],
+    }
+  } catch (err) {
+    console.warn(
+      `⚠️  [Redis] Error loading proxy routing for "${providerId}":`,
+      err instanceof Error ? err.message : err
+    )
+    return { blockedProxyIds: [] }
+  }
+}
+
+/** Cache a provider's working proxy for one day and remove any old block. */
+export async function setProviderPreferredProxy(
+  providerId: string,
+  proxyId: string,
+  ttlSeconds: number = FORWARD_PROXY_PREFERENCE_TTL_SECONDS
+): Promise<boolean> {
+  if (!providerId || !proxyId || !isRedisAvailable() || !redisClient) {
+    return false
+  }
+
+  try {
+    await redisClient
+      .multi()
+      .set(forwardProxyPreferenceKey(providerId), proxyId, 'EX', ttlSeconds)
+      .srem(forwardProxyBlockedKey(providerId), proxyId)
+      .exec()
+    return true
+  } catch (err) {
+    console.warn(
+      `⚠️  [Redis] Error caching proxy routing for "${providerId}":`,
+      err instanceof Error ? err.message : err
+    )
+    return false
+  }
+}
+
+/**
+ * Provider-specific failure handling. The compare-and-delete prevents an old
+ * failed request from deleting a newer preferred proxy written concurrently.
+ */
+export async function blockProviderProxy(
+  providerId: string,
+  proxyId: string,
+  ttlSeconds: number = FORWARD_PROXY_FAILURE_TTL_SECONDS
+): Promise<boolean> {
+  if (!providerId || !proxyId || !isRedisAvailable() || !redisClient) {
+    return false
+  }
+
+  const preferenceKey = forwardProxyPreferenceKey(providerId)
+  const blockedKey = forwardProxyBlockedKey(providerId)
+  const script = `
+    if redis.call('GET', KEYS[1]) == ARGV[1] then
+      redis.call('DEL', KEYS[1])
+    end
+    redis.call('SADD', KEYS[2], ARGV[1])
+    redis.call('EXPIRE', KEYS[2], ARGV[2])
+    return 1
+  `
+
+  try {
+    await redisClient.eval(
+      script,
+      2,
+      preferenceKey,
+      blockedKey,
+      proxyId,
+      String(ttlSeconds)
+    )
+    return true
+  } catch (err) {
+    console.warn(
+      `⚠️  [Redis] Error blocking proxy routing for "${providerId}":`,
+      err instanceof Error ? err.message : err
+    )
+    return false
+  }
 }
 
 /**

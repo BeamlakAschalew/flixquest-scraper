@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import tls from 'node:tls'
+import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
@@ -15,6 +16,7 @@ const POOL_COOLDOWN_MS = 5 * 60_000
 const MAX_REDIRECTS = 5
 
 export interface PooledProxy {
+  id: string
   url: string
   host: string
   port: number
@@ -77,6 +79,7 @@ function makeProxy(urlStr: string): PooledProxy | null {
   const parsed = parseProxyUrl(urlStr)
   if (!parsed) return null
   return {
+    id: createHash('sha256').update(urlStr).digest('base64url'),
     url: urlStr,
     host: parsed.host,
     port: parsed.port,
@@ -127,6 +130,10 @@ class ProxyPool {
 
   find(url: string): PooledProxy | undefined {
     return this.proxies.find(proxy => proxy.url === url)
+  }
+
+  findById(id: string): PooledProxy | undefined {
+    return this.proxies.find(proxy => proxy.id === id)
   }
 
   includes(url: string): boolean {
@@ -552,6 +559,10 @@ export function poolSize(): number {
 
 export function findPooledProxy(url: string): PooledProxy | undefined {
   return getConnectProxyPool()?.find(url)
+}
+
+export function findPooledProxyById(id: string): PooledProxy | undefined {
+  return getConnectProxyPool()?.findById(id)
 }
 
 export function poolIncludesProxy(url: string): boolean {

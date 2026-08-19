@@ -1,7 +1,7 @@
 {
   "success": true,
-  "startedAt": "2026-08-18T19:05:06.421Z",
-  "updatedAt": "2026-08-18T19:05:41.701Z",
+  "startedAt": "2026-08-18T19:27:45.234Z",
+  "updatedAt": "2026-08-18T19:30:48.923Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
@@ -14,61 +14,61 @@
       "id": "vuflix",
       "alias": "Adulis",
       "status": "online",
-      "requestTimeMs": 4168
+      "requestTimeMs": 7979
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 24118
+      "requestTimeMs": 14483
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 19483
+      "requestTimeMs": 12205
     },
     {
       "id": "vidfast",
       "alias": "Lalibela",
       "status": "online",
-      "requestTimeMs": 11105
-    },
-    {
-      "id": "streamflix",
-      "alias": "Axum",
-      "status": "online",
-      "requestTimeMs": 4614
-    },
-    {
-      "id": "vidsrc",
-      "alias": "Yeha",
-      "status": "online",
-      "requestTimeMs": 2817
-    },
-    {
-      "id": "vidrock",
-      "alias": "Zagwe",
-      "status": "online",
-      "requestTimeMs": 5023
-    },
-    {
-      "id": "vidnest",
-      "alias": "Wuchale",
-      "status": "online",
-      "requestTimeMs": 8894
-    },
-    {
-      "id": "vidup",
-      "alias": "Gura",
-      "status": "online",
-      "requestTimeMs": 19130
+      "requestTimeMs": 18268
     },
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 14975
+      "requestTimeMs": 14489
+    },
+    {
+      "id": "streamflix",
+      "alias": "Axum",
+      "status": "online",
+      "requestTimeMs": 5568
+    },
+    {
+      "id": "vidsrc",
+      "alias": "Yeha",
+      "status": "online",
+      "requestTimeMs": 2230
+    },
+    {
+      "id": "vidrock",
+      "alias": "Zagwe",
+      "status": "online",
+      "requestTimeMs": 3320
+    },
+    {
+      "id": "vidnest",
+      "alias": "Wuchale",
+      "status": "online",
+      "requestTimeMs": 165897
+    },
+    {
+      "id": "vidup",
+      "alias": "Gura",
+      "status": "online",
+      "requestTimeMs": 10359
     }
   ]
 }

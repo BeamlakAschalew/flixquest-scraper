@@ -29,6 +29,7 @@ import {
   flushProviderCache,
   getCacheStats,
   getProviderCache,
+  getProviderProxyRouting,
   setProviderCache,
   setProviderStatus,
 } from './utils/redis.js'
@@ -87,7 +88,7 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
 app.set('trust proxy', 1)
 app.use(express.json())
 
-app.use((req, _res, next) => {
+app.use(async (req, _res, next) => {
   const fProxyQuery = req.query.fProxy || req.query.forwardProxy
   const fProxyStr = typeof fProxyQuery === 'string' ? fProxyQuery.trim() : ''
   const providerId =
@@ -105,10 +106,23 @@ app.use((req, _res, next) => {
     fProxyStr.startsWith('http')
 
   const proxyUrl = fProxyStr.startsWith('http') ? fProxyStr : undefined
+  const proxyRouting =
+    fProxyEnabled && providerId && !proxyUrl
+      ? await getProviderProxyRouting(providerId)
+      : { blockedProxyIds: [] }
 
-  forwardProxyStorage.run({ fProxyEnabled, proxyUrl }, () => {
-    next()
-  })
+  forwardProxyStorage.run(
+    {
+      fProxyEnabled,
+      proxyUrl,
+      providerId: providerId || undefined,
+      preferredProxyId: proxyRouting.preferredProxyId,
+      blockedProxyIds: proxyRouting.blockedProxyIds,
+    },
+    () => {
+      next()
+    }
+  )
 })
 
 function unwrapInnerProxyUrl(url: string): string {

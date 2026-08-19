@@ -4,6 +4,7 @@ import type { PooledProxy } from './connect-proxy.js'
 import {
   fetchThroughConnectProxy,
   findPooledProxy,
+  findPooledProxyById,
   getConnectProxyPool,
   maxConnectProxyAttempts,
   nextPooledProxy,
@@ -11,6 +12,7 @@ import {
   reportPooledProxyFailure,
   reportPooledProxySuccess,
 } from './connect-proxy.js'
+import { blockProviderProxy, setProviderPreferredProxy } from './redis.js'
 import {
   formatRequestError,
   redactUrl,
@@ -22,6 +24,10 @@ export interface ForwardProxyContext {
   fProxyEnabled: boolean
   proxyUrl?: string
   pinnedProxyUrl?: string
+  providerId?: string
+  preferredProxyId?: string
+  preferredProxyConfirmed?: boolean
+  blockedProxyIds?: string[]
 }
 
 export const DEFAULT_FORWARD_PROXY_URL =
@@ -40,6 +46,10 @@ export function withForcedForwardProxy<T>(
       fProxyEnabled: true,
       proxyUrl: context?.proxyUrl,
       pinnedProxyUrl: context?.pinnedProxyUrl,
+      providerId: context?.providerId,
+      preferredProxyId: context?.preferredProxyId,
+      preferredProxyConfirmed: context?.preferredProxyConfirmed,
+      blockedProxyIds: context?.blockedProxyIds,
     },
     callback
   )
@@ -395,18 +405,77 @@ export function setupForwardProxyPatch() {
           pinnedUrl && poolIncludesProxy(pinnedUrl)
             ? findPooledProxy(pinnedUrl)
             : undefined
+        const blockedProxyIds = new Set(store?.blockedProxyIds || [])
+        const preferredProxy =
+          !store?.proxyUrl &&
+          store?.preferredProxyId &&
+          !blockedProxyIds.has(store.preferredProxyId)
+            ? findPooledProxyById(store.preferredProxyId)
+            : undefined
+        const attemptedProxyIds = new Set<string>()
+
+        const nextEligibleProxy = (): PooledProxy | undefined => {
+          const poolSize = connectPool?.size() || 0
+          for (let checked = 0; checked < poolSize; checked += 1) {
+            const candidate = nextPooledProxy()
+            if (!candidate) return undefined
+            if (
+              attemptedProxyIds.has(candidate.id) ||
+              blockedProxyIds.has(candidate.id)
+            ) {
+              continue
+            }
+            return candidate
+          }
+          return undefined
+        }
+
+        const blockForProvider = async (failedProxy: PooledProxy) => {
+          if (!store?.providerId || store.proxyUrl) return
+          blockedProxyIds.add(failedProxy.id)
+          store.blockedProxyIds = [...blockedProxyIds]
+          if (store.preferredProxyId === failedProxy.id) {
+            store.preferredProxyId = undefined
+            store.preferredProxyConfirmed = false
+          }
+          await blockProviderProxy(store.providerId, failedProxy.id)
+        }
+
+        const preferForProvider = async (workingProxy: PooledProxy) => {
+          if (
+            !store?.providerId ||
+            store.proxyUrl ||
+            (store.preferredProxyId === workingProxy.id &&
+              store.preferredProxyConfirmed)
+          ) {
+            return
+          }
+          if (
+            await setProviderPreferredProxy(store.providerId, workingProxy.id)
+          ) {
+            store.preferredProxyId = workingProxy.id
+            store.preferredProxyConfirmed = true
+            blockedProxyIds.delete(workingProxy.id)
+            store.blockedProxyIds = [...blockedProxyIds]
+          }
+        }
 
         let attempt = 0
         let proxy: PooledProxy | undefined
         if (pinnedProxy) {
           proxy = pinnedProxy
+        } else if (preferredProxy) {
+          proxy = preferredProxy
         } else {
-          proxy = nextPooledProxy()
+          proxy = nextEligibleProxy()
         }
 
         while (proxy && attempt < connectAttempts) {
           const currentProxy = proxy
-          const attemptLabel = `connect:${attempt + 1}/${connectAttempts}${pinnedProxy ? ' (pinned)' : ''}`
+          attemptedProxyIds.add(currentProxy.id)
+          const isPinnedAttempt = currentProxy === pinnedProxy
+          const isPreferredAttempt = currentProxy === preferredProxy
+          const attemptLabel = `connect:${attempt + 1}/${connectAttempts}${isPinnedAttempt ? ' (pinned)' : isPreferredAttempt ? ' (preferred)' : ''}`
           console.log(
             `🔀 [ForwardProxy:${requestId}] Routing attempt ${attemptLabel} ${requestTemplate.method} ${redactUrl(targetUrlStr)} via ${redactUrl(currentProxy.url)}`
           )
@@ -438,21 +507,23 @@ export function setupForwardProxyPatch() {
               response.status === 408 ||
               response.status === 429
             ) {
-              reportPooledProxyFailure(currentProxy, `HTTP ${response.status}`)
+              await blockForProvider(currentProxy)
               console.warn(
                 `🔀 [ForwardProxy:${requestId}] Proxy returned ${response.status}; trying another proxy`
               )
               if (store) store.pinnedProxyUrl = undefined
               attempt += 1
-              proxy = nextPooledProxy()
+              proxy = nextEligibleProxy()
               continue
             }
 
             if (store) store.pinnedProxyUrl = currentProxy.url
             reportPooledProxySuccess(currentProxy)
+            await preferForProvider(currentProxy)
             return response
           } catch (error) {
             reportPooledProxyFailure(currentProxy, formatRequestError(error))
+            await blockForProvider(currentProxy)
             lastError = error
             lastProxiedUrl = currentProxy.url
             lastSource = 'request'
@@ -461,7 +532,7 @@ export function setupForwardProxyPatch() {
             )
             if (store) store.pinnedProxyUrl = undefined
             attempt += 1
-            proxy = nextPooledProxy()
+            proxy = nextEligibleProxy()
           }
         }
 
