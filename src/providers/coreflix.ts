@@ -1,5 +1,6 @@
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 import {
   decryptVidCorePayload,
   resolveVidCoreServers,
@@ -300,7 +301,10 @@ export const coreflixProvider: Provider = {
   name: 'Coreflix',
   id: 'coreflix',
   alias: 'Damat',
-  streamMovie: tmdbId => getCoreflixStreams(tmdbId, 'movie'),
+  streamMovie: tmdbId =>
+    withForcedForwardProxy(() => getCoreflixStreams(tmdbId, 'movie')),
   streamTV: (tmdbId, season, episode) =>
-    getCoreflixStreams(tmdbId, 'tv', season, episode),
+    withForcedForwardProxy(() =>
+      getCoreflixStreams(tmdbId, 'tv', season, episode)
+    ),
 }

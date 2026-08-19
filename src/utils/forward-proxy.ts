@@ -56,8 +56,9 @@ export function withForcedForwardProxy<T>(
 }
 
 /**
- * Vixsrc signs its manifests and CDN resources against the request context.
- * Keep the complete Vixsrc playback chain on the same fProxy egress.
+ * These providers bind player/session requests to the request context. Keep
+ * their control-plane calls on the same fProxy egress selected from the raw
+ * CONNECT proxy pool.
  */
 export function mustUseForwardProxyUrl(urlStr: string): boolean {
   try {
@@ -66,7 +67,13 @@ export function mustUseForwardProxyUrl(urlStr: string): boolean {
       hostname === 'vixsrc.to' ||
       hostname.endsWith('.vixsrc.to') ||
       hostname === 'vix-content.net' ||
-      hostname.endsWith('.vix-content.net')
+      hostname.endsWith('.vix-content.net') ||
+      hostname === 'coreflix.tv' ||
+      hostname.endsWith('.coreflix.tv') ||
+      hostname === 'vidcore.net' ||
+      hostname.endsWith('.vidcore.net') ||
+      hostname === 'vidcore.io' ||
+      hostname.endsWith('.vidcore.io')
     )
   } catch {
     return false

@@ -100,7 +100,9 @@ app.use(async (req, _res, next) => {
       ? req.query.provider.trim().toLowerCase()
       : ''
   const providerRequiresFProxy =
-    providerId === 'vixsrc' || providerId === 'videasy'
+    providerId === 'vixsrc' ||
+    providerId === 'videasy' ||
+    providerId === 'coreflix'
 
   const fProxyEnabled =
     providerRequiresFProxy ||
