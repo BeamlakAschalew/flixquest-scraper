@@ -226,7 +226,7 @@ async function getMovyStreams(
 export const movyProvider: Provider = {
   name: 'Movy (Miami)',
   id: 'movy',
-  alias: 'Miami',
+  alias: 'Zeila',
   streamMovie: tmdbId => getMovyStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getMovyStreams(tmdbId, 'tv', season, episode),

@@ -264,7 +264,7 @@ async function getAetherStreams(
 export const aetherProvider: Provider = {
   name: 'Aether',
   id: 'aether',
-  alias: 'Axum',
+  alias: 'Gorgora',
   streamMovie: tmdbId => getAetherStreams(source => source.movieUrl(tmdbId)),
   streamTV: (tmdbId, season, episode) =>
     getAetherStreams(source => source.tvUrl(tmdbId, season, episode)),

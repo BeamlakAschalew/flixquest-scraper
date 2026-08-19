@@ -299,7 +299,7 @@ async function getCoreflixStreams(
 export const coreflixProvider: Provider = {
   name: 'Coreflix',
   id: 'coreflix',
-  alias: 'VidCore',
+  alias: 'Damat',
   streamMovie: tmdbId => getCoreflixStreams(tmdbId, 'movie'),
   streamTV: (tmdbId, season, episode) =>
     getCoreflixStreams(tmdbId, 'tv', season, episode),
