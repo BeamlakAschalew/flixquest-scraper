@@ -35,6 +35,12 @@ export interface ProviderLink {
   // Internal proxy instruction: expose only this DASH video height while
   // retaining the manifest's audio representation.
   dashVideoHeight?: number
+  /** Signed token for the pre-download source-size estimator. */
+  sizeToken?: string
+  /** Internal size-estimator context; stripped from public responses. */
+  sizeManifestUrl?: string
+  sizeHlsVariantUrl?: string
+  sizeHlsAudioGroup?: string
   // Browser clients cannot set some anti-hotlink headers. Such links must
   // remain behind the API proxy even when raw upstream URLs are requested.
   requiresProxy?: boolean

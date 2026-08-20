@@ -62,6 +62,15 @@ test('expands HLS variants using link playback headers', async () => {
       ]
     )
     assert.equal(resolved[0].subtitles[0].label, 'English')
+    assert.equal(
+      resolved[1].sizeManifestUrl,
+      'https://media.example/master.m3u8'
+    )
+    assert.equal(
+      resolved[1].sizeHlsVariantUrl,
+      'https://media.example/720p/playlist.m3u8'
+    )
+    assert.equal(resolved[1].sizeHlsAudioGroup, 'audio')
     assert.equal(requestHeaders?.get('user-agent'), 'FlixQuest test')
     assert.equal(requestHeaders?.get('referer'), 'https://vidrock.example/')
   } finally {

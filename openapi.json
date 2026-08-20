@@ -469,6 +469,56 @@
         }
       }
     },
+    "/api/v2/stream-size": {
+      "post": {
+        "summary": "Estimate Selected Stream Size",
+        "description": "Estimates storage bytes for a stream link returned by stream-movie or stream-tv. Only signed size tokens are accepted; clients cannot submit arbitrary upstream URLs or headers.",
+        "operationId": "estimateStreamSize",
+        "tags": ["Streams"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StreamSizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fast storage estimate from manifest bitrate metadata, or up to seven distributed HLS range probes when bitrate metadata is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamSizeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The token is missing, invalid, expired, or points to a disallowed destination.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream stream objects could not be inspected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/dlhd/channels": {
       "get": {
         "summary": "List DLHD Live Channels",
@@ -868,11 +918,25 @@
       },
       "ProviderHealthResponse": {
         "type": "object",
-        "required": ["success", "updatedAt", "intervalMs", "summary", "providers"],
+        "required": [
+          "success",
+          "updatedAt",
+          "intervalMs",
+          "summary",
+          "providers"
+        ],
         "properties": {
           "success": { "type": "boolean", "example": true },
-          "startedAt": { "type": "string", "format": "date-time", "nullable": true },
-          "updatedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
           "intervalMs": { "type": "integer", "example": 900000 },
           "methodology": { "type": "string" },
           "summary": {
@@ -1029,6 +1093,10 @@
             "type": "integer",
             "description": "Internal proxy instruction for DASH video height filtering."
           },
+          "sizeToken": {
+            "type": "string",
+            "description": "Signed token for estimating the selected stream's source bytes before download."
+          },
           "requiresProxy": {
             "type": "boolean",
             "description": "Indicates whether anti-hotlink restrictions force this stream through the proxy.",
@@ -1063,6 +1131,82 @@
           "details": {
             "type": "string"
           }
+        }
+      },
+      "StreamSizeRequest": {
+        "type": "object",
+        "required": ["token"],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The sizeToken returned on the selected ProviderLink."
+          }
+        }
+      },
+      "StreamSizeResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "estimatedBytes",
+          "confidence",
+          "method",
+          "format",
+          "bitrate",
+          "initBytes",
+          "segmentCount"
+        ],
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "estimatedBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Estimated storage bytes for the selected stream."
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "unknown"]
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "hls-average-bandwidth",
+              "hls-bandwidth",
+              "hls-segment-bitrate",
+              "hls-segment-sample",
+              "resolution-fallback",
+              "dash-bandwidth",
+              "content-length",
+              "unavailable"
+            ]
+          },
+          "bitrate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Declared aggregate bitrate in bits per second."
+          },
+          "format": {
+            "type": "string",
+            "enum": ["hls", "dash", "unknown"]
+          },
+          "videoBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "audioBytes": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "initBytes": { "type": "integer", "format": "int64" },
+          "segmentCount": { "type": "integer" },
+          "durationSeconds": { "type": "number", "nullable": true },
+          "sampledSegments": { "type": "integer" },
+          "successfulSamples": { "type": "integer" },
+          "sampledDurationSeconds": { "type": "number" },
+          "error": { "type": "string" }
         }
       },
       "DlhdChannel": {

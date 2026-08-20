@@ -65,6 +65,7 @@ function qualityFromHls(manifest: string): string | undefined {
 interface HlsVariant {
   url: string
   quality: string
+  audioGroup?: string
 }
 
 function hlsVariants(manifest: string, masterUrl: string): HlsVariant[] {
@@ -85,6 +86,7 @@ function hlsVariants(manifest: string, masterUrl: string): HlsVariant[] {
       variants.push({
         url: new URL(uri, masterUrl).href,
         quality: qualityFromHls(`${streamInfo}\n${uri}`) || 'unknown',
+        audioGroup: hlsAttribute(streamInfo, 'AUDIO'),
       })
     } catch {
       // Ignore invalid variant URLs without discarding other renditions.
@@ -177,6 +179,9 @@ async function resolveLinkQuality(link: ProviderLink): Promise<ProviderLink[]> {
           url: variant.url,
           quality: variant.quality,
           hlsVariant: undefined,
+          sizeManifestUrl: link.url,
+          sizeHlsVariantUrl: variant.url,
+          sizeHlsAudioGroup: variant.audioGroup,
         }))
       }
       return [{ ...link, quality: qualityFromHls(manifest) || 'unknown' }]

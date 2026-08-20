@@ -105,6 +105,7 @@ GET /api/v2/providers/health/run
 ```
 
 Set the workflow variables/secrets in GitHub:
+
 - `PROVIDER_HEALTH_URL` — the production URL (e.g. `https://flixquest-scraper.vercel.app`).
 - `CRON_SECRET` — must match the `CRON_SECRET` environment variable on Vercel;
   the workflow sends it as the `x-vercel-cron-auth` header. A manual trigger
@@ -221,6 +222,7 @@ curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
       "url": "https://example.com/playlist.m3u8",
       "isM3U8": true,
       "quality": "1080p",
+      "sizeToken": "eyJ1cmwiOiIuLi4ifQ.signed",
       "subtitles": [
         {
           "file": "https://example.com/subtitles.vtt",
@@ -233,6 +235,50 @@ curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
   ]
 }
 ```
+
+Each returned stream link includes a short-lived `sizeToken` bound to its URL,
+required request headers, selected quality, and forward-proxy context. To
+measure the source bytes before starting a download, send only that token:
+
+```bash
+curl -X POST "http://localhost:3000/api/v2/stream-size" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"eyJ1cmwiOiIuLi4ifQ.signed"}'
+```
+
+```json
+{
+  "success": true,
+  "estimatedBytes": 1843928172,
+  "confidence": "high",
+  "method": "hls-average-bandwidth",
+  "bitrate": 2400000,
+  "format": "hls",
+  "videoBytes": 1720000000,
+  "audioBytes": 123928172,
+  "initBytes": 0,
+  "segmentCount": 842,
+  "durationSeconds": 6412.5
+}
+```
+
+For HLS, the normal path reads the selected variant's `AVERAGE-BANDWIDTH` (or
+`BANDWIDTH`) and multiplies it by the total duration from the media playlist. If
+a media playlist has `EXT-X-BITRATE` values, those are used as a fallback. When
+none of that bitrate metadata exists, the estimator sends up to seven
+distributed `Range: bytes=0-0` probes and uses the total sampled bytes divided
+by the total sampled duration. At least three probes must succeed. It never
+downloads a complete media segment for estimation. If range probing is not
+supported, a low-confidence resolution-based estimate is returned when the
+selected height is known.
+
+A small allowance is included for the final MP4 container, and the endpoint has
+a five-second ceiling. `high` means declared average or per-segment bitrate was
+available; `medium` means peak `BANDWIDTH` or segment sampling was used; `low`
+means only the selected resolution was available; `unknown` means no usable
+estimate could be produced. This is a storage estimate, not a byte-perfect
+prediction of the eventual Transformer output. Size tokens expire after 30
+minutes.
 
 ### 4. Stream TV Show
 
@@ -399,6 +445,7 @@ Clear all cached provider stream responses.
 FlixQuest Scraper includes a fault-tolerant Redis caching layer that caches the full responses of provider scraping calls. This dramatically speeds up repeated streaming requests (from several seconds to < 10ms).
 
 ### Features
+
 - **Seamless Fallback**: If Redis is not configured or fails to connect, the scraper operates normally without interruption.
 - **Cache Headers**: Every stream response includes an `X-Cache` header:
   - `X-Cache: HIT`: Response served instantly from Redis cache.
@@ -408,6 +455,7 @@ FlixQuest Scraper includes a fault-tolerant Redis caching layer that caches the 
 - **Configurable Expiration**: Default TTL is 2 hours (7200 seconds), configurable via `REDIS_CACHE_TTL`.
 
 ### Environment Configuration
+
 ```env
 REDIS_URL=redis://default:password@localhost:6379
 # OR discrete connection fields:
@@ -604,13 +652,13 @@ To find TMDB IDs for movies and TV shows:
 
 Create a `.env` file in the root directory (see `.env.example` for reference):
 
-| Variable       | Description                                                            | Required | Default |
-| -------------- | ---------------------------------------------------------------------- | -------- | ------- |
-| `TMDB_API_KEY` | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -       |
-| `INTRO_VIDEO_URL` | Absolute HTTP(S) URL for the branded pre-stream intro               | No       | -       |
-| `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                  | No       | Enabled when a URL is set |
-| `PORT`         | Server port                                                            | No       | `3000`  |
-| `NODE_ENV`     | Environment mode (`production` or `development`)                       | No       | -       |
+| Variable              | Description                                                            | Required | Default                   |
+| --------------------- | ---------------------------------------------------------------------- | -------- | ------------------------- |
+| `TMDB_API_KEY`        | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -                         |
+| `INTRO_VIDEO_URL`     | Absolute HTTP(S) URL for the branded pre-stream intro                  | No       | -                         |
+| `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                         | No       | Enabled when a URL is set |
+| `PORT`                | Server port                                                            | No       | `3000`                    |
+| `NODE_ENV`            | Environment mode (`production` or `development`)                       | No       | -                         |
 
 ## Development
 

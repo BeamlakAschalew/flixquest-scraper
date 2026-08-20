@@ -20,6 +20,10 @@ import type {
 import { validateStreamLinks } from './utils/stream-validation.js'
 import { resolveStreamQualities } from './utils/stream-quality.js'
 import {
+  createStreamSizeToken,
+  estimateStreamSize,
+} from './utils/stream-size.js'
+import {
   forwardProxyStorage,
   setupForwardProxyPatch,
 } from './utils/forward-proxy.js'
@@ -182,6 +186,43 @@ async function responseStreamLinks(
   return resolvedLinks.map(link => unproxyStreamLink(link))
 }
 
+function withFreshSizeTokens(response: ProviderResponse): ProviderResponse {
+  return {
+    ...response,
+    links: response.links?.map(link => {
+      const publicLink = { ...link }
+      delete publicLink.sizeManifestUrl
+      delete publicLink.sizeHlsVariantUrl
+      delete publicLink.sizeHlsAudioGroup
+      const sizeToken = tryCreateStreamSizeToken(link)
+      return {
+        ...publicLink,
+        ...(sizeToken ? { sizeToken } : {}),
+      }
+    }),
+  }
+}
+
+function tryCreateStreamSizeToken(link: ProviderLink): string | undefined {
+  try {
+    return createStreamSizeToken(link)
+  } catch {
+    // Size preflight is optional; playback must continue if signing is not configured.
+    return undefined
+  }
+}
+
+function withoutSizeTokens(response: ProviderResponse): ProviderResponse {
+  return {
+    ...response,
+    links: response.links?.map(link => {
+      const rest = { ...link }
+      delete rest.sizeToken
+      return rest
+    }),
+  }
+}
+
 function getQueryString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
@@ -249,6 +290,7 @@ app.get('/', async (_req, res) => {
       streamMovie: 'GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}',
       streamTV:
         'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
+      streamSize: 'POST /api/v2/stream-size',
       providers: 'GET /api/v2/providers',
       providerStatus: 'GET /api/v2/providers/status',
       healthRun: 'GET /api/v2/providers/health/run',
@@ -283,6 +325,35 @@ api.get('/providers', (req: Request, res: Response) => {
     enabled: isProviderEnabled(provider.id),
   }))
   res.json({ success: true, providers: providerList })
+})
+
+/**
+ * POST /api/v2/stream-size
+ *
+ * Estimates storage bytes for the already-selected stream link. The
+ * client receives only a signed token from stream-movie/stream-tv; arbitrary
+ * URLs and headers are intentionally rejected here.
+ */
+api.post('/stream-size', async (req: Request, res: Response) => {
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : ''
+  if (!token) {
+    res.status(400).json({ success: false, error: 'Missing size token' })
+    return
+  }
+  try {
+    const estimate = await estimateStreamSize(token)
+    res.setHeader('Cache-Control', 'private, max-age=60')
+    res.json({ success: true, ...estimate })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Size estimation failed'
+    const status = /token|destination|manifest|segments|protocol|private/i.test(
+      message
+    )
+      ? 400
+      : 502
+    res.status(status).json({ success: false, error: message })
+  }
 })
 
 api.get('/providers/status', async (_req: Request, res: Response) => {
@@ -619,7 +690,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
         `⚡ [${provider.name}] Cache HIT for movie TMDB ID: ${tmdbId}`
       )
       res.setHeader('X-Cache', 'HIT')
-      res.json(cachedResponse)
+      res.json(withFreshSizeTokens(cachedResponse))
       return
     }
   }
@@ -693,10 +764,10 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
     if (useProviderCache && response.links && response.links.length > 0) {
-      setProviderCache(cacheKey, response)
+      setProviderCache(cacheKey, withoutSizeTokens(response))
     }
 
-    res.json(response)
+    res.json(withFreshSizeTokens(response))
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-movie:', err)
     const error: ErrorResponse = {
@@ -757,7 +828,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
         `⚡ [${provider.name}] Cache HIT for TV TMDB ID: ${tmdbId} S${season}E${episode}`
       )
       res.setHeader('X-Cache', 'HIT')
-      res.json(cachedResponse)
+      res.json(withFreshSizeTokens(cachedResponse))
       return
     }
   }
@@ -831,10 +902,10 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     console.log(`✅ [${provider.name}] Found ${links.length} stream(s)`)
 
     if (useProviderCache && response.links && response.links.length > 0) {
-      setProviderCache(cacheKey, response)
+      setProviderCache(cacheKey, withoutSizeTokens(response))
     }
 
-    res.json(response)
+    res.json(withFreshSizeTokens(response))
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-tv:', err)
     const error: ErrorResponse = {
@@ -858,6 +929,7 @@ const server = app.listen(port, () => {
     console.log(
       '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
     )
+    console.log('   POST /api/v2/stream-size')
     console.log('   GET /api/v2/providers')
     console.log('   GET /api/v2/providers/status')
     console.log('   GET /api/v2/intro')
