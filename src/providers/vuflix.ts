@@ -23,6 +23,7 @@ const API_HEADERS = {
   'Sec-Fetch-Site': 'same-origin',
 }
 const PREFERRED_PROVIDER_IDS = ['cineplay', 'cinejoy'] as const
+let vuflixSessionCookie = ''
 
 const FALLBACK_PROVIDERS: VuflixProviderEntry[] = [
   // { id: 'vsembed', name: 'Sigma', scrapeTimeoutSec: 120 },
@@ -120,13 +121,39 @@ function validHttpUrl(value: string | undefined): URL | null {
 
 async function requestJson<T>(url: string, timeoutMs: number): Promise<T> {
   const response = await fetch(url, {
-    headers: API_HEADERS,
+    headers: {
+      ...API_HEADERS,
+      ...(vuflixSessionCookie ? { Cookie: vuflixSessionCookie } : {}),
+    },
     signal: AbortSignal.timeout(timeoutMs),
   })
   if (!response.ok) {
     throw new Error(
       `HTTP ${response.status} from ${new URL(response.url || url).hostname}`
     )
+  }
+  const setCookies =
+    typeof response.headers.getSetCookie === 'function'
+      ? response.headers.getSetCookie()
+      : []
+  if (setCookies.length) {
+    const cookies = new Map(
+      vuflixSessionCookie
+        .split(';')
+        .map(value => value.trim().split('='))
+        .filter(parts => parts.length >= 2)
+        .map(parts => [parts[0], parts.slice(1).join('=')] as const)
+    )
+    for (const setCookie of setCookies) {
+      const [pair] = setCookie.split(';')
+      const separator = pair.indexOf('=')
+      if (separator > 0) {
+        cookies.set(pair.slice(0, separator), pair.slice(separator + 1))
+      }
+    }
+    vuflixSessionCookie = Array.from(cookies.entries())
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ')
   }
   return (await response.json()) as T
 }
@@ -352,7 +379,10 @@ function linkFromCandidate(
     (value, index, all): value is string =>
       Boolean(value) && all.indexOf(value) === index
   )
-  const headers = normalizedHeaders(candidate.stream.headers || source.headers)
+  const headers = {
+    ...(normalizedHeaders(candidate.stream.headers || source.headers) || {}),
+    ...(vuflixSessionCookie ? { Cookie: vuflixSessionCookie } : {}),
+  }
   const ownSubtitles = subtitlesFrom(source.subtitles)
   const mergedSubtitles = Array.from(
     new Map(
@@ -373,8 +403,8 @@ function linkFromCandidate(
     isDASH: format === 'dash' || /\.mpd(?:$|[?#])/i.test(url.href),
     quality,
     subtitles: mergedSubtitles,
-    headers,
-    requiresProxy: Boolean(headers),
+    headers: Object.keys(headers).length ? headers : undefined,
+    requiresProxy: Object.keys(headers).length > 0,
   }
 }
 
