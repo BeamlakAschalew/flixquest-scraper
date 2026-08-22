@@ -31,7 +31,7 @@ interface VidCoreVM {
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
-const VIDCORE_ORIGIN = 'https://vidcore.io'
+const VIDCORE_ORIGINS = new Set(['https://vidcore.net', 'https://vidcore.io'])
 const SOURCE_ACTION = 'ut2KSjl10ZQ'
 const compiledRuntimes = new Map<string, VidCoreVM>()
 
@@ -51,6 +51,16 @@ function universalStub(): unknown {
 function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
   const cached = compiledRuntimes.get(bundleUrl)
   if (cached) return cached
+
+  const currentStart = bundle.indexOf('9987:(t,e,W)=>{')
+  if (
+    currentStart >= 0 &&
+    bundle.includes('function sg(t,e)') &&
+    bundle.includes('function sA(') &&
+    bundle.includes('function iV(')
+  ) {
+    return compileCurrentRuntime(bundleUrl, bundle, currentStart)
+  }
 
   const start = bundle.indexOf('var cT=o(')
   const end = bundle.indexOf('function s_(', start)
@@ -149,6 +159,158 @@ function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
   return runtime
 }
 
+function compileCurrentRuntime(
+  bundleUrl: string,
+  bundle: string,
+  moduleStart: number
+): VidCoreVM {
+  const bodyStart = bundle.indexOf('=>{', moduleStart) + 3
+  const bodyEnd = bundle.lastIndexOf('}}]);')
+  if (bodyStart < 3 || bodyEnd <= bodyStart) {
+    throw new Error('VidCore current player module could not be extracted')
+  }
+
+  const body = bundle.slice(bodyStart, bodyEnd)
+  const source = `
+    (function(t,e,W){
+      ${body}
+      globalThis.__vidcoreSh = sg;
+      globalThis.__vidcoreDecrypt = sA;
+      globalThis.__vidcoreEncode = iV;
+    })({}, {}, __moduleLoader);
+  `
+  const stub = universalStub()
+  const imported = (id: number): unknown => {
+    if (id === 5376) return { Buffer }
+    if (id === 3018) return crypto
+    return stub
+  }
+  const moduleLoader = Object.assign(imported, {
+    d: (exports: Record<string, unknown>, definitions: Record<string, unknown>) => {
+      for (const [key, definition] of Object.entries(definitions)) {
+        Object.defineProperty(exports, key, {
+          enumerable: true,
+          get: definition as () => unknown,
+        })
+      }
+    },
+  })
+  const context: Record<string, unknown> = {
+    __moduleLoader: moduleLoader,
+    Buffer,
+    crypto,
+    JSON,
+    Math,
+    Date,
+    RegExp,
+    Map,
+    Set,
+    WeakMap,
+    WeakSet,
+    Array,
+    Object: new Proxy(Object, {
+      get(target, property, receiver) {
+        if (property === 'assign') {
+          return (...args: unknown[]) => {
+            if (args.some(value => value == null)) {
+              console.error(
+                '[Coreflix VM] Object.assign null argument',
+                args.map(value => (value == null ? value : typeof value))
+              )
+            }
+            if (args[0] == null) args[0] = {}
+            return Object.assign(...(args as [object, ...object[]]))
+          }
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    }),
+    Number,
+    String,
+    Boolean,
+    Symbol,
+    Function,
+    Error,
+    TypeError,
+    RangeError,
+    SyntaxError,
+    parseInt,
+    parseFloat,
+    isNaN,
+    isFinite,
+    encodeURIComponent,
+    decodeURIComponent,
+    NaN,
+    Infinity,
+    undefined,
+    Promise,
+    Proxy,
+    Reflect,
+    Uint8Array,
+    Int8Array,
+    Uint16Array,
+    Int16Array,
+    Uint32Array,
+    Int32Array,
+    Float32Array,
+    Float64Array,
+    BigInt,
+    console: {
+      log: noop,
+      info: noop,
+      warn: noop,
+      error: noop,
+      debug: noop,
+      table: noop,
+      clear: noop,
+    },
+    TextEncoder,
+    TextDecoder,
+    URL,
+    URLSearchParams,
+    AbortSignal,
+    AbortController,
+    atob,
+    btoa,
+    navigator: {},
+    screen: {},
+    window: {},
+    document: {},
+    localStorage: {},
+    fetch: (): never => {
+      throw new Error('VidCore VM attempted an unscoped global fetch')
+    },
+  }
+  context.globalThis = context
+  context.self = context
+  vm.createContext(context, {
+    name: 'VidCore current protocol VM',
+    codeGeneration: { strings: false, wasm: false },
+  })
+  vm.runInContext(source, context, {
+    timeout: 20_000,
+    displayErrors: true,
+  })
+
+  const sh = context.__vidcoreSh
+  const decrypt = context.__vidcoreDecrypt
+  const encode = context.__vidcoreEncode
+  if (
+    typeof sh !== 'function' ||
+    typeof decrypt !== 'function' ||
+    typeof encode !== 'function'
+  ) {
+    throw new Error('VidCore current player VM did not expose protocol functions')
+  }
+  const runtime: VidCoreVM = {
+    sh: sh as VidCoreVM['sh'],
+    decrypt: decrypt as VidCoreVM['decrypt'],
+    encode: encode as VidCoreVM['encode'],
+  }
+  compiledRuntimes.set(bundleUrl, runtime)
+  return runtime
+}
+
 function nativeFunction(
   name: string,
   implementation: (...args: unknown[]) => unknown
@@ -230,7 +392,7 @@ export async function resolveVidCoreServers(
         ? String(input)
         : input.url
     const url = new URL(inputUrl, pageUrl)
-    if (url.origin !== VIDCORE_ORIGIN) {
+    if (!VIDCORE_ORIGINS.has(url.origin)) {
       throw new Error(`VidCore VM fetch blocked for ${url.origin}`)
     }
 
@@ -239,7 +401,7 @@ export async function resolveVidCoreServers(
     )
     headers.set('User-Agent', USER_AGENT)
     headers.set('Referer', pageUrl)
-    headers.set('Origin', VIDCORE_ORIGIN)
+    headers.set('Origin', url.origin)
 
     const parts = url.pathname.split('/')
     if (parts[2] === 'nedpekmib' && parts[3] === 'f' && parts[4]) {
@@ -257,10 +419,15 @@ export async function resolveVidCoreServers(
   const environment: Record<string, unknown> = {
     crypto,
     encode: runtime.encode,
-    server: undefined,
+    server: {},
     setServers: (
       value: VidCoreServer[] | ((current: VidCoreServer[]) => VidCoreServer[])
     ) => {
+      console.error(
+        '[Coreflix VM] setServers',
+        typeof value,
+        Array.isArray(value) ? value.length : ''
+      )
       servers = typeof value === 'function' ? value(servers) : value
     },
     setState: noop,
@@ -328,7 +495,15 @@ export async function resolveVidCoreServers(
     btoa,
   }
 
-  await runtime.sh(environment)
+  try {
+    await runtime.sh(environment)
+  } catch (error) {
+    throw new Error(
+      `VidCore server resolver failed: ${
+        error instanceof Error ? error.stack || error.message : String(error)
+      }`
+    )
+  }
   const valid = servers.filter(
     server =>
       server &&

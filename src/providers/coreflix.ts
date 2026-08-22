@@ -10,7 +10,7 @@ import {
 
 const COREFLIX_ORIGIN = 'https://coreflix.tv'
 const VIDCORE_EMBED_ORIGIN = 'https://vidcore.net'
-const VIDCORE_ORIGIN = 'https://vidcore.io'
+const VIDCORE_ORIGINS = new Set(['https://vidcore.net', 'https://vidcore.io'])
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36'
@@ -84,7 +84,7 @@ function scriptUrls(html: string, pageUrl: string): string[] {
     .flatMap(match => {
       try {
         const url = new URL(match[1], pageUrl)
-        return url.origin === VIDCORE_ORIGIN && url.pathname.endsWith('.js')
+        return VIDCORE_ORIGINS.has(url.origin) && url.pathname.endsWith('.js')
           ? [url.href]
           : []
       } catch {
@@ -117,7 +117,11 @@ async function loadBundle(
       })
       if (!response.ok) continue
       const source = await response.text()
-      if (!source.includes('function sh(') || !source.includes('var cT=o(')) {
+      const legacyProtocol =
+        source.includes('function sh(') && source.includes('var cT=o(')
+      const currentProtocol =
+        source.includes('function sA(') && source.includes('function iV(')
+      if (!legacyProtocol && !currentProtocol) {
         continue
       }
       return { url, source }
@@ -171,13 +175,13 @@ async function fetchServer(
 ): Promise<ProviderLink | null> {
   const url = new URL(
     `${config.sourcePrefix}/${config.sourceAction}/${encodeURIComponent(server.data)}`,
-    VIDCORE_ORIGIN
+    new URL(pageUrl).origin
   )
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       Accept: '*/*',
-      Origin: VIDCORE_ORIGIN,
+      Origin: new URL(pageUrl).origin,
       Referer: pageUrl,
       'User-Agent': USER_AGENT,
       'X-Requested-With': 'XMLHttpRequest',
@@ -199,7 +203,9 @@ async function fetchServer(
   const playbackHeaders: Record<string, string> = {
     Accept: '*/*',
     'User-Agent': USER_AGENT,
-    ...(payload.noReferrer ? {} : { Origin: VIDCORE_ORIGIN, Referer: pageUrl }),
+    ...(payload.noReferrer
+      ? {}
+      : { Origin: new URL(pageUrl).origin, Referer: pageUrl }),
     ...(payload.headers ?? {}),
   }
   const subtitles = [
@@ -260,7 +266,7 @@ async function getCoreflixStreams(
       throw new Error(`VidCore page HTTP ${pageResponse.status}`)
     }
     const pageUrl = pageResponse.url
-    if (new URL(pageUrl).origin !== VIDCORE_ORIGIN) {
+    if (!VIDCORE_ORIGINS.has(new URL(pageUrl).origin)) {
       throw new Error('VidCore page redirected to an unexpected origin')
     }
 
@@ -291,7 +297,9 @@ async function getCoreflixStreams(
     )
   } catch (error) {
     console.error(
-      `[Coreflix] ${error instanceof Error ? error.message : 'Provider failed'}`
+      `[Coreflix] ${
+        error instanceof Error ? error.stack || error.message : String(error)
+      }`
     )
     return []
   }

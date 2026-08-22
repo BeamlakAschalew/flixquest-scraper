@@ -13,8 +13,14 @@ const API_BASE_URL = `${SITE_URL}/api/player`
 const CATALOG_TIMEOUT_MS = Math.min(DEFAULT_REQUEST_TIMEOUT_MS, 15_000)
 const API_HEADERS = {
   Accept: 'application/json',
+  'Accept-Language': 'en-US,en;q=0.9',
   Origin: SITE_URL,
   Referer: `${SITE_URL}/`,
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-origin',
 }
 const PREFERRED_PROVIDER_IDS = ['cineplay', 'cinejoy'] as const
 
