@@ -26,6 +26,10 @@ interface VidCoreVM {
   sh: (environment: Record<string, unknown>) => unknown
   decrypt: (environment: Record<string, unknown>) => unknown
   encode: (value: Buffer) => string
+  direct: boolean
+  decodePlain?: (index: number) => string
+  decodeKeyed?: (index: number, key: string) => string
+  globals: Record<string, unknown>
 }
 
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
@@ -34,6 +38,48 @@ const USER_AGENT =
 const VIDCORE_ORIGINS = new Set(['https://vidcore.net', 'https://vidcore.io'])
 const SOURCE_ACTION = 'ut2KSjl10ZQ'
 const compiledRuntimes = new Map<string, VidCoreVM>()
+
+function standardGlobals(): Record<string, unknown> {
+  return {
+    JSON,
+    Math,
+    Date,
+    RegExp,
+    Map,
+    Set,
+    WeakMap,
+    WeakSet,
+    Array,
+    Object,
+    Number,
+    String,
+    Boolean,
+    Symbol,
+    Function,
+    Error,
+    TypeError,
+    RangeError,
+    SyntaxError,
+    parseInt,
+    parseFloat,
+    isNaN,
+    isFinite,
+    encodeURIComponent,
+    decodeURIComponent,
+    Promise,
+    Proxy,
+    Reflect,
+    Uint8Array,
+    Int8Array,
+    Uint16Array,
+    Int16Array,
+    Uint32Array,
+    Int32Array,
+    Float32Array,
+    Float64Array,
+    BigInt,
+  }
+}
 
 function noop(): void {}
 
@@ -48,18 +94,55 @@ function universalStub(): unknown {
   return universal
 }
 
+function createBrowserProcessShim(): Record<string, unknown> {
+  const noopProcessEvent = (): void => {}
+  return {
+    nextTick: (callback: (...args: unknown[]) => void, ...args: unknown[]) =>
+      queueMicrotask(() => callback(...args)),
+    title: 'browser',
+    browser: true,
+    env: {},
+    argv: [],
+    version: '',
+    versions: {},
+    on: noopProcessEvent,
+    addListener: noopProcessEvent,
+    once: noopProcessEvent,
+    off: noopProcessEvent,
+    removeListener: noopProcessEvent,
+    removeAllListeners: noopProcessEvent,
+    emit: noopProcessEvent,
+    prependListener: noopProcessEvent,
+    prependOnceListener: noopProcessEvent,
+    listeners: () => [],
+    cwd: () => '/',
+    umask: () => 0,
+  }
+}
+
 function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
   const cached = compiledRuntimes.get(bundleUrl)
   if (cached) return cached
 
-  const currentStart = bundle.indexOf('9987:(t,e,W)=>{')
-  if (
-    currentStart >= 0 &&
-    bundle.includes('function sg(t,e)') &&
-    bundle.includes('function sA(') &&
-    bundle.includes('function iV(')
-  ) {
-    return compileCurrentRuntime(bundleUrl, bundle, currentStart)
+  const currentModule = bundle.match(
+    /9987:\(([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*),([A-Za-z_$][\w$]*)\)=>\{/
+  )
+  if (currentModule?.index !== undefined) {
+    const legacyCurrentProtocol =
+      bundle.includes('function sg(') &&
+      bundle.includes('function sA(') &&
+      bundle.includes('function iV(')
+    const directProtocol =
+      bundle.includes('function mG(') && bundle.includes('function iA(')
+    if (legacyCurrentProtocol || directProtocol) {
+      return compileCurrentRuntime(
+        bundleUrl,
+        bundle,
+        currentModule.index,
+        currentModule.slice(1, 4),
+        directProtocol
+      )
+    }
   }
 
   const start = bundle.indexOf('var cT=o(')
@@ -154,6 +237,8 @@ function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
     sh: sh as VidCoreVM['sh'],
     decrypt: decrypt as VidCoreVM['decrypt'],
     encode: encode as VidCoreVM['encode'],
+    direct: false,
+    globals: standardGlobals(),
   }
   compiledRuntimes.set(bundleUrl, runtime)
   return runtime
@@ -162,7 +247,9 @@ function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
 function compileCurrentRuntime(
   bundleUrl: string,
   bundle: string,
-  moduleStart: number
+  moduleStart: number,
+  parameters: string[],
+  direct: boolean
 ): VidCoreVM {
   const bodyStart = bundle.indexOf('=>{', moduleStart) + 3
   const bodyEnd = bundle.lastIndexOf('}}]);')
@@ -171,22 +258,41 @@ function compileCurrentRuntime(
   }
 
   const body = bundle.slice(bodyStart, bodyEnd)
-  const source = `
-    (function(t,e,W){
-      ${body}
+  const [exportsName, , loaderName] = parameters
+  const exposedFunctions = direct
+    ? `
+      globalThis.__vidcoreSh = my;
+      globalThis.__vidcoreDecrypt = mG;
+      globalThis.__vidcoreEncode = iA;
+    `
+    : `
       globalThis.__vidcoreSh = sg;
       globalThis.__vidcoreDecrypt = sA;
       globalThis.__vidcoreEncode = iV;
+    `
+  const decoderExposure = direct
+    ? `globalThis.__vidcoreDecodePlain = i7; globalThis.__vidcoreDecodeKeyed = i9;`
+    : ''
+  const source = `
+    (function(${parameters.join(',')}){
+      ${body}
+      ${exposedFunctions}
+      ${decoderExposure}
     })({}, {}, __moduleLoader);
   `
   const stub = universalStub()
+  const processShim = createBrowserProcessShim()
   const imported = (id: number): unknown => {
     if (id === 5376) return { Buffer }
     if (id === 3018) return crypto
+    if (id === 7358) return processShim
     return stub
   }
   const moduleLoader = Object.assign(imported, {
-    d: (exports: Record<string, unknown>, definitions: Record<string, unknown>) => {
+    d: (
+      exports: Record<string, unknown>,
+      definitions: Record<string, unknown>
+    ) => {
       for (const [key, definition] of Object.entries(definitions)) {
         Object.defineProperty(exports, key, {
           enumerable: true,
@@ -195,66 +301,13 @@ function compileCurrentRuntime(
       }
     },
   })
+  const webpackExports: Record<string, unknown> = {}
   const context: Record<string, unknown> = {
     __moduleLoader: moduleLoader,
+    [exportsName]: webpackExports,
+    [loaderName]: moduleLoader,
     Buffer,
     crypto,
-    JSON,
-    Math,
-    Date,
-    RegExp,
-    Map,
-    Set,
-    WeakMap,
-    WeakSet,
-    Array,
-    Object: new Proxy(Object, {
-      get(target, property, receiver) {
-        if (property === 'assign') {
-          return (...args: unknown[]) => {
-            if (args.some(value => value == null)) {
-              console.error(
-                '[Coreflix VM] Object.assign null argument',
-                args.map(value => (value == null ? value : typeof value))
-              )
-            }
-            if (args[0] == null) args[0] = {}
-            return Object.assign(...(args as [object, ...object[]]))
-          }
-        }
-        return Reflect.get(target, property, receiver)
-      },
-    }),
-    Number,
-    String,
-    Boolean,
-    Symbol,
-    Function,
-    Error,
-    TypeError,
-    RangeError,
-    SyntaxError,
-    parseInt,
-    parseFloat,
-    isNaN,
-    isFinite,
-    encodeURIComponent,
-    decodeURIComponent,
-    NaN,
-    Infinity,
-    undefined,
-    Promise,
-    Proxy,
-    Reflect,
-    Uint8Array,
-    Int8Array,
-    Uint16Array,
-    Int16Array,
-    Uint32Array,
-    Int32Array,
-    Float32Array,
-    Float64Array,
-    BigInt,
     console: {
       log: noop,
       info: noop,
@@ -285,12 +338,23 @@ function compileCurrentRuntime(
   context.self = context
   vm.createContext(context, {
     name: 'VidCore current protocol VM',
-    codeGeneration: { strings: false, wasm: false },
+    codeGeneration: { strings: true, wasm: false },
   })
   vm.runInContext(source, context, {
     timeout: 20_000,
     displayErrors: true,
   })
+  const realmGlobals = vm.runInContext(
+    `({
+      JSON, Math, Date, RegExp, Map, Set, WeakMap, WeakSet, Array, Object,
+      Number, String, Boolean, Symbol, Function, Error, TypeError, RangeError,
+      SyntaxError, parseInt, parseFloat, isNaN, isFinite, encodeURIComponent,
+      decodeURIComponent, Promise, Proxy, Reflect, Uint8Array, Int8Array,
+      Uint16Array, Int16Array, Uint32Array, Int32Array, Float32Array,
+      Float64Array, BigInt
+    })`,
+    context
+  ) as Record<string, unknown>
 
   const sh = context.__vidcoreSh
   const decrypt = context.__vidcoreDecrypt
@@ -300,12 +364,18 @@ function compileCurrentRuntime(
     typeof decrypt !== 'function' ||
     typeof encode !== 'function'
   ) {
-    throw new Error('VidCore current player VM did not expose protocol functions')
+    throw new Error(
+      'VidCore current player VM did not expose protocol functions'
+    )
   }
   const runtime: VidCoreVM = {
     sh: sh as VidCoreVM['sh'],
     decrypt: decrypt as VidCoreVM['decrypt'],
     encode: encode as VidCoreVM['encode'],
+    direct,
+    decodePlain: context.__vidcoreDecodePlain as VidCoreVM['decodePlain'],
+    decodeKeyed: context.__vidcoreDecodeKeyed as VidCoreVM['decodeKeyed'],
+    globals: realmGlobals,
   }
   compiledRuntimes.set(bundleUrl, runtime)
   return runtime
@@ -384,7 +454,12 @@ export async function resolveVidCoreServers(
   const facade = createBrowserFacade()
   let servers: VidCoreServer[] = []
   let sourcePrefix = ''
+  let sourceAction = SOURCE_ACTION
   let csrfToken = ''
+  let notifyServers: (() => void) | undefined
+  const serversReady = new Promise<void>(resolve => {
+    notifyServers = resolve
+  })
 
   const scopedFetch: typeof fetch = async (input, init = {}) => {
     const inputUrl =
@@ -407,6 +482,16 @@ export async function resolveVidCoreServers(
     if (parts[2] === 'nedpekmib' && parts[3] === 'f' && parts[4]) {
       sourcePrefix = `/${parts.slice(1, 5).join('/')}`
       csrfToken = headers.get('X-Csrf-Token') ?? csrfToken
+    } else if (
+      runtime.direct &&
+      String(init.method || 'GET').toUpperCase() === 'POST' &&
+      parts.length >= 5
+    ) {
+      sourcePrefix = `/${parts.slice(1, 3).join('/')}`
+      const decodedAction = runtime.decodePlain?.(2575)
+      if (decodedAction && /^[A-Za-z0-9_-]+$/.test(decodedAction)) {
+        sourceAction = decodedAction
+      }
     }
     return fetch(url, {
       ...init,
@@ -419,16 +504,12 @@ export async function resolveVidCoreServers(
   const environment: Record<string, unknown> = {
     crypto,
     encode: runtime.encode,
-    server: {},
+    server: undefined,
     setServers: (
       value: VidCoreServer[] | ((current: VidCoreServer[]) => VidCoreServer[])
     ) => {
-      console.error(
-        '[Coreflix VM] setServers',
-        typeof value,
-        Array.isArray(value) ? value.length : ''
-      )
       servers = typeof value === 'function' ? value(servers) : value
+      if (servers.length > 0) notifyServers?.()
     },
     setState: noop,
     setFavServer: noop,
@@ -442,27 +523,7 @@ export async function resolveVidCoreServers(
       table: noop,
       clear: noop,
     },
-    JSON,
-    Math,
-    Date,
-    RegExp,
-    Map,
-    Set,
-    WeakMap,
-    WeakSet,
-    Array,
-    Object,
-    Number,
-    String,
-    Boolean,
-    Symbol,
-    Function,
-    Error,
-    TypeError,
-    RangeError,
-    SyntaxError,
-    parseInt,
-    parseFloat,
+    ...runtime.globals,
     en,
     isNaN,
     isFinite,
@@ -471,18 +532,6 @@ export async function resolveVidCoreServers(
     NaN,
     Infinity,
     undefined,
-    Promise,
-    Proxy,
-    Reflect,
-    Uint8Array,
-    Int8Array,
-    Uint16Array,
-    Int16Array,
-    Uint32Array,
-    Int32Array,
-    Float32Array,
-    Float64Array,
-    BigInt,
     fetch: scopedFetch,
     TextEncoder,
     TextDecoder,
@@ -496,13 +545,19 @@ export async function resolveVidCoreServers(
   }
 
   try {
-    await runtime.sh(environment)
+    await Reflect.apply(runtime.sh, undefined, [environment])
+    if (servers.length === 0) {
+      await Promise.race([
+        serversReady,
+        new Promise<void>(resolve => setTimeout(resolve, 5_000)),
+      ])
+    }
   } catch (error) {
-    throw new Error(
-      `VidCore server resolver failed: ${
-        error instanceof Error ? error.stack || error.message : String(error)
-      }`
-    )
+    const detail =
+      error && typeof error === 'object' && 'stack' in error
+        ? String(error.stack)
+        : String(error)
+    throw new Error(`VidCore server resolver failed: ${detail}`)
   }
   const valid = servers.filter(
     server =>
@@ -512,12 +567,12 @@ export async function resolveVidCoreServers(
       server.data.length > 0
   )
   if (valid.length === 0) throw new Error('VidCore returned no server tokens')
-  if (!sourcePrefix || !csrfToken) {
+  if (!sourcePrefix || (!runtime.direct && !csrfToken)) {
     throw new Error('VidCore did not expose its source request metadata')
   }
   return {
     servers: valid,
-    config: { sourcePrefix, sourceAction: SOURCE_ACTION, csrfToken },
+    config: { sourcePrefix, sourceAction, csrfToken },
   }
 }
 
@@ -546,27 +601,7 @@ export async function decryptVidCorePayload<T>(
       table: noop,
       clear: noop,
     },
-    JSON,
-    Math,
-    Date,
-    RegExp,
-    Map,
-    Set,
-    WeakMap,
-    WeakSet,
-    Array,
-    Object,
-    Number,
-    String,
-    Boolean,
-    Symbol,
-    Function,
-    Error,
-    TypeError,
-    RangeError,
-    SyntaxError,
-    parseInt,
-    parseFloat,
+    ...runtime.globals,
     isNaN,
     isFinite,
     encodeURIComponent,
@@ -574,18 +609,6 @@ export async function decryptVidCorePayload<T>(
     NaN,
     Infinity,
     undefined,
-    Promise,
-    Proxy,
-    Reflect,
-    Uint8Array,
-    Int8Array,
-    Uint16Array,
-    Int16Array,
-    Uint32Array,
-    Int32Array,
-    Float32Array,
-    Float64Array,
-    BigInt,
     fetch: blockedFetch,
     TextEncoder,
     TextDecoder,
@@ -598,7 +621,7 @@ export async function decryptVidCorePayload<T>(
     btoa,
   }
 
-  await runtime.decrypt(environment)
+  await Reflect.apply(runtime.decrypt, undefined, [environment])
   if (!output[0] || typeof output[0] !== 'object') {
     throw new Error('VidCore source decryptor returned no payload')
   }

@@ -120,7 +120,8 @@ async function loadBundle(
       const legacyProtocol =
         source.includes('function sh(') && source.includes('var cT=o(')
       const currentProtocol =
-        source.includes('function sA(') && source.includes('function iV(')
+        (source.includes('function sA(') && source.includes('function iV(')) ||
+        (source.includes('function mG(') && source.includes('function iA('))
       if (!legacyProtocol && !currentProtocol) {
         continue
       }
@@ -185,7 +186,7 @@ async function fetchServer(
       Referer: pageUrl,
       'User-Agent': USER_AGENT,
       'X-Requested-With': 'XMLHttpRequest',
-      'X-Csrf-Token': config.csrfToken,
+      ...(config.csrfToken ? { 'X-Csrf-Token': config.csrfToken } : {}),
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
