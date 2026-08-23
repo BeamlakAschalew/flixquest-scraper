@@ -1,7 +1,7 @@
 {
   "success": true,
-  "startedAt": "2026-08-23T10:02:44.489Z",
-  "updatedAt": "2026-08-23T10:03:46.079Z",
+  "startedAt": "2026-08-23T12:28:40.646Z",
+  "updatedAt": "2026-08-23T12:30:24.869Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
@@ -11,88 +11,88 @@
   },
   "providers": [
     {
-      "id": "vuflix",
-      "alias": "Adulis",
-      "status": "online",
-      "requestTimeMs": 39662
-    },
-    {
-      "id": "videasy",
-      "alias": "Abyssinia",
-      "status": "online",
-      "requestTimeMs": 15198
-    },
-    {
-      "id": "showbox",
-      "alias": "Adwa",
-      "status": "online",
-      "requestTimeMs": 10401
-    },
-    {
-      "id": "vidfast",
-      "alias": "Lalibela",
-      "status": "online",
-      "requestTimeMs": 12189
-    },
-    {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 9860
+      "requestTimeMs": 24800
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 1127
-    },
-    {
-      "id": "coreflix",
-      "alias": "Damat",
-      "status": "online",
-      "requestTimeMs": 30607
+      "requestTimeMs": 4901
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 2406
+      "requestTimeMs": 5611
+    },
+    {
+      "id": "showbox",
+      "alias": "Adwa",
+      "status": "online",
+      "requestTimeMs": 18695
+    },
+    {
+      "id": "videasy",
+      "alias": "Abyssinia",
+      "status": "online",
+      "requestTimeMs": 25829
+    },
+    {
+      "id": "coreflix",
+      "alias": "Damat",
+      "status": "online",
+      "requestTimeMs": 92807
+    },
+    {
+      "id": "vidfast",
+      "alias": "Lalibela",
+      "status": "online",
+      "requestTimeMs": 22715
+    },
+    {
+      "id": "vuflix",
+      "alias": "Adulis",
+      "status": "online",
+      "requestTimeMs": 48842
     },
     {
       "id": "vidsrc",
       "alias": "Yeha",
       "status": "online",
-      "requestTimeMs": 3237
+      "requestTimeMs": 6032
     },
     {
       "id": "vidrock",
       "alias": "Zagwe",
       "status": "online",
-      "requestTimeMs": 24393
+      "requestTimeMs": 24739
     },
     {
       "id": "vidnest",
       "alias": "Wuchale",
       "status": "online",
-      "requestTimeMs": 7381
+      "requestTimeMs": 49378
     },
     {
       "id": "vidup",
       "alias": "Gura",
       "status": "online",
-      "requestTimeMs": 33323
+      "requestTimeMs": 42678
     },
     {
       "id": "aether",
       "alias": "Gorgora",
       "status": "online",
-      "requestTimeMs": 6193
+      "requestTimeMs": 20344
     },
     {
       "id": "zstream",
       "alias": "Axum",
       "status": "online",
-      "requestTimeMs": 2731
+      "requestTimeMs": 7592
     }
   ]
 }

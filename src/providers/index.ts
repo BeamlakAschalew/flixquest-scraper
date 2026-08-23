@@ -56,16 +56,17 @@ import { coreflixProvider } from './coreflix.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
-// Register all providers here
+// Register all providers here. The first six are the balanced quality/speed
+// shortlist from the 2026-08-23 live audit, with ShowBox intentionally included.
 const rawProviders = {
-  vuflix: vuflixProvider,
-  videasy: vidEasyProvider,
-  showbox: showboxProvider,
-  vidfast: vidFastProvider,
   cinejoy: cinejoyProvider,
   movy: movyProvider,
-  coreflix: coreflixProvider,
   streamflix: streamFlixProvider,
+  showbox: showboxProvider,
+  videasy: vidEasyProvider,
+  coreflix: coreflixProvider,
+  vidfast: vidFastProvider,
+  vuflix: vuflixProvider,
   vidsrc: vidsrcProvider,
   vidrock: vidRockProvider,
   vidnest: vidNestProvider,
@@ -120,18 +121,21 @@ type ProviderId = keyof typeof rawProviders
 // Source-controlled provider switches. Set a provider to true to expose it in
 // normal provider listings and allow stream requests to reach it.
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
-  vuflix: true,
-  videasy: true,
-  showbox: true,
-  vidfast: true,
+  cinejoy: true,
+  movy: true,
   streamflix: true,
+  showbox: true,
+  videasy: true,
+  coreflix: true,
+  vidfast: true,
+  vuflix: true,
   vidsrc: true,
   vidrock: true,
   vidnest: true,
   vidup: true,
-  cineby: false,
-  cinejoy: true,
   aether: true,
+  zstream: true,
+  cineby: false,
   '4khdhub': false,
   '4khdhubnew': false,
   uhdmovies: false,
@@ -158,7 +162,6 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   toonhub: false,
   jetfilmizle: false,
   artemis: false,
-  zstream: true,
   watchflux: false,
   rabbitmeow: false,
   primesrc: false,
@@ -173,8 +176,6 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   cinevaro: false,
   fsharetv: false,
   vyla: false,
-  movy: true,
-  coreflix: true,
 }
 
 function isProviderId(id: string): id is ProviderId {
