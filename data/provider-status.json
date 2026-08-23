@@ -1,12 +1,12 @@
 {
   "success": true,
-  "startedAt": "2026-08-23T12:28:40.646Z",
-  "updatedAt": "2026-08-23T12:30:24.869Z",
+  "startedAt": "2026-08-23T14:10:33.497Z",
+  "updatedAt": "2026-08-23T14:11:09.202Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
-    "total": 14,
-    "online": 14,
+    "total": 6,
+    "online": 6,
     "offline": 0
   },
   "providers": [
@@ -14,85 +14,37 @@
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 24800
+      "requestTimeMs": 35679
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 4901
+      "requestTimeMs": 3835
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 5611
+      "requestTimeMs": 9008
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 18695
+      "requestTimeMs": 30328
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 25829
+      "requestTimeMs": 20245
     },
     {
       "id": "coreflix",
       "alias": "Damat",
       "status": "online",
-      "requestTimeMs": 92807
-    },
-    {
-      "id": "vidfast",
-      "alias": "Lalibela",
-      "status": "online",
-      "requestTimeMs": 22715
-    },
-    {
-      "id": "vuflix",
-      "alias": "Adulis",
-      "status": "online",
-      "requestTimeMs": 48842
-    },
-    {
-      "id": "vidsrc",
-      "alias": "Yeha",
-      "status": "online",
-      "requestTimeMs": 6032
-    },
-    {
-      "id": "vidrock",
-      "alias": "Zagwe",
-      "status": "online",
-      "requestTimeMs": 24739
-    },
-    {
-      "id": "vidnest",
-      "alias": "Wuchale",
-      "status": "online",
-      "requestTimeMs": 49378
-    },
-    {
-      "id": "vidup",
-      "alias": "Gura",
-      "status": "online",
-      "requestTimeMs": 42678
-    },
-    {
-      "id": "aether",
-      "alias": "Gorgora",
-      "status": "online",
-      "requestTimeMs": 20344
-    },
-    {
-      "id": "zstream",
-      "alias": "Axum",
-      "status": "online",
-      "requestTimeMs": 7592
+      "requestTimeMs": 21569
     }
   ]
 }
