@@ -2,11 +2,10 @@ import type { Provider, ProviderLink } from '../types/index.js'
 import { normalizeStreamUrl } from '../utils/stream-validation.js'
 
 const API_BASE = 'https://api.streamflix.app'
-const CONFIG_URL = `${API_BASE}/config/config-streamflixapp.json`
+const CONFIG_URL = `${API_BASE}/config/config-streamflix2.json`
 const DATA_URL = `${API_BASE}/data.json`
 const FIREBASE_URL =
   'wss://chilflix-410be-default-rtdb.asia-southeast1.firebasedatabase.app/.ws?ns=chilflix-410be-default-rtdb&v=5'
-const CURRENT_CDN_URL = 'https://stream.streamflixserver.site/'
 const CACHE_TTL_MS = 5 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 15_000
 const WEBSOCKET_TIMEOUT_MS = 30_000
@@ -21,11 +20,13 @@ interface StreamFlixConfig {
 }
 
 interface StreamFlixItem {
+  isTV?: boolean
   moviekey?: string
   moviename?: string
   movielink?: string
   movieduration?: string
   movieyear?: string | number
+  tmdb?: string | number
   type?: string
 }
 
@@ -153,6 +154,17 @@ function findBestMatch(
     .sort((a, b) => b.score - a.score)[0]?.item
 }
 
+function findTmdbMatch(
+  tmdbId: string,
+  mediaType: 'movie' | 'tv',
+  items: StreamFlixItem[]
+): StreamFlixItem | undefined {
+  const matches = items.filter(item => String(item.tmdb || '') === tmdbId)
+  return matches.find(
+    item => typeof item.isTV !== 'boolean' || item.isTV === (mediaType === 'tv')
+  )
+}
+
 function createLink(
   url: string,
   quality: string,
@@ -187,7 +199,6 @@ function movieLinks(
   // Config revisions may rotate movie files across the same download/CDN pools
   // used by TV, so try those hosts after the movie-specific pools.
   const bases = [
-    [CURRENT_CDN_URL, '1080p', 'Current CDN'] as const,
     ...(config.premium || []).map(base => [base, '1080p', 'Premium'] as const),
     ...(config.movies || []).map(base => [base, '720p', 'Standard'] as const),
     ...(config.download || []).map(
@@ -195,9 +206,11 @@ function movieLinks(
     ),
     ...(config.tv || []).map(base => [base, '720p', 'Fallback CDN'] as const),
   ]
-  const links = Array.from(
-    new Map(bases.map(entry => [entry[0], entry] as const)).values()
-  ).map(([base, quality, description]) =>
+  const uniqueBases = bases.filter(
+    (entry, index) =>
+      bases.findIndex(candidate => candidate[0] === entry[0]) === index
+  )
+  const links = uniqueBases.map(([base, quality, description]) =>
     createLink(joinStreamUrl(base, item.movielink || ''), quality, description)
   )
 
@@ -295,7 +308,6 @@ function fallbackTvLink(
   episode: number
 ): ProviderLink[] {
   const baseUrl = [
-    CURRENT_CDN_URL,
     ...(config.download || []),
     ...(config.tv || []),
     ...(config.premium || []),
@@ -332,7 +344,6 @@ async function tvLinks(
 
     const bases = Array.from(
       new Set([
-        CURRENT_CDN_URL,
         ...(config.download || []),
         ...(config.tv || []),
         ...(config.premium || []),
@@ -362,24 +373,27 @@ async function getStreamFlixStreams(
   episode?: number
 ): Promise<ProviderLink[]> {
   try {
-    const apiKey = process.env.TMDB_API_KEY?.trim()
-    if (!apiKey) {
-      console.error('[StreamFlix] TMDB_API_KEY is not configured')
-      return []
-    }
+    const [data, config] = await Promise.all([getData(), getConfig()])
+    if (!Array.isArray(data.data)) return []
 
-    const [tmdb, data, config] = await Promise.all([
-      getJson<TmdbResponse>(
+    let item = findTmdbMatch(tmdbId, mediaType, data.data)
+    if (!item) {
+      const apiKey = process.env.TMDB_API_KEY?.trim()
+      if (!apiKey) {
+        console.error(
+          '[StreamFlix] TMDB_API_KEY is required for catalog entries without a TMDB ID'
+        )
+        return []
+      }
+
+      const tmdb = await getJson<TmdbResponse>(
         `https://api.themoviedb.org/3/${mediaType}/${encodeURIComponent(tmdbId)}?api_key=${encodeURIComponent(apiKey)}`
-      ),
-      getData(),
-      getConfig(),
-    ])
-    const title = tmdb.title || tmdb.name
-    const year = (tmdb.release_date || tmdb.first_air_date || '').slice(0, 4)
-    if (!title || !Array.isArray(data.data)) return []
-
-    const item = findBestMatch(title, year, mediaType, data.data)
+      )
+      const title = tmdb.title || tmdb.name
+      const year = (tmdb.release_date || tmdb.first_air_date || '').slice(0, 4)
+      if (!title) return []
+      item = findBestMatch(title, year, mediaType, data.data)
+    }
     if (!item) return []
 
     const links =
