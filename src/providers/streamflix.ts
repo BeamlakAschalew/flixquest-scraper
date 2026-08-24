@@ -11,6 +11,11 @@ const REQUEST_TIMEOUT_MS = 15_000
 const WEBSOCKET_TIMEOUT_MS = 30_000
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const STREAMFLIX_HOST_PRIORITY = [
+  's8.streamflixserver.site',
+  's7.streamflixserver.site',
+  's6.streamflixserver.site',
+] as const
 
 interface StreamFlixConfig {
   premium?: string[]
@@ -190,14 +195,65 @@ function joinStreamUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
 
+function orderHostEntries<T extends readonly [string, ...unknown[]]>(
+  entries: T[]
+): T[] {
+  const priority = new Map<string, number>(
+    STREAMFLIX_HOST_PRIORITY.map((host, index) => [host, index])
+  )
+  return entries
+    .map((entry, index) => {
+      let host = ''
+      try {
+        host = new URL(entry[0]).hostname.toLowerCase()
+      } catch {
+        // Preserve malformed configuration entries for normal URL filtering.
+      }
+      return { entry, index, priority: priority.get(host) ?? priority.size }
+    })
+    .sort(
+      (left, right) =>
+        left.priority - right.priority || left.index - right.index
+    )
+    .map(({ entry }) => entry)
+}
+
+function firstPreferredHostEntries<T extends readonly [string, ...unknown[]]>(
+  entries: T[]
+): T[] {
+  const priorityHosts = new Set<string>(STREAMFLIX_HOST_PRIORITY)
+  const ordered = orderHostEntries(entries)
+  const preferred = ordered.find(entry => {
+    try {
+      return priorityHosts.has(new URL(entry[0]).hostname.toLowerCase())
+    } catch {
+      return false
+    }
+  })
+  if (!preferred) return ordered
+  let preferredHost = ''
+  try {
+    preferredHost = new URL(preferred[0]).hostname.toLowerCase()
+  } catch {
+    return ordered
+  }
+  return ordered.filter(entry => {
+    try {
+      return new URL(entry[0]).hostname.toLowerCase() === preferredHost
+    } catch {
+      return false
+    }
+  })
+}
+
 function movieLinks(
   item: StreamFlixItem,
   config: StreamFlixConfig
 ): ProviderLink[] {
   if (!item.movielink) return []
 
-  // Config revisions may rotate movie files across the same download/CDN pools
-  // used by TV, so try those hosts after the movie-specific pools.
+  // Prefer the currently healthy StreamFlix host pool when it is present;
+  // older config hosts remain supported as a fallback.
   const bases = [
     ...(config.premium || []).map(base => [base, '1080p', 'Premium'] as const),
     ...(config.movies || []).map(base => [base, '720p', 'Standard'] as const),
@@ -206,7 +262,7 @@ function movieLinks(
     ),
     ...(config.tv || []).map(base => [base, '720p', 'Fallback CDN'] as const),
   ]
-  const uniqueBases = bases.filter(
+  const uniqueBases = firstPreferredHostEntries(bases).filter(
     (entry, index) =>
       bases.findIndex(candidate => candidate[0] === entry[0]) === index
   )
@@ -307,11 +363,12 @@ function fallbackTvLink(
   season: number,
   episode: number
 ): ProviderLink[] {
-  const baseUrl = [
+  const baseEntries = [
     ...(config.download || []),
     ...(config.tv || []),
     ...(config.premium || []),
-  ][0]
+  ].map(base => [base] as const)
+  const baseUrl = firstPreferredHostEntries(baseEntries)[0]?.[0]
   if (!baseUrl || !item.moviekey) return []
 
   const link = createLink(
@@ -342,13 +399,15 @@ async function tvLinks(
       return fallbackTvLink(item, config, season, episode)
     }
 
-    const bases = Array.from(
-      new Set([
-        ...(config.download || []),
-        ...(config.tv || []),
-        ...(config.premium || []),
-      ])
-    )
+    const bases = firstPreferredHostEntries(
+      Array.from(
+        new Set([
+          ...(config.download || []),
+          ...(config.tv || []),
+          ...(config.premium || []),
+        ])
+      ).map(base => [base] as const)
+    ).map(([base]) => base)
     return bases
       .map(base =>
         createLink(

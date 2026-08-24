@@ -120,8 +120,9 @@ async function loadBundle(
       const legacyProtocol =
         source.includes('function sh(') && source.includes('var cT=o(')
       const currentProtocol =
-        (source.includes('function sA(') && source.includes('function iV(')) ||
-        (source.includes('function mG(') && source.includes('function iA('))
+        /[A-Za-z_$][\w$]*\(\{crypto:[\s\S]{0,160}?encode:[A-Za-z_$][\w$]*,[\s\S]{0,900}?setServers:/.test(
+          source
+        ) && /[A-Za-z_$][\w$]*\(\{dr:[\s\S]{0,180}?rs:/.test(source)
       if (!legacyProtocol && !currentProtocol) {
         continue
       }
@@ -174,32 +175,45 @@ async function fetchServer(
   pageUrl: string,
   artifact: BundleArtifact
 ): Promise<ProviderLink | null> {
-  const url = new URL(
-    `${config.sourcePrefix}/${config.sourceAction}/${encodeURIComponent(server.data)}`,
-    new URL(pageUrl).origin
-  )
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Accept: '*/*',
-      Origin: new URL(pageUrl).origin,
-      Referer: pageUrl,
-      'User-Agent': USER_AGENT,
-      'X-Requested-With': 'XMLHttpRequest',
-      ...(config.csrfToken ? { 'X-Csrf-Token': config.csrfToken } : {}),
-    },
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  })
-  if (response.status === 404) return null
-  if (!response.ok) throw new Error(`${server.name} HTTP ${response.status}`)
-
-  const payload = await decryptVidCorePayload<VidCoreSourcePayload>(
-    artifact.url,
-    artifact.source,
-    await response.text()
-  )
-  const upstream = validHttpUrl(payload.url)
-  if (!upstream) return null
+  const endpoints = config.sourceEndpoints?.length
+    ? config.sourceEndpoints
+    : [{ prefix: config.sourcePrefix, action: config.sourceAction }]
+  let payload: VidCoreSourcePayload | undefined
+  let upstream: string | null = null
+  for (const endpoint of endpoints) {
+    const url = new URL(
+      `${endpoint.prefix}/${endpoint.action}/${encodeURIComponent(server.data)}`,
+      new URL(pageUrl).origin
+    )
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Accept: '*/*',
+        Origin: new URL(pageUrl).origin,
+        Referer: pageUrl,
+        'User-Agent': USER_AGENT,
+        'X-Requested-With': 'XMLHttpRequest',
+        ...(config.csrfToken ? { 'X-Csrf-Token': config.csrfToken } : {}),
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    if (!response.ok) continue
+    try {
+      const candidate = await decryptVidCorePayload<VidCoreSourcePayload>(
+        artifact.url,
+        artifact.source,
+        await response.text()
+      )
+      const candidateUrl = validHttpUrl(candidate.url)
+      if (!candidateUrl) continue
+      payload = candidate
+      upstream = candidateUrl
+      break
+    } catch {
+      continue
+    }
+  }
+  if (!payload || !upstream) return null
 
   const playbackHeaders: Record<string, string> = {
     Accept: '*/*',

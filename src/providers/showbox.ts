@@ -677,41 +677,39 @@ async function getShowBoxStreams(
       return []
     }
 
-    console.log(`[ShowBox] Resolving ${files.length} FebBox file(s)`)
-    const results = await Promise.allSettled(
-      files.map((file, index) =>
-        resolveFileStreams(shareKey, file, cookie, index)
-      )
-    )
-    const streams = results.flatMap((result, index) => {
-      if (result.status === 'fulfilled') return result.value
-      console.warn(
-        `[ShowBox] Could not resolve "${files[index]?.file_name}": ${
-          result.reason instanceof Error
-            ? result.reason.message
-            : 'unknown error'
-        }`
-      )
-      return []
-    })
-
-    const unique = Array.from(
-      new Map(
-        streams.map(stream => [
-          `${new URL(stream.url).pathname}|${stream.quality}|${stream.server}`,
-          stream,
-        ])
-      ).values()
-    )
-    unique.sort((left, right) => {
-      return (
-        parseQualityFromLabel(right.quality).priority -
-        parseQualityFromLabel(left.quality).priority
-      )
-    })
-
-    console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
-    return unique
+    const prioritizedFiles = files
+      .map((file, index) => ({ file, index }))
+      .reverse()
+    console.log(`[ShowBox] Resolving ${prioritizedFiles.length} FebBox file(s)`)
+    for (const { file, index } of prioritizedFiles) {
+      try {
+        const streams = await resolveFileStreams(shareKey, file, cookie, index)
+        if (!streams.length) continue
+        const unique = Array.from(
+          new Map(
+            streams.map(stream => [
+              `${new URL(stream.url).pathname}|${stream.quality}|${stream.server}`,
+              stream,
+            ])
+          ).values()
+        )
+        unique.sort((left, right) => {
+          return (
+            parseQualityFromLabel(right.quality).priority -
+            parseQualityFromLabel(left.quality).priority
+          )
+        })
+        console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
+        return unique
+      } catch (error) {
+        console.warn(
+          `[ShowBox] Could not resolve "${file.file_name}": ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`
+        )
+      }
+    }
+    return []
   } catch (error) {
     console.error(
       `[ShowBox] ${error instanceof Error ? error.message : 'Unknown provider error'}`

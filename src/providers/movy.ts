@@ -17,11 +17,32 @@ const REQUEST_HEADERS = {
   'User-Agent': USER_AGENT,
 }
 
+const MOVY_SERVERS = [
+  { slug: 'miami', name: 'Miami' },
+  { slug: 'denver', name: 'Denver', sourceFilter: 'dash' },
+  { slug: 'seattle', name: 'Seattle' },
+  { slug: 'chicago', name: 'Chicago' },
+  { slug: 'portland', name: 'Portland' },
+  { slug: 'austin', name: 'Austin', sourceFilter: 'English' },
+  { slug: 'atlanta', name: 'Atlanta' },
+  { slug: 'houston', name: 'Houston' },
+  { slug: 'phoenix', name: 'Phoenix' },
+  { slug: 'dallas', name: 'Dallas' },
+  { slug: 'munich', name: 'Munich', language: 'german' },
+  { slug: 'berlin', name: 'Berlin', useGermanTitle: true },
+  { slug: 'paris', name: 'Paris' },
+  { slug: 'delhi', name: 'Delhi', sourceFilter: 'Hindi' },
+  { slug: 'cancun', name: 'Cancun' },
+] as const
+
+type MovyServer = (typeof MOVY_SERVERS)[number]
+
 interface MediaDetails {
   title: string
   year: string
   imdbId: string
   totalSeasons: number
+  titleGerman: string
 }
 
 interface MovySource {
@@ -77,7 +98,7 @@ async function fetchMediaDetails(
 
   const url = new URL(`${TMDB_BASE_URL}/${mediaType}/${tmdbId}`)
   url.searchParams.set('api_key', apiKey)
-  url.searchParams.set('append_to_response', 'external_ids')
+  url.searchParams.set('append_to_response', 'external_ids,translations')
   const response = await fetch(url, {
     headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -92,6 +113,12 @@ async function fetchMediaDetails(
     imdb_id?: string
     external_ids?: { imdb_id?: string }
     number_of_seasons?: number
+    translations?: {
+      translations?: Array<{
+        iso_3166_1?: string
+        data?: { title?: string; name?: string }
+      }>
+    }
   }
   const title = mediaType === 'movie' ? payload.title : payload.name
   if (!title) throw new Error('TMDB response did not include a title')
@@ -104,6 +131,10 @@ async function fetchMediaDetails(
       mediaType === 'tv' && Number.isInteger(payload.number_of_seasons)
         ? Math.max(0, payload.number_of_seasons || 0)
         : 0,
+    titleGerman:
+      payload.translations?.translations?.find(
+        translation => translation.iso_3166_1 === 'DE'
+      )?.data?.[mediaType === 'movie' ? 'title' : 'name'] || '',
   }
 }
 
@@ -139,7 +170,7 @@ function formatSubtitles(payload: MovyPayload): Subtitle[] {
   )
 }
 
-function formatLinks(payload: MovyPayload): ProviderLink[] {
+function formatLinks(payload: MovyPayload, serverName: string): ProviderLink[] {
   const subtitles = formatSubtitles(payload)
   return Array.from(
     new Map(
@@ -148,7 +179,7 @@ function formatLinks(payload: MovyPayload): ProviderLink[] {
         if (!url) return []
         const type = source.type?.toLowerCase() || ''
         const link: ProviderLink = {
-          server: `Movy | Miami | ${index + 1}`,
+          server: `Movy | ${serverName} | ${index + 1}`,
           url,
           isM3U8: type.includes('hls') || /\.m3u8(?:$|[?#])/i.test(url),
           ...(type.includes('dash') || /\.mpd(?:$|[?#])/i.test(url)
@@ -171,6 +202,76 @@ function formatLinks(payload: MovyPayload): ProviderLink[] {
   )
 }
 
+async function fetchServerLinks(
+  server: MovyServer,
+  details: MediaDetails,
+  tmdbId: string,
+  mediaType: 'movie' | 'tv',
+  season: number,
+  episode: number,
+  seed: string
+): Promise<ProviderLink[]> {
+  const url = new URL(`${API_BASE_URL}/${server.slug}/sources`)
+  url.searchParams.set('title', encodeURIComponent(details.title))
+  url.searchParams.set('mediaType', mediaType)
+  url.searchParams.set('year', details.year)
+  url.searchParams.set('episodeId', String(episode))
+  url.searchParams.set('seasonId', String(season))
+  url.searchParams.set('tmdbId', tmdbId)
+  url.searchParams.set('imdbId', details.imdbId)
+  if ('language' in server) url.searchParams.set('language', server.language)
+  if ('useGermanTitle' in server && details.titleGerman) {
+    url.searchParams.set('altTitle', encodeURIComponent(details.titleGerman))
+  }
+  url.searchParams.set('enc', '2')
+  url.searchParams.set('seed', seed)
+
+  const response = await fetch(url, {
+    headers: REQUEST_HEADERS,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  if (!response.ok) {
+    const error = new Error(`${server.name} HTTP ${response.status}`)
+    ;(error as Error & { status?: number }).status = response.status
+    throw error
+  }
+
+  const encrypted = (await response.text()).trim()
+  if (!encrypted) throw new Error(`${server.name} returned an empty payload`)
+
+  const payload = decodeSeedPayload<MovyPayload>(
+    encrypted,
+    seed,
+    Number(tmdbId)
+  )
+  const sources = payload.sources || []
+  if (!('sourceFilter' in server)) return formatLinks(payload, server.name)
+
+  const filteredSources =
+    server.sourceFilter === 'dash'
+      ? sources.filter(source => {
+          const type = source.type?.toLowerCase() || ''
+          const url = source.url || source.file || ''
+          return type === 'dash' || /\.mpd(?:$|[?#])/i.test(url)
+        })
+      : sources.filter(
+          source =>
+            (source.quality || '').toLowerCase() ===
+            server.sourceFilter.toLowerCase()
+        )
+
+  return formatLinks(
+    {
+      ...payload,
+      sources:
+        server.sourceFilter === 'dash' && filteredSources.length === 0
+          ? sources
+          : filteredSources,
+    },
+    server.name
+  )
+}
+
 async function getMovyStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
@@ -189,32 +290,51 @@ async function getMovyStreams(
   }
 
   try {
-    const [details, seed] = await Promise.all([
+    const [details, initialSeed] = await Promise.all([
       fetchMediaDetails(tmdbId, mediaType),
       fetchSeed(tmdbId),
     ])
-    const url = new URL(`${API_BASE_URL}/miami/sources`)
-    url.searchParams.set('title', encodeURIComponent(details.title))
-    url.searchParams.set('mediaType', mediaType)
-    url.searchParams.set('year', details.year)
-    url.searchParams.set('totalSeasons', String(details.totalSeasons))
-    url.searchParams.set('episodeId', String(episode))
-    url.searchParams.set('seasonId', String(season))
-    url.searchParams.set('tmdbId', tmdbId)
-    url.searchParams.set('imdbId', details.imdbId)
-    url.searchParams.set('enc', '2')
-    url.searchParams.set('seed', seed)
+    let seed = initialSeed
 
-    const response = await fetch(url, {
-      headers: REQUEST_HEADERS,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    })
-    if (!response.ok) throw new Error(`Miami HTTP ${response.status}`)
-    const encrypted = (await response.text()).trim()
-    if (!encrypted) throw new Error('Miami returned an empty payload')
-    return formatLinks(
-      decodeSeedPayload<MovyPayload>(encrypted, seed, Number(tmdbId))
-    )
+    for (const [index, server] of MOVY_SERVERS.entries()) {
+      try {
+        let links: ProviderLink[]
+        try {
+          links = await fetchServerLinks(
+            server,
+            details,
+            tmdbId,
+            mediaType,
+            season,
+            episode,
+            seed
+          )
+        } catch (error) {
+          if ((error as Error & { status?: number }).status !== 401) throw error
+          seed = await fetchSeed(tmdbId)
+          links = await fetchServerLinks(
+            server,
+            details,
+            tmdbId,
+            mediaType,
+            season,
+            episode,
+            seed
+          )
+        }
+        if (links.length > 0) return links
+
+        console.warn(
+          `[Movy] ${server.name} returned no usable streams${index < MOVY_SERVERS.length - 1 ? '; trying next server' : ''}`
+        )
+      } catch (error) {
+        console.warn(
+          `[Movy] ${error instanceof Error ? error.message : `${server.name} failed`}${index < MOVY_SERVERS.length - 1 ? '; trying next server' : ''}`
+        )
+      }
+    }
+
+    return []
   } catch (error) {
     console.error(
       `[Movy] ${error instanceof Error ? error.message : 'Provider failed'}`

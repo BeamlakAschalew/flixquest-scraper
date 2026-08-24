@@ -36,14 +36,14 @@ const REQUEST_HEADERS = {
 
 const SERVERS: Record<string, string> = {
   Hydrogen: 'cdn/sources-with-title',
-  Titanium: 'tejo/sources-with-title',
+  Aluminium: 'lamovie/sources-with-title',
+  Nitrogen: 'm4uhd/sources-with-title',
   Oxygen: 'neon2/sources-with-title',
+  Neon: 'superflix/sources-with-title',
+  Titanium: 'tejo/sources-with-title',
   Lithium: 'downloader2/sources-with-title',
   Krypton: 'ym/sources-with-title',
   Carbon: 'mb-flix/sources-with-title',
-  Aluminium: 'lamovie/sources-with-title',
-  Nitrogen: 'm4uhd/sources-with-title',
-  Neon: 'superflix/sources-with-title',
   Helium: '1movies/sources-with-title',
 }
 
@@ -465,29 +465,32 @@ async function getVidEasyStreams(
       return []
     }
 
-    const settled = await Promise.allSettled(
-      Object.entries(SERVERS).map(([name, path]) =>
-        fetchServer(
-          name,
-          path,
-          mediaType,
-          tmdbId,
-          details,
-          seed,
-          season,
-          episode
-        )
+    for (const [name, path] of Object.entries(SERVERS)) {
+      const links = await fetchServer(
+        name,
+        path,
+        mediaType,
+        tmdbId,
+        details,
+        seed,
+        season,
+        episode
       )
-    )
-    const links = settled.flatMap(result =>
-      result.status === 'fulfilled' ? result.value : []
-    )
-    const unique = Array.from(
-      new Map(links.map(link => [link.url, link])).values()
-    )
-    return unique.sort(
-      (left, right) => qualityScore(right.quality) - qualityScore(left.quality)
-    )
+      if (!links.length) {
+        console.warn(
+          `[VidEasy] ${name} returned no usable streams; trying next server`
+        )
+        continue
+      }
+      const unique = Array.from(
+        new Map(links.map(link => [link.url, link])).values()
+      )
+      return unique.sort(
+        (left, right) =>
+          qualityScore(right.quality) - qualityScore(left.quality)
+      )
+    }
+    return []
   } catch (error) {
     console.error(
       `[VidEasy] Request failed for TMDB ${tmdbId}: ${formatRequestError(error)}`

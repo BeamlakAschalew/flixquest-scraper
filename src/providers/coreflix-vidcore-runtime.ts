@@ -15,6 +15,7 @@ export interface VidCoreBundleConfig {
   sourcePrefix: string
   sourceAction: string
   csrfToken: string
+  sourceEndpoints?: Array<{ prefix: string; action: string }>
 }
 
 export interface VidCoreResolution {
@@ -29,6 +30,7 @@ interface VidCoreVM {
   direct: boolean
   decodePlain?: (index: number) => string
   decodeKeyed?: (index: number, key: string) => string
+  sourceEndpoints?: Array<{ prefix: string; action: string }>
   globals: Record<string, unknown>
 }
 
@@ -94,6 +96,23 @@ function universalStub(): unknown {
   return universal
 }
 
+function moduleStub(processShim: Record<string, unknown>): unknown {
+  const fallback = universalStub()
+  const target = function (): void {}
+  return new Proxy(target, {
+    get: (_target, property) => {
+      if (property === 'Buffer') return Buffer
+      if (property in crypto) {
+        return (crypto as unknown as Record<PropertyKey, unknown>)[property]
+      }
+      if (property in processShim) return processShim[property as string]
+      return fallback
+    },
+    apply: () => fallback,
+    construct: () => fallback as object,
+  })
+}
+
 function createBrowserProcessShim(): Record<string, unknown> {
   const noopProcessEvent = (): void => {}
   return {
@@ -134,13 +153,26 @@ function compileRuntime(bundleUrl: string, bundle: string): VidCoreVM {
       bundle.includes('function iV(')
     const directProtocol =
       bundle.includes('function mG(') && bundle.includes('function iA(')
-    if (legacyCurrentProtocol || directProtocol) {
+    const dynamicResolver = bundle.match(
+      /([A-Za-z_$][\w$]*)\(\{crypto:[\s\S]{0,160}?encode:([A-Za-z_$][\w$]*),[\s\S]{0,900}?setServers:/
+    )
+    const dynamicDecryptor = bundle.match(
+      /([A-Za-z_$][\w$]*)\(\{dr:[\s\S]{0,180}?rs:/
+    )
+    if (
+      legacyCurrentProtocol ||
+      directProtocol ||
+      (dynamicResolver && dynamicDecryptor)
+    ) {
       return compileCurrentRuntime(
         bundleUrl,
         bundle,
         currentModule.index,
         currentModule.slice(1, 4),
-        directProtocol
+        directProtocol,
+        dynamicResolver?.[1],
+        dynamicDecryptor?.[1],
+        dynamicResolver?.[2]
       )
     }
   }
@@ -249,7 +281,10 @@ function compileCurrentRuntime(
   bundle: string,
   moduleStart: number,
   parameters: string[],
-  direct: boolean
+  direct: boolean,
+  dynamicResolve?: string,
+  dynamicDecrypt?: string,
+  dynamicEncode?: string
 ): VidCoreVM {
   const bodyStart = bundle.indexOf('=>{', moduleStart) + 3
   const bodyEnd = bundle.lastIndexOf('}}]);')
@@ -259,17 +294,38 @@ function compileCurrentRuntime(
 
   const body = bundle.slice(bodyStart, bodyEnd)
   const [exportsName, , loaderName] = parameters
-  const exposedFunctions = direct
+  const dynamic = Boolean(dynamicResolve && dynamicDecrypt && dynamicEncode)
+  const exposedFunctions = dynamic
     ? `
+      globalThis.__vidcoreSh = ${dynamicResolve};
+      globalThis.__vidcoreDecrypt = ${dynamicDecrypt};
+      globalThis.__vidcoreEncode = ${dynamicEncode};
+    `
+    : direct
+      ? `
       globalThis.__vidcoreSh = my;
       globalThis.__vidcoreDecrypt = mG;
       globalThis.__vidcoreEncode = iA;
     `
-    : `
+      : `
       globalThis.__vidcoreSh = sg;
       globalThis.__vidcoreDecrypt = sA;
       globalThis.__vidcoreEncode = iV;
     `
+  const sourceWindow = bundle.slice(
+    Math.max(moduleStart, bundle.search(/([A-Za-z_$][\w$]*)\(\{dr:/) - 12_000),
+    bundle.search(/([A-Za-z_$][\w$]*)\(\{dr:/)
+  )
+  const sourcePattern =
+    /fetch\(""\[[^\]]+\]\((([A-Za-z_$][\w$]*\(\d+(?:,"[^"]*")?\))),"\/"\)\[[^\]]+\]\((([A-Za-z_$][\w$]*\(\d+(?:,"[^"]*")?\))),"\/"\)\[[^\]]+\]\([A-Za-z_$][\w$]*\[[^\]]+\]\)/g
+  const sourceExpressions = dynamic
+    ? [...sourceWindow.matchAll(sourcePattern)].map(
+        match => `[${match[1]}, ${match[3]}]`
+      )
+    : []
+  const sourceEndpointsExposure = dynamic
+    ? `globalThis.__vidcoreSourceEndpoints = [${sourceExpressions.join(',')}];`
+    : ''
   const decoderExposure = direct
     ? `globalThis.__vidcoreDecodePlain = i7; globalThis.__vidcoreDecodeKeyed = i9;`
     : ''
@@ -278,15 +334,16 @@ function compileCurrentRuntime(
       ${body}
       ${exposedFunctions}
       ${decoderExposure}
+      ${sourceEndpointsExposure}
     })({}, {}, __moduleLoader);
   `
-  const stub = universalStub()
   const processShim = createBrowserProcessShim()
+  const importedModule = moduleStub(processShim)
   const imported = (id: number): unknown => {
     if (id === 5376) return { Buffer }
     if (id === 3018) return crypto
     if (id === 7358) return processShim
-    return stub
+    return importedModule
   }
   const moduleLoader = Object.assign(imported, {
     d: (
@@ -375,6 +432,16 @@ function compileCurrentRuntime(
     direct,
     decodePlain: context.__vidcoreDecodePlain as VidCoreVM['decodePlain'],
     decodeKeyed: context.__vidcoreDecodeKeyed as VidCoreVM['decodeKeyed'],
+    sourceEndpoints: Array.isArray(context.__vidcoreSourceEndpoints)
+      ? (context.__vidcoreSourceEndpoints as unknown[])
+          .filter(
+            (entry): entry is [string, string] =>
+              Array.isArray(entry) &&
+              typeof entry[0] === 'string' &&
+              typeof entry[1] === 'string'
+          )
+          .map(([prefix, action]) => ({ prefix, action }))
+      : undefined,
     globals: realmGlobals,
   }
   compiledRuntimes.set(bundleUrl, runtime)
@@ -567,12 +634,20 @@ export async function resolveVidCoreServers(
       server.data.length > 0
   )
   if (valid.length === 0) throw new Error('VidCore returned no server tokens')
-  if (!sourcePrefix || (!runtime.direct && !csrfToken)) {
+  const sourceEndpoints = runtime.sourceEndpoints ?? []
+  if (!sourcePrefix && sourceEndpoints.length > 0) {
+    sourcePrefix = sourceEndpoints[0].prefix
+    sourceAction = sourceEndpoints[0].action
+  }
+  if (
+    !sourcePrefix ||
+    (!runtime.direct && !csrfToken && sourceEndpoints.length === 0)
+  ) {
     throw new Error('VidCore did not expose its source request metadata')
   }
   return {
     servers: valid,
-    config: { sourcePrefix, sourceAction, csrfToken },
+    config: { sourcePrefix, sourceAction, csrfToken, sourceEndpoints },
   }
 }
 

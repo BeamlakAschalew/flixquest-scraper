@@ -14,6 +14,16 @@ const USER_AGENT =
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const GATEWAY_DISCOVERY_ATTEMPTS = 2
 const WATCH_ROUTES = ['/watch/movie/[id]', '/watch/tv/[id]/[season]/[episode]']
+const SERVER_PRIORITY = [
+  'Lisbon',
+  'Canaias',
+  'Nebula',
+  'Solara',
+  'Castle',
+  'Sakura',
+  'Athens',
+  'Joy',
+] as const
 
 interface CinejoyServer {
   name: string
@@ -64,12 +74,13 @@ interface CinejoyGateway {
 
 const FALLBACK_SERVERS: CinejoyServer[] = [
   { name: 'Lisbon', '4k': true },
+  { name: 'Canaias' },
+  { name: 'Nebula' },
   { name: 'Solara' },
-  { name: 'Athens' },
-  { name: 'Joy' },
   { name: 'Castle' },
   { name: 'Sakura' },
-  { name: 'Canaias' },
+  { name: 'Athens' },
+  { name: 'Joy' },
 ]
 
 const API_HEADERS = {
@@ -246,6 +257,17 @@ function normalizeQuality(value: string): string {
   return value || 'Auto'
 }
 
+function hlsAttribute(line: string, name: string): string | undefined {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = line.match(
+    new RegExp(
+      `(?:^|,)\\s*${escapedName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^,\\r\\n]*))`,
+      'i'
+    )
+  )
+  return (match?.[1] ?? match?.[2] ?? match?.[3])?.trim()
+}
+
 function subtitleLabel(caption: CinejoySubtitle): string {
   const id = caption.id?.trim()
   if (id) {
@@ -357,19 +379,111 @@ function formatResponse(
   return links
 }
 
+async function preserveHlsAudioLinks(
+  server: CinejoyServer,
+  links: ProviderLink[]
+): Promise<ProviderLink[]> {
+  const expanded: ProviderLink[] = []
+
+  for (const link of links) {
+    const isLisbonMaster =
+      /^lisbon$/i.test(server.name) && link.isM3U8 && link.quality === 'Auto'
+    if (isLisbonMaster) {
+      try {
+        const response = await fetch(link.url, {
+          headers: link.headers,
+          redirect: 'follow',
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        })
+        if (response.ok) {
+          const manifest = await response.text()
+          const masterUrl = response.url || link.url
+          const lines = manifest.split(/\r?\n/)
+          const hasAudioRendition = lines.some(line => {
+            const trimmed = line.trim()
+            return (
+              trimmed.startsWith('#EXT-X-MEDIA:') &&
+              hlsAttribute(
+                trimmed.slice(trimmed.indexOf(':') + 1),
+                'TYPE'
+              )?.toLowerCase() === 'audio'
+            )
+          })
+          const variants: Array<{
+            url: string
+            quality: string
+            audioGroup?: string
+          }> = []
+
+          for (let index = 0; index < lines.length; index++) {
+            const line = lines[index].trim()
+            if (!line.startsWith('#EXT-X-STREAM-INF:')) continue
+            const uri = lines
+              .slice(index + 1)
+              .map(candidate => candidate.trim())
+              .find(candidate => candidate && !candidate.startsWith('#'))
+            if (!uri) continue
+            const height = hlsAttribute(
+              line.slice(line.indexOf(':') + 1),
+              'RESOLUTION'
+            )?.match(/^\s*\d+\s*x\s*(\d+)\s*$/i)?.[1]
+            variants.push({
+              url: new URL(uri, masterUrl).href,
+              quality: height ? `${height}p` : 'Auto',
+              audioGroup: hlsAttribute(
+                line.slice(line.indexOf(':') + 1),
+                'AUDIO'
+              ),
+            })
+          }
+
+          const uniqueVariants = Array.from(
+            new Map(variants.map(variant => [variant.url, variant])).values()
+          )
+          if (hasAudioRendition && uniqueVariants.length) {
+            expanded.push(
+              ...uniqueVariants.map(variant => ({
+                ...link,
+                server: `${link.server.replace(/\s*\|\s*Auto$/, '')} | ${variant.quality}`,
+                url: masterUrl,
+                quality: variant.quality,
+                hlsVariant: variant.url,
+                sizeManifestUrl: masterUrl,
+                sizeHlsVariantUrl: variant.url,
+                sizeHlsAudioGroup: variant.audioGroup,
+              }))
+            )
+            continue
+          }
+        }
+      } catch {
+        // Keep the original master link when quality discovery is unavailable.
+      }
+
+      // Do not let generic quality resolution replace Lisbon's master with a
+      // video-only child playlist when manifest inspection is unavailable.
+      expanded.push({ ...link, quality: 'Auto (audio)' })
+      continue
+    }
+    expanded.push(link)
+  }
+
+  return expanded
+}
+
 async function fetchServers(): Promise<CinejoyServer[]> {
   try {
     const servers = (await withTimeout(fetchCinejoyServers())).filter(
       server => server.name && server.status !== 'down'
     )
-    return servers.length ? servers : FALLBACK_SERVERS
+    return servers.length ? orderServers(servers) : FALLBACK_SERVERS
   } catch {
     try {
       const gateway = await loadGateway()
       const servers = (await withTimeout(gateway.d())).filter(
         server => server.name && server.status !== 'down'
       )
-      return servers.length ? servers : FALLBACK_SERVERS
+      return servers.length ? orderServers(servers) : FALLBACK_SERVERS
     } catch {
       try {
         const response = await fetch(`${API_BASE}/servers`, {
@@ -378,8 +492,10 @@ async function fetchServers(): Promise<CinejoyServer[]> {
         })
         if (!response.ok) return FALLBACK_SERVERS
         const data = (await response.json()) as { servers?: CinejoyServer[] }
-        const servers = (data.servers || []).filter(server => server.name)
-        return servers.length ? servers : FALLBACK_SERVERS
+        const servers = (data.servers || []).filter(
+          server => server.name && server.status !== 'down'
+        )
+        return servers.length ? orderServers(servers) : FALLBACK_SERVERS
       } catch {
         return FALLBACK_SERVERS
       }
@@ -401,7 +517,7 @@ async function fetchServer(
         : await withTimeout(
             fetchCinejoyTv(server.name, tmdbId, season!, episode!)
           )
-    return formatResponse(server, response)
+    return preserveHlsAudioLinks(server, formatResponse(server, response))
   } catch (standaloneError) {
     try {
       const gateway = await loadGateway()
@@ -409,7 +525,7 @@ async function fetchServer(
         mediaType === 'movie'
           ? await withTimeout(gateway.n(server.name, tmdbId))
           : await withTimeout(gateway.o(server.name, tmdbId, season!, episode!))
-      return formatResponse(server, response)
+      return preserveHlsAudioLinks(server, formatResponse(server, response))
     } catch (gatewayError) {
       throw gatewayError instanceof Error ? gatewayError : standaloneError
     }
@@ -434,40 +550,25 @@ async function getStreams(
 
   try {
     const servers = await fetchServers()
-    const settled = await Promise.allSettled(
-      servers.map(server =>
-        fetchServer(server, mediaType, tmdbId, season, episode)
-      )
-    )
-    settled.forEach((result, index) => {
-      if (result.status === 'rejected') {
+    for (const server of servers) {
+      try {
+        const links = await fetchServer(
+          server,
+          mediaType,
+          tmdbId,
+          season,
+          episode
+        )
+        if (links.length) return finalizeLinks(links)
+      } catch (error) {
         console.warn(
-          `[Cinejoy] ${servers[index].name} failed: ${
-            result.reason instanceof Error
-              ? result.reason.message
-              : 'Unknown error'
+          `[Cinejoy] ${server.name} failed: ${
+            error instanceof Error ? error.message : 'Unknown error'
           }`
         )
       }
-    })
-    const links = settled.flatMap(result =>
-      result.status === 'fulfilled' ? result.value : []
-    )
-    // Captions are returned by the server that sourced them. Make the full
-    // Cinejoy subtitle catalog available on every equivalent playback link,
-    // including servers whose stream response has no captions of its own.
-    const allSubtitles = mergeSubtitles(...links.map(link => link.subtitles))
-    const uniqueLinks = Array.from(
-      new Map(
-        links.map(link => [
-          link.url,
-          { ...link, subtitles: mergeSubtitles(link.subtitles, allSubtitles) },
-        ])
-      ).values()
-    )
-    return uniqueLinks.sort(
-      (a, b) => qualityScore(b.quality) - qualityScore(a.quality)
-    )
+    }
+    return []
   } catch (error) {
     console.error(
       `[Cinejoy] ${error instanceof Error ? error.message : 'Unknown provider error'}`
@@ -479,6 +580,36 @@ async function getStreams(
 function qualityScore(quality: string): number {
   if (/auto/i.test(quality)) return 4000
   return Number(quality.match(/\d{3,4}/)?.[0] || 0)
+}
+
+function finalizeLinks(links: ProviderLink[]): ProviderLink[] {
+  const allSubtitles = mergeSubtitles(...links.map(link => link.subtitles))
+  const uniqueLinks = Array.from(
+    new Map(
+      links.map(link => [
+        `${link.url}|${link.hlsVariant || ''}`,
+        { ...link, subtitles: mergeSubtitles(link.subtitles, allSubtitles) },
+      ])
+    ).values()
+  )
+  return uniqueLinks.sort(
+    (a, b) => qualityScore(b.quality) - qualityScore(a.quality)
+  )
+}
+
+function orderServers(servers: CinejoyServer[]): CinejoyServer[] {
+  const priority = new Map(
+    SERVER_PRIORITY.map((name, index) => [name.toLowerCase(), index])
+  )
+  return servers
+    .map((server, index) => ({
+      server,
+      index,
+      priority:
+        priority.get(server.name.toLowerCase()) ?? SERVER_PRIORITY.length,
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(({ server }) => server)
 }
 
 export const cinejoyProvider: Provider = {
