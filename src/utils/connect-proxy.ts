@@ -10,6 +10,14 @@ const CONNECT_PROXY_ATTEMPT_TIMEOUT_MS =
   Number(process.env.CONNECT_PROXY_TIMEOUT_MS) || 20_000
 const CONNECT_PROXY_MAX_ATTEMPTS =
   Number(process.env.CONNECT_PROXY_MAX_ATTEMPTS) || 3
+
+// Per-provider override for the per-attempt CONNECT/TLS exchange timeout.
+// Coreflix's resolver makes many token POSTs to vidcore.io that can hang
+// without a response; a shorter attempt timeout stops the scraper from
+// burning the full default on each hung attempt.
+const PROVIDER_ATTEMPT_TIMEOUT_MS: Record<string, number> = {
+  coreflix: 12_000,
+}
 const ACTIVE_POOL_SIZE = Number(process.env.CONNECT_PROXY_POOL_SIZE) || 20
 const POOL_MAX_FAILURES = 3
 const POOL_COOLDOWN_MS = 5 * 60_000
@@ -464,6 +472,14 @@ function buildResponse(raw: RawHttpResponse, finalUrl: string): Response {
   })
   Object.defineProperty(response, 'url', { value: finalUrl })
   return response
+}
+
+export function connectProxyAttemptTimeoutMs(providerId?: string): number {
+  if (providerId) {
+    const override = PROVIDER_ATTEMPT_TIMEOUT_MS[providerId]
+    if (override) return override
+  }
+  return CONNECT_PROXY_ATTEMPT_TIMEOUT_MS
 }
 
 export async function fetchThroughConnectProxy(

@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { lookup } from 'node:dns/promises'
 import type { PooledProxy } from './connect-proxy.js'
 import {
+  connectProxyAttemptTimeoutMs,
   fetchThroughConnectProxy,
   findPooledProxy,
   findPooledProxyById,
@@ -492,7 +493,7 @@ export function setupForwardProxyPatch() {
               targetUrlStr,
               currentProxy,
               requestTemplate,
-              undefined,
+              connectProxyAttemptTimeoutMs(store?.providerId),
               requestTemplate.signal
             )
             const elapsedMs = Date.now() - startedAt
