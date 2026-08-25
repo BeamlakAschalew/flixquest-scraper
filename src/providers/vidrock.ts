@@ -330,7 +330,8 @@ async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   if (!isValidTmdbId(tmdbId)) return []
   if (
@@ -350,10 +351,10 @@ async function getStreams(
     )
     if (!streams || typeof streams !== 'object') return []
 
-    const targetStreams = selectTargetServer(streams)
+    const targetStreams = full ? streams : selectTargetServer(streams)
     if (Object.keys(targetStreams).length === 0) {
       console.error(
-        `[VidRock] ${TARGET_SERVER} server unavailable for ${mediaType} ${tmdbId}`
+        `[VidRock] ${full ? 'No' : TARGET_SERVER} server unavailable for ${mediaType} ${tmdbId}`
       )
       return []
     }
@@ -380,7 +381,8 @@ export const vidRockProvider: Provider = {
   name: 'VidRock',
   id: 'vidrock',
   alias: 'Zagwe',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getStreams(tmdbId, 'tv', season, episode, options?.full),
 }

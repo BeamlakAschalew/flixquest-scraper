@@ -536,7 +536,8 @@ async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   if (!/^\d+$/.test(tmdbId)) return []
   if (
@@ -550,6 +551,7 @@ async function getStreams(
 
   try {
     const servers = await fetchServers()
+    const allLinks: ProviderLink[] = []
     for (const server of servers) {
       try {
         const links = await fetchServer(
@@ -559,7 +561,10 @@ async function getStreams(
           season,
           episode
         )
-        if (links.length) return finalizeLinks(links)
+        if (links.length) {
+          if (!full) return finalizeLinks(links)
+          allLinks.push(...links)
+        }
       } catch (error) {
         console.warn(
           `[Cinejoy] ${server.name} failed: ${
@@ -568,7 +573,7 @@ async function getStreams(
         )
       }
     }
-    return []
+    return finalizeLinks(allLinks)
   } catch (error) {
     console.error(
       `[Cinejoy] ${error instanceof Error ? error.message : 'Unknown provider error'}`
@@ -616,7 +621,8 @@ export const cinejoyProvider: Provider = {
   name: 'Cinejoy',
   id: 'cinejoy',
   alias: 'Shewa',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getStreams(tmdbId, 'tv', season, episode, options?.full),
 }

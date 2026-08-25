@@ -237,6 +237,11 @@ function parsePositiveInteger(value: unknown): number | undefined {
     : undefined
 }
 
+function isTrueQuery(value: unknown): boolean {
+  const normalized = getQueryString(value)?.toLowerCase()
+  return normalized === 'true' || normalized === '1'
+}
+
 function shouldBypassCache(req: Request): boolean {
   const skipQuery =
     getQueryString(req.query.skipCache)?.toLowerCase() ||
@@ -287,9 +292,10 @@ app.get('/', async (_req, res) => {
     version: '2.0.0',
     status: 'running',
     endpoints: {
-      streamMovie: 'GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}',
+      streamMovie:
+        'GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}&full=true',
       streamTV:
-        'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}',
+        'GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}&full=true',
       streamSize: 'POST /api/v2/stream-size',
       providers: 'GET /api/v2/providers',
       providerStatus: 'GET /api/v2/providers/status',
@@ -653,7 +659,7 @@ api.post('/cache/flush', async (_req: Request, res: Response) => {
 api.use('/dlhd', dlhdRouter)
 
 /**
- * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc
+ * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc&full=true
  */
 api.get('/stream-movie', async (req: Request, res: Response) => {
   const provider = resolveProvider(req, res)
@@ -670,6 +676,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
+  const full = isTrueQuery(req.query.full)
   // Some providers issue short-lived, IP-bound or session-bound tokens.
   // Caching complete responses would outlive those tokens and turn cache
   // hits into dead links. .
@@ -679,6 +686,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     providerId: provider.id,
     mediaType: 'movie',
     tmdbId,
+    full,
     fProxyEnabled: fProxyContext?.fProxyEnabled,
     proxyUrl: fProxyContext?.proxyUrl,
   })
@@ -707,7 +715,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear})`
     )
 
-    const candidates = await provider.streamMovie(tmdbId)
+    const candidates = await provider.streamMovie(tmdbId, { full })
     if (candidates.length === 0) {
       const error: ErrorResponse = {
         success: false,
@@ -780,7 +788,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
 })
 
 /**
- * GET /api/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc
+ * GET /api/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc&full=true
  */
 api.get('/stream-tv', async (req: Request, res: Response) => {
   const provider = resolveProvider(req, res)
@@ -809,6 +817,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
   }
 
   const bypass = shouldBypassCache(req)
+  const full = isTrueQuery(req.query.full)
   const useProviderCache = !bypass && !UNCACHEABLE_PROVIDER_IDS.has(provider.id)
   const fProxyContext = forwardProxyStorage.getStore()
   const cacheKey = buildProviderCacheKey({
@@ -817,6 +826,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
     tmdbId,
     season,
     episode,
+    full,
     fProxyEnabled: fProxyContext?.fProxyEnabled,
     proxyUrl: fProxyContext?.proxyUrl,
   })
@@ -845,7 +855,9 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       `📺 [${provider.name}] Scraping streams for: ${media.title} (${media.releaseYear}) - S${season}E${episode}`
     )
 
-    const candidates = await provider.streamTV(tmdbId, season, episode)
+    const candidates = await provider.streamTV(tmdbId, season, episode, {
+      full,
+    })
     if (candidates.length === 0) {
       const error: ErrorResponse = {
         success: false,
@@ -925,9 +937,11 @@ const server = app.listen(port, () => {
   console.log(`🚀 FlixQuest Scraper API running at http://localhost:${port}`)
   if (process.env.NODE_ENV !== 'production') {
     console.log('📖 API v2:')
-    console.log('   GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}')
     console.log(
-      '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}'
+      '   GET /api/v2/stream-movie?tmdbId={id}&provider={providerId}&full=true'
+    )
+    console.log(
+      '   GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider={providerId}&full=true'
     )
     console.log('   POST /api/v2/stream-size')
     console.log('   GET /api/v2/providers')

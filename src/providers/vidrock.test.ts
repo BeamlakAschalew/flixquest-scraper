@@ -72,3 +72,39 @@ test('VidRock returns no links when Orion is unavailable', async () => {
     globalThis.fetch = originalFetch
   }
 })
+
+test('VidRock full mode processes every server in the returned map', async () => {
+  const originalFetch = globalThis.fetch
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString())
+    if (url.pathname === '/api/movie/550') {
+      return Response.json({
+        Luna: {
+          url: encodeURIComponent('https://luna.example/master.m3u8'),
+          type: 'hls',
+        },
+        Orion: {
+          url: encodeURIComponent('https://orion.example/master.m3u8'),
+          type: 'hls',
+        },
+        Astra: {
+          url: encodeURIComponent('https://astra.example/video.mp4'),
+          type: 'mp4',
+        },
+      })
+    }
+    if (url.pathname === '/v2/movie/550') return Response.json([])
+    return new Response('Not found', { status: 404 })
+  }) as typeof fetch
+
+  try {
+    const links = await vidRockProvider.streamMovie('550', { full: true })
+    assert.deepEqual(
+      links.map(link => link.server),
+      ['vidrock-Luna', 'vidrock-Orion', 'vidrock-Astra']
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

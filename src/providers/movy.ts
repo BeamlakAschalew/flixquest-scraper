@@ -276,7 +276,8 @@ async function getMovyStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season = 1,
-  episode = 1
+  episode = 1,
+  full = false
 ): Promise<ProviderLink[]> {
   if (!/^\d+$/.test(tmdbId)) return []
   if (
@@ -295,6 +296,7 @@ async function getMovyStreams(
       fetchSeed(tmdbId),
     ])
     let seed = initialSeed
+    const allLinks: ProviderLink[] = []
 
     for (const [index, server] of MOVY_SERVERS.entries()) {
       try {
@@ -322,7 +324,11 @@ async function getMovyStreams(
             seed
           )
         }
-        if (links.length > 0) return links
+        if (links.length > 0) {
+          if (!full) return links
+          allLinks.push(...links)
+          continue
+        }
 
         console.warn(
           `[Movy] ${server.name} returned no usable streams${index < MOVY_SERVERS.length - 1 ? '; trying next server' : ''}`
@@ -334,7 +340,11 @@ async function getMovyStreams(
       }
     }
 
-    return []
+    return Array.from(
+      new Map(
+        allLinks.map(link => [`${link.server}|${link.url}`, link] as const)
+      ).values()
+    )
   } catch (error) {
     console.error(
       `[Movy] ${error instanceof Error ? error.message : 'Provider failed'}`
@@ -347,7 +357,8 @@ export const movyProvider: Provider = {
   name: 'Movy (Miami)',
   id: 'movy',
   alias: 'Zeila',
-  streamMovie: tmdbId => getMovyStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getMovyStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getMovyStreams(tmdbId, 'movie', 1, 1, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getMovyStreams(tmdbId, 'tv', season, episode, options?.full),
 }

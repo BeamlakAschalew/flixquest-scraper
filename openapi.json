@@ -281,6 +281,16 @@
             }
           },
           {
+            "name": "full",
+            "in": "query",
+            "required": false,
+            "description": "Set to 'true' or '1' to exhaust every available server from this provider. Defaults to the first available server path.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "proxy",
             "in": "query",
             "required": false,
@@ -395,6 +405,16 @@
             "description": "The provider identifier to scrape streams from (e.g. 'vixsrc').",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "full",
+            "in": "query",
+            "required": false,
+            "description": "Set to 'true' or '1' to exhaust every available server from this provider. Defaults to the first available server path.",
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {

@@ -174,8 +174,9 @@ export function withStreamValidation(provider: Provider): Provider {
 
   return {
     ...provider,
-    streamMovie: async tmdbId => validated(await provider.streamMovie(tmdbId)),
-    streamTV: async (tmdbId, season, episode) =>
-      validated(await provider.streamTV(tmdbId, season, episode)),
+    streamMovie: async (tmdbId, options) =>
+      validated(await provider.streamMovie(tmdbId, options)),
+    streamTV: async (tmdbId, season, episode, options) =>
+      validated(await provider.streamTV(tmdbId, season, episode, options)),
   }
 }

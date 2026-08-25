@@ -129,3 +129,21 @@ export function decodeSeedPayload<T>(
   }
   return payload as T
 }
+
+export function encodeSeedPayload(
+  payload: unknown,
+  seed: string,
+  mediaId: number
+): string {
+  const json = new TextEncoder().encode(JSON.stringify(payload))
+  const plain = new Uint8Array(PAYLOAD_MAGIC.length + json.length)
+  plain.set(PAYLOAD_MAGIC)
+  plain.set(json, PAYLOAD_MAGIC.length)
+  const keystream = createKeystream(seed, mediaId, plain.length)
+
+  for (let index = 0; index < plain.length; index++) {
+    plain[index] ^= keystream[index]
+  }
+
+  return Buffer.from(plain).toString('base64url')
+}

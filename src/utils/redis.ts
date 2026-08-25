@@ -287,6 +287,7 @@ export interface CacheKeyOptions {
   tmdbId: string
   season?: number
   episode?: number
+  full?: boolean
   fProxyEnabled?: boolean
   proxyUrl?: string
 }
@@ -301,6 +302,7 @@ export function buildProviderCacheKey(options: CacheKeyOptions): string {
     tmdbId,
     season,
     episode,
+    full,
     fProxyEnabled,
     proxyUrl,
   } = options
@@ -310,6 +312,7 @@ export function buildProviderCacheKey(options: CacheKeyOptions): string {
   if (mediaType === 'tv') {
     key += `:s${season || 0}:e${episode || 0}`
   }
+  if (full) key += ':full=true'
 
   if (fProxyEnabled) {
     key += `:fProxy=true`

@@ -60,3 +60,113 @@ test('StreamFlix uses the current config and exact TMDB catalog match', async ()
     globalThis.fetch = originalFetch
   }
 })
+
+test('StreamFlix TV full mode includes every fallback host', async () => {
+  const moduleUrl = './streamflix.js?full-tv-hosts'
+  const { streamFlixProvider } = (await import(
+    moduleUrl
+  )) as typeof import('./streamflix.js')
+  const originalFetch = globalThis.fetch
+  const originalWebSocket = globalThis.WebSocket
+
+  globalThis.WebSocket = undefined as unknown as typeof WebSocket
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    if (url === 'https://api.streamflix.app/data.json') {
+      return Response.json({
+        data: [
+          {
+            isTV: true,
+            moviekey: 'the-office',
+            moviename: 'The Office',
+            tmdb: '2316',
+          },
+        ],
+      })
+    }
+    if (url === 'https://api.streamflix.app/config/config-streamflix2.json') {
+      return Response.json({
+        download: ['https://s8.streamflixserver.site/'],
+        tv: ['https://s7.streamflixserver.site/'],
+        premium: ['https://legacy.streamflix.example/'],
+      })
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  }) as typeof fetch
+
+  try {
+    const defaultLinks = await streamFlixProvider.streamTV('2316', 1, 1)
+    const fullLinks = await streamFlixProvider.streamTV('2316', 1, 1, {
+      full: true,
+    })
+    assert.deepEqual(
+      defaultLinks.map(link => new URL(link.url).hostname),
+      ['s8.streamflixserver.site']
+    )
+    assert.deepEqual(
+      fullLinks.map(link => new URL(link.url).hostname),
+      [
+        's8.streamflixserver.site',
+        's7.streamflixserver.site',
+        'legacy.streamflix.example',
+      ]
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+    globalThis.WebSocket = originalWebSocket
+  }
+})
+
+test('StreamFlix full mode includes every configured host', async () => {
+  const moduleUrl = './streamflix.js?full-hosts'
+  const { streamFlixProvider } = (await import(
+    moduleUrl
+  )) as typeof import('./streamflix.js')
+  const originalFetch = globalThis.fetch
+
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    if (url === 'https://api.streamflix.app/data.json') {
+      return Response.json({
+        data: [
+          {
+            isTV: false,
+            movielink: 'movies/fight-club.mkv',
+            moviename: 'Fight Club',
+            tmdb: '550',
+          },
+        ],
+      })
+    }
+    if (url === 'https://api.streamflix.app/config/config-streamflix2.json') {
+      return Response.json({
+        premium: ['https://s8.streamflixserver.site/'],
+        movies: ['https://s7.streamflixserver.site/'],
+        download: ['https://legacy.streamflix.example/'],
+      })
+    }
+    throw new Error(`Unexpected request: ${url}`)
+  }) as typeof fetch
+
+  try {
+    const defaultLinks = await streamFlixProvider.streamMovie('550')
+    const fullLinks = await streamFlixProvider.streamMovie('550', {
+      full: true,
+    })
+
+    assert.deepEqual(
+      defaultLinks.map(link => new URL(link.url).hostname),
+      ['s8.streamflixserver.site']
+    )
+    assert.deepEqual(
+      fullLinks.map(link => new URL(link.url).hostname),
+      [
+        's8.streamflixserver.site',
+        's7.streamflixserver.site',
+        'legacy.streamflix.example',
+      ]
+    )
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

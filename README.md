@@ -195,6 +195,8 @@ Get streaming links for a movie using TMDB ID from a specific provider.
 **Query Parameters:**
 
 - `tmdbId` (string, required): The TMDB ID of the movie
+- `provider` (string, required): Provider ID returned by `GET /v2/providers`
+- `full` (boolean, optional): Set `true` to exhaust every available server from the selected provider. Defaults to the first available server path.
 - `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly.
 - `noProxy` (boolean, optional): Set `true` (or `proxy=false`) to bypass both the API stream proxy (`requiresProxy`) and provider-level inner proxies, returning raw unproxied upstream URLs directly.
 
@@ -202,6 +204,7 @@ Get streaming links for a movie using TMDB ID from a specific provider.
 
 ```bash
 curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc"
+curl "http://localhost:3000/v2/stream-movie?tmdbId=556574&provider=vixsrc&full=true"
 ```
 
 **Response:**
@@ -292,12 +295,14 @@ Get streaming links for a TV show episode using TMDB ID, season, and episode num
 - `season` (number, required): Season number
 - `episode` (number, required): Episode number
 - `provider` (string, required): Provider ID returned by `GET /v2/providers`
+- `full` (boolean, optional): Set `true` to exhaust every available server from the selected provider. Defaults to the first available server path.
 - `proxy` (boolean, optional): Defaults to `true`; set `false` to receive validated upstream URLs directly. Anti-hotlink-protected streams remain proxied so browser playback does not fail with 403.
 
 **Example:**
 
 ```bash
 curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc"
+curl "http://localhost:3000/v2/stream-tv?tmdbId=2316&season=1&episode=1&provider=vixsrc&full=true"
 ```
 
 **Response:**

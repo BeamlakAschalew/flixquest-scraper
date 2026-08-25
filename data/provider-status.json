@@ -1,7 +1,7 @@
 {
   "success": true,
-  "startedAt": "2026-08-25T08:53:36.713Z",
-  "updatedAt": "2026-08-25T08:53:51.208Z",
+  "startedAt": "2026-08-25T11:13:03.246Z",
+  "updatedAt": "2026-08-25T11:13:16.176Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
@@ -14,37 +14,37 @@
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 3392
+      "requestTimeMs": 2640
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 1969
+      "requestTimeMs": 3236
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 3682
+      "requestTimeMs": 3151
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 14469
+      "requestTimeMs": 12917
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 3455
+      "requestTimeMs": 2941
     },
     {
       "id": "vidrock",
       "alias": "Zagwe",
       "status": "online",
-      "requestTimeMs": 2619
+      "requestTimeMs": 2558
     }
   ]
 }

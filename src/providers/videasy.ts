@@ -451,7 +451,8 @@ async function getVidEasyStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   try {
     const [details, seed] = await Promise.all([
@@ -465,6 +466,7 @@ async function getVidEasyStreams(
       return []
     }
 
+    const allLinks: ProviderLink[] = []
     for (const [name, path] of Object.entries(SERVERS)) {
       const links = await fetchServer(
         name,
@@ -485,12 +487,20 @@ async function getVidEasyStreams(
       const unique = Array.from(
         new Map(links.map(link => [link.url, link])).values()
       )
-      return unique.sort(
+      const sorted = unique.sort(
         (left, right) =>
           qualityScore(right.quality) - qualityScore(left.quality)
       )
+      if (!full) return sorted
+      allLinks.push(...sorted)
     }
-    return []
+    return Array.from(
+      new Map(
+        allLinks.map(link => [`${link.server}|${link.url}`, link] as const)
+      ).values()
+    ).sort(
+      (left, right) => qualityScore(right.quality) - qualityScore(left.quality)
+    )
   } catch (error) {
     console.error(
       `[VidEasy] Request failed for TMDB ${tmdbId}: ${formatRequestError(error)}`
@@ -503,10 +513,12 @@ export const vidEasyProvider: Provider = {
   name: 'VidEasy',
   id: 'videasy',
   alias: 'Abyssinia',
-  streamMovie: tmdbId =>
-    withForcedForwardProxy(() => getVidEasyStreams(tmdbId, 'movie')),
-  streamTV: (tmdbId, season, episode) =>
+  streamMovie: (tmdbId, options) =>
     withForcedForwardProxy(() =>
-      getVidEasyStreams(tmdbId, 'tv', season, episode)
+      getVidEasyStreams(tmdbId, 'movie', undefined, undefined, options?.full)
+    ),
+  streamTV: (tmdbId, season, episode, options) =>
+    withForcedForwardProxy(() =>
+      getVidEasyStreams(tmdbId, 'tv', season, episode, options?.full)
     ),
 }

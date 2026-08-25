@@ -656,7 +656,8 @@ async function getShowBoxStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   console.log(
     `[ShowBox] Getting streams for TMDB ${mediaType}/${tmdbId}${
@@ -680,6 +681,7 @@ async function getShowBoxStreams(
     const prioritizedFiles = files
       .map((file, index) => ({ file, index }))
       .reverse()
+    const allStreams: ProviderLink[] = []
     console.log(`[ShowBox] Resolving ${prioritizedFiles.length} FebBox file(s)`)
     for (const { file, index } of prioritizedFiles) {
       try {
@@ -699,8 +701,11 @@ async function getShowBoxStreams(
             parseQualityFromLabel(left.quality).priority
           )
         })
-        console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
-        return unique
+        if (!full) {
+          console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
+          return unique
+        }
+        allStreams.push(...unique)
       } catch (error) {
         console.warn(
           `[ShowBox] Could not resolve "${file.file_name}": ${
@@ -709,7 +714,21 @@ async function getShowBoxStreams(
         )
       }
     }
-    return []
+    const unique = Array.from(
+      new Map(
+        allStreams.map(stream => [
+          `${stream.server}|${stream.url}|${stream.quality}`,
+          stream,
+        ])
+      ).values()
+    )
+    unique.sort(
+      (left, right) =>
+        parseQualityFromLabel(right.quality).priority -
+        parseQualityFromLabel(left.quality).priority
+    )
+    console.log(`[ShowBox] Returning ${unique.length} sorted stream(s)`)
+    return unique
   } catch (error) {
     console.error(
       `[ShowBox] ${error instanceof Error ? error.message : 'Unknown provider error'}`
@@ -742,7 +761,8 @@ export const showboxProvider: Provider = {
   name: 'ShowBox',
   id: 'showbox',
   alias: 'Adwa',
-  streamMovie: tmdbId => getShowBoxStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getShowBoxStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getShowBoxStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getShowBoxStreams(tmdbId, 'tv', season, episode, options?.full),
 }

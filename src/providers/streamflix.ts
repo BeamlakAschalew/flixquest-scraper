@@ -248,7 +248,8 @@ function firstPreferredHostEntries<T extends readonly [string, ...unknown[]]>(
 
 function movieLinks(
   item: StreamFlixItem,
-  config: StreamFlixConfig
+  config: StreamFlixConfig,
+  full: boolean
 ): ProviderLink[] {
   if (!item.movielink) return []
 
@@ -262,7 +263,10 @@ function movieLinks(
     ),
     ...(config.tv || []).map(base => [base, '720p', 'Fallback CDN'] as const),
   ]
-  const uniqueBases = firstPreferredHostEntries(bases).filter(
+  const selectedBases = full
+    ? orderHostEntries(bases)
+    : firstPreferredHostEntries(bases)
+  const uniqueBases = selectedBases.filter(
     (entry, index) =>
       bases.findIndex(candidate => candidate[0] === entry[0]) === index
   )
@@ -361,32 +365,38 @@ function fallbackTvLink(
   item: StreamFlixItem,
   config: StreamFlixConfig,
   season: number,
-  episode: number
+  episode: number,
+  full: boolean
 ): ProviderLink[] {
   const baseEntries = [
     ...(config.download || []),
     ...(config.tv || []),
     ...(config.premium || []),
   ].map(base => [base] as const)
-  const baseUrl = firstPreferredHostEntries(baseEntries)[0]?.[0]
-  if (!baseUrl || !item.moviekey) return []
-
-  const link = createLink(
-    joinStreamUrl(
-      baseUrl,
-      `tv/${item.moviekey}/s${season}/episode${episode}.mkv`
-    ),
-    '720p',
-    `S${season}E${episode} Fallback`
-  )
-  return link ? [link] : []
+  if (!item.moviekey) return []
+  const selectedBases = full
+    ? orderHostEntries(baseEntries)
+    : firstPreferredHostEntries(baseEntries).slice(0, 1)
+  return selectedBases
+    .map(([baseUrl]) =>
+      createLink(
+        joinStreamUrl(
+          baseUrl,
+          `tv/${item.moviekey}/s${season}/episode${episode}.mkv`
+        ),
+        '720p',
+        `S${season}E${episode} Fallback`
+      )
+    )
+    .filter((link): link is ProviderLink => link !== null)
 }
 
 async function tvLinks(
   item: StreamFlixItem,
   config: StreamFlixConfig,
   season: number,
-  episode: number
+  episode: number,
+  full: boolean
 ): Promise<ProviderLink[]> {
   if (!item.moviekey) return []
 
@@ -396,17 +406,20 @@ async function tvLinks(
       episode
     )
     if (!episodeData?.link) {
-      return fallbackTvLink(item, config, season, episode)
+      return fallbackTvLink(item, config, season, episode, full)
     }
 
-    const bases = firstPreferredHostEntries(
-      Array.from(
-        new Set([
-          ...(config.download || []),
-          ...(config.tv || []),
-          ...(config.premium || []),
-        ])
-      ).map(base => [base] as const)
+    const baseEntries = Array.from(
+      new Set([
+        ...(config.download || []),
+        ...(config.tv || []),
+        ...(config.premium || []),
+      ])
+    ).map(base => [base] as const)
+    const bases = (
+      full
+        ? orderHostEntries(baseEntries)
+        : firstPreferredHostEntries(baseEntries)
     ).map(([base]) => base)
     return bases
       .map(base =>
@@ -421,7 +434,7 @@ async function tvLinks(
     console.warn(
       `[StreamFlix] Episode lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
-    return fallbackTvLink(item, config, season, episode)
+    return fallbackTvLink(item, config, season, episode, full)
   }
 }
 
@@ -429,7 +442,8 @@ async function getStreamFlixStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   try {
     const [data, config] = await Promise.all([getData(), getConfig()])
@@ -457,8 +471,8 @@ async function getStreamFlixStreams(
 
     const links =
       mediaType === 'movie'
-        ? movieLinks(item, config)
-        : await tvLinks(item, config, season || 1, episode || 1)
+        ? movieLinks(item, config, full)
+        : await tvLinks(item, config, season || 1, episode || 1, full)
 
     return Array.from(new Map(links.map(link => [link.url, link])).values())
   } catch (error) {
@@ -473,7 +487,8 @@ export const streamFlixProvider: Provider = {
   name: 'StreamFlix',
   id: 'streamflix',
   alias: 'Harar',
-  streamMovie: tmdbId => getStreamFlixStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getStreamFlixStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getStreamFlixStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getStreamFlixStreams(tmdbId, 'tv', season, episode, options?.full),
 }

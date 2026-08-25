@@ -197,3 +197,60 @@ test('uses the advertised server order and stops after the first stream', async 
     globalThis.fetch = originalFetch
   }
 })
+
+test('full mode exhausts every advertised Cinejoy server', async () => {
+  const moduleUrl = './cinejoy.js?full-server-order'
+  const { cinejoyProvider } = (await import(
+    moduleUrl
+  )) as typeof import('./cinejoy.js')
+  const originalFetch = globalThis.fetch
+  const attemptedServers: string[] = []
+
+  globalThis.fetch = async input => {
+    const url = String(input)
+    if (url === 'https://api.shegu.st/servers') {
+      return Response.json({
+        servers: [
+          { name: 'Joy' },
+          { name: 'Canaias' },
+          { name: 'Lisbon' },
+          { name: 'Nebula' },
+        ],
+      })
+    }
+    if (url === 'https://api.shegu.st/crush.wasm') {
+      return new Response('Not found', { status: 404 })
+    }
+    if (url.startsWith('https://cinejoy.to/watch/movie/1081003')) {
+      return new Response(
+        '<link rel="modulepreload" href="/_app/immutable/entry/app.full.js">'
+      )
+    }
+    if (url === 'https://cinejoy.to/_app/immutable/entry/app.full.js') {
+      return new Response(
+        'const m=["../nodes/10.full.js"];const r={"/watch/movie/[id]":[10]};'
+      )
+    }
+    if (url === 'https://cinejoy.to/_app/immutable/nodes/10.full.js') {
+      return new Response('import{s as y}from"../chunks/gateway-full.js";')
+    }
+    if (url === 'https://cinejoy.to/_app/immutable/chunks/gateway-full.js') {
+      return new Response(
+        'import{a as Store}from"./settings.js";const servers=async()=>[];const movie=async server=>{await fetch("https://trace/"+server);return {stream:[{type:"file",url:"https://cdn.example/"+server+".mp4",id:"1080p"}]}};const tv=async()=>({stream:[]});export{servers as d,movie as n,tv as o};'
+      )
+    }
+    if (url.startsWith('https://trace/')) {
+      attemptedServers.push(url.slice('https://trace/'.length))
+      return new Response('ok')
+    }
+    return new Response('Not found', { status: 404 })
+  }
+
+  try {
+    const links = await cinejoyProvider.streamMovie('1081003', { full: true })
+    assert.deepEqual(attemptedServers, ['Lisbon', 'Canaias', 'Nebula', 'Joy'])
+    assert.equal(links.length, 4)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})

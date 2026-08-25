@@ -1,12 +1,14 @@
 /* eslint-disable no-unused-vars */
 export interface StreamMovieRequest {
   tmdbId: string
+  full?: boolean
 }
 
 export interface StreamTVRequest {
   tmdbId: string
   season: number
   episode: number
+  full?: boolean
 }
 
 // Uniform subtitle/caption interface
@@ -91,16 +93,24 @@ export interface ErrorResponse {
   details?: string
 }
 
+export interface ProviderStreamOptions {
+  full?: boolean
+}
+
 // Provider interface for modular providers
 export interface Provider {
   name: string
   alias?: string
   content?: string
   id: string
-  streamMovie: (tmdbId: string) => Promise<ProviderLink[]>
+  streamMovie: (
+    tmdbId: string,
+    options?: ProviderStreamOptions
+  ) => Promise<ProviderLink[]>
   streamTV: (
     tmdbId: string,
     season: number,
-    episode: number
+    episode: number,
+    options?: ProviderStreamOptions
   ) => Promise<ProviderLink[]>
 }
