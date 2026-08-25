@@ -5,9 +5,11 @@
  * 1. GET {base}/api/{movie|tv}/{tmdbId}[/{season}/{episode}] with the raw
  *    TMDB ID (no item-ID encryption on the request path anymore).
  * 2. The response is a server map: { serverName: { url, type, language, flag } }.
- *    Each non-null `url` is a base64url AES-GCM ciphertext (12-byte IV prefix).
- *    The key is the hex string below, shipped inside the public frontend
- *    bundle. Decrypt locally with Node WebCrypto.
+ *    VidRock does not expose a per-server endpoint, so select Orion from that
+ *    map before doing any URL decryption or secondary playlist requests. Each
+ *    non-null `url` is a base64url AES-GCM ciphertext (12-byte IV prefix). The
+ *    key is the hex string below, shipped inside the public frontend bundle.
+ *    Decrypt locally with Node WebCrypto.
  * 3. Some entries point to secondary JSON playlists (legacy hls2.vdrk.site,
  *    cdn.vidrock.store/playlist/... or proxy.vidrock.store/...). Those return
  *    [{ resolution, url }] and are expanded into per-quality links.
@@ -21,6 +23,7 @@ import { DEFAULT_REQUEST_TIMEOUT_MS } from '../utils/config.js'
 
 const BASE_URL = 'https://vidrock.ru'
 const SUB_BASE_URL = 'https://sub.vdrk.site'
+const TARGET_SERVER = 'Orion'
 const REQUEST_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
@@ -315,6 +318,14 @@ function deduplicateLinks(links: ProviderLink[]): ProviderLink[] {
   )
 }
 
+function selectTargetServer(streams: VidRockStreams): VidRockStreams {
+  const target = TARGET_SERVER.toLowerCase()
+  const entry = Object.entries(streams).find(
+    ([serverName]) => serverName.trim().toLowerCase() === target
+  )
+  return entry ? { [entry[0]]: entry[1] } : {}
+}
+
 async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
@@ -339,7 +350,15 @@ async function getStreams(
     )
     if (!streams || typeof streams !== 'object') return []
 
-    const links = await buildStreamLinks(streams)
+    const targetStreams = selectTargetServer(streams)
+    if (Object.keys(targetStreams).length === 0) {
+      console.error(
+        `[VidRock] ${TARGET_SERVER} server unavailable for ${mediaType} ${tmdbId}`
+      )
+      return []
+    }
+
+    const links = await buildStreamLinks(targetStreams)
     const subtitles = await fetchSubtitles(tmdbId, mediaType, season, episode)
     for (const link of links) {
       link.subtitles = subtitles
