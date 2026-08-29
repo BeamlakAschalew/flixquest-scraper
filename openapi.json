@@ -29,6 +29,10 @@
       "description": "Live channel, HLS extraction, and categorized EPG operations for DLHD."
     },
     {
+      "name": "Subtitles",
+      "description": "Passthrough for fallback subtitle tracks referenced by stream responses."
+    },
+    {
       "name": "Proxy",
       "description": "Stream proxy pass-through endpoint for video playback."
     }
@@ -528,6 +532,71 @@
           },
           "502": {
             "description": "The upstream stream objects could not be inspected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/subtitles/{provider}/{id}": {
+      "get": {
+        "summary": "Get a Fallback Subtitle File",
+        "description": "Serves one fallback subtitle track, converted to WebVTT (or SubRip) with aggregator advertisement cues removed. URLs for this endpoint are returned in `links[].subtitles[].file` when a scraping provider supplies no subtitles of its own; clients should not construct them by hand. Responses allow any origin and are cacheable for 24 hours.",
+        "operationId": "getSubtitleFile",
+        "tags": ["Subtitles"],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "description": "Fallback subtitle provider that owns the id.",
+            "schema": { "type": "string", "enum": ["natsuki"] }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Provider-specific subtitle id with a `.vtt` or `.srt` extension.",
+            "schema": { "type": "string", "example": "3480430.vtt" }
+          },
+          {
+            "name": "l",
+            "in": "query",
+            "required": false,
+            "description": "ISO 639 language hint used to decode non-UTF-8 uploads.",
+            "schema": { "type": "string", "example": "en" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subtitle document.",
+            "content": {
+              "text/vtt": {
+                "schema": { "type": "string" },
+                "example": "WEBVTT\n\n1\n00:01:39.892 --> 00:01:41.852\nStop. Stop.\n"
+              },
+              "application/x-subrip": {
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed subtitle path.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The upstream subtitle host failed or returned an unusable file.",
             "content": {
               "application/json": {
                 "schema": {

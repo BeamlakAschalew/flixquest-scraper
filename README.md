@@ -445,6 +445,48 @@ Clear all cached provider stream responses.
 }
 ```
 
+### 10. Subtitle File
+
+Serves one fallback subtitle track. Clients never build these URLs themselves —
+they arrive ready to use in `links[].subtitles[].file` whenever a provider
+returned no subtitles of its own.
+
+**Endpoint:** `GET /api/v2/subtitles/{provider}/{id}.{vtt|srt}`
+
+**Example:** `GET /api/v2/subtitles/natsuki/3480430.vtt?l=en`
+
+| Parameter  | Description                                                          |
+| ---------- | -------------------------------------------------------------------- |
+| `provider` | Fallback subtitle provider that owns the id (currently `natsuki`)     |
+| `id`       | Provider-specific subtitle id                                        |
+| `l`        | Optional ISO 639 hint used to decode non-UTF-8 uploads               |
+
+Responds with `text/vtt` (or `application/x-subrip` for `.srt`), open CORS, and
+a 24-hour cache. Aggregator advertisement cues are stripped, negative timings
+are clamped, and cues are renumbered. Upstream failures return `502`.
+
+This passthrough exists because subtitle hosts gate downloads on their own
+`Origin` allowlist and serve SubRip as `application/octet-stream`, so their URLs
+cannot be handed to players directly.
+
+## 🔤 Fallback Subtitles
+
+When a scraping provider returns links without subtitles, the API fills the gap
+from an external subtitle provider. Providers are tried in order and the first
+one with results wins.
+
+| Provider  | Source                                      | Requirements               |
+| --------- | ------------------------------------------- | -------------------------- |
+| `natsuki` | `natsuki.maybeoneday.ch` (OpenSubtitles data) | None                       |
+| `wyzie`   | `sub.wyzie.io`                              | `WYZIE_SUBS_API_KEY`       |
+
+Results are deduplicated per language and ranked best-first: human translations
+before machine ones, plain subtitles before SDH, then by how closely the
+subtitle's release name matches the matched file, then by recency. Labels carry
+`(SDH)`, `(MT)` and `#n` markers so clients can tell alternatives apart, and
+`kind` is `captions` for hearing-impaired tracks and `subtitles` otherwise — the
+same response shape as before.
+
 ## ⚡ Redis Caching Layer
 
 FlixQuest Scraper includes a fault-tolerant Redis caching layer that caches the full responses of provider scraping calls. This dramatically speeds up repeated streaming requests (from several seconds to < 10ms).
@@ -494,7 +536,11 @@ flixquest-scraper/
 │   │   ├── streamflix.ts     # StreamFlix provider implementation
 │   │   ├── videasy.ts        # VidEasy provider implementation
 │   │   └── notorrent.ts      # NoTorrent provider implementation
+│   ├── routes/
+│   │   ├── dlhd.ts           # DLHD live channel routes
+│   │   └── subtitles.ts      # Fallback subtitle passthrough route
 │   └── utils/
+│       ├── subtitles/        # Fallback subtitle providers and SRT/VTT tooling
 │       └── tmdb.ts           # TMDB API helper functions
 ├── dist/                     # Compiled JavaScript output (gitignored)
 ├── .env                      # Environment variables (not in git)
@@ -662,6 +708,11 @@ Create a `.env` file in the root directory (see `.env.example` for reference):
 | `TMDB_API_KEY`        | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -                         |
 | `INTRO_VIDEO_URL`     | Absolute HTTP(S) URL for the branded pre-stream intro                  | No       | -                         |
 | `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                         | No       | Enabled when a URL is set |
+| `SUBTITLE_PROVIDERS`  | Priority order of the fallback subtitle providers                      | No       | `natsuki,wyzie`           |
+| `SUBTITLE_OUTPUT_FORMAT` | Format served for fallback subtitles (`vtt` or `srt`)               | No       | `vtt`                     |
+| `SUBTITLE_MAX_PER_LANGUAGE` | Alternative subtitles kept per language                          | No       | `5`                       |
+| `WYZIE_SUBS_API_KEY`  | API key for the `wyzie` subtitle provider                              | No       | -                         |
+| `PUBLIC_BASE_URL`     | Public origin used to build absolute subtitle URLs                     | No       | Derived from the request  |
 | `PORT`                | Server port                                                            | No       | `3000`                    |
 | `NODE_ENV`            | Environment mode (`production` or `development`)                       | No       | -                         |
 

@@ -27,7 +27,11 @@ import {
   forwardProxyStorage,
   setupForwardProxyPatch,
 } from './utils/forward-proxy.js'
-import { fetchWyzieSubtitles } from './utils/wyzie-subs.js'
+import {
+  SUBTITLE_ROUTE_BASE,
+  fetchFallbackSubtitles,
+  withAbsoluteSubtitleUrls,
+} from './utils/subtitles/index.js'
 import {
   buildProviderCacheKey,
   flushProviderCache,
@@ -38,6 +42,7 @@ import {
   setProviderStatus,
 } from './utils/redis.js'
 import { dlhdRouter } from './routes/dlhd.js'
+import { subtitlesRouter } from './routes/subtitles.js'
 import { resolveIntroConfig } from './utils/intro-config.js'
 import {
   providerStatusFile,
@@ -203,6 +208,34 @@ function withFreshSizeTokens(response: ProviderResponse): ProviderResponse {
   }
 }
 
+/**
+ * Public API base URL (e.g. `https://host/api/v2`) used to materialize
+ * router-relative subtitle paths. Set `PUBLIC_BASE_URL` when the API sits
+ * behind a proxy that does not forward `Host`/`X-Forwarded-Proto`.
+ */
+function apiBaseUrl(req: Request): string {
+  const configured = (process.env.PUBLIC_BASE_URL || '').trim()
+  const origin = configured
+    ? configured.replace(/\/+$/, '')
+    : `${req.protocol}://${req.get('host')}`
+
+  return `${origin}${API_PREFIX}`
+}
+
+/**
+ * Final shaping applied to every outgoing provider response, cache hits
+ * included: fresh size tokens plus absolute subtitle URLs.
+ */
+function publicResponse(
+  response: ProviderResponse,
+  req: Request
+): ProviderResponse {
+  return withAbsoluteSubtitleUrls(
+    withFreshSizeTokens(response),
+    apiBaseUrl(req)
+  )
+}
+
 function tryCreateStreamSizeToken(link: ProviderLink): string | undefined {
   try {
     return createStreamSizeToken(link)
@@ -305,6 +338,7 @@ app.get('/', async (_req, res) => {
         'PATCH /api/v2/providers/:id or POST /api/v2/providers/:id/toggle',
       cacheStats: 'GET /api/v2/cache/stats',
       cacheFlush: 'POST /api/v2/cache/flush',
+      subtitleFile: 'GET /api/v2/subtitles/{provider}/{id}.vtt',
       dlhdChannels: 'GET /api/v2/dlhd/channels',
       dlhdStream: 'GET /api/v2/dlhd/channels/{id}/stream',
       dlhdEpg: 'GET /api/v2/dlhd/epg',
@@ -657,6 +691,7 @@ api.post('/cache/flush', async (_req: Request, res: Response) => {
 })
 
 api.use('/dlhd', dlhdRouter)
+api.use(SUBTITLE_ROUTE_BASE, subtitlesRouter)
 
 /**
  * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc&full=true
@@ -698,7 +733,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
         `⚡ [${provider.name}] Cache HIT for movie TMDB ID: ${tmdbId}`
       )
       res.setHeader('X-Cache', 'HIT')
-      res.json(withFreshSizeTokens(cachedResponse))
+      res.json(publicResponse(cachedResponse, req))
       return
     }
   }
@@ -743,16 +778,16 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       )
     }
 
-    // Wyzie Subs fallback: if no link has subtitles, fetch from Wyzie
+    // Subtitle fallback: if no link has subtitles, source them externally.
     const hasAnySubtitles = links.some(link => link.subtitles.length > 0)
     if (!hasAnySubtitles) {
-      const wyzieSubs = await fetchWyzieSubtitles(tmdbId)
-      if (wyzieSubs.length > 0) {
+      const fallbackSubs = await fetchFallbackSubtitles({ tmdbId })
+      if (fallbackSubs.length > 0) {
         console.log(
-          `🔤 [${provider.name}] Injecting ${wyzieSubs.length} Wyzie subtitle(s) as fallback`
+          `🔤 [${provider.name}] Injecting ${fallbackSubs.length} fallback subtitle(s)`
         )
         for (const link of links) {
-          link.subtitles = wyzieSubs
+          link.subtitles = fallbackSubs
         }
       }
     }
@@ -775,7 +810,7 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
       setProviderCache(cacheKey, withoutSizeTokens(response))
     }
 
-    res.json(withFreshSizeTokens(response))
+    res.json(publicResponse(response, req))
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-movie:', err)
     const error: ErrorResponse = {
@@ -838,7 +873,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
         `⚡ [${provider.name}] Cache HIT for TV TMDB ID: ${tmdbId} S${season}E${episode}`
       )
       res.setHeader('X-Cache', 'HIT')
-      res.json(withFreshSizeTokens(cachedResponse))
+      res.json(publicResponse(cachedResponse, req))
       return
     }
   }
@@ -885,16 +920,20 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       )
     }
 
-    // Wyzie Subs fallback: if no link has subtitles, fetch from Wyzie
+    // Subtitle fallback: if no link has subtitles, source them externally.
     const hasAnySubtitles = links.some(link => link.subtitles.length > 0)
     if (!hasAnySubtitles) {
-      const wyzieSubs = await fetchWyzieSubtitles(tmdbId, season, episode)
-      if (wyzieSubs.length > 0) {
+      const fallbackSubs = await fetchFallbackSubtitles({
+        tmdbId,
+        season,
+        episode,
+      })
+      if (fallbackSubs.length > 0) {
         console.log(
-          `🔤 [${provider.name}] Injecting ${wyzieSubs.length} Wyzie subtitle(s) as fallback`
+          `🔤 [${provider.name}] Injecting ${fallbackSubs.length} fallback subtitle(s)`
         )
         for (const link of links) {
-          link.subtitles = wyzieSubs
+          link.subtitles = fallbackSubs
         }
       }
     }
@@ -917,7 +956,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
       setProviderCache(cacheKey, withoutSizeTokens(response))
     }
 
-    res.json(withFreshSizeTokens(response))
+    res.json(publicResponse(response, req))
   } catch (err) {
     console.error('❌ Error in /api/v2/stream-tv:', err)
     const error: ErrorResponse = {

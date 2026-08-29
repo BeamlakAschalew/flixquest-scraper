@@ -92,7 +92,7 @@ live site and is not a provider bug.
 
 Fontaine sources do not expose separate subtitle tracks. Neko's HLS masters
 carry native `EXT-X-MEDIA:TYPE=SUB` renditions which players extract from
-the playlist directly. The API's Wyzie subtitle fallback covers the rest.
+the playlist directly. The API's fallback subtitle providers cover the rest.
 
 ## Repair checklist
 

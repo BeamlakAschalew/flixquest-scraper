@@ -1,7 +1,7 @@
-import type { Subtitle } from '../types/index.js'
+import type { Subtitle } from '../../types/index.js'
+import type { SubtitleProvider, SubtitleQuery } from './types.js'
 
 const WYZIE_SUBS_BASE_URL = 'https://sub.wyzie.io'
-const WYZIE_SUBS_API_KEY = process.env.WYZIE_SUBS_API_KEY || ''
 const WYZIE_REQUEST_TIMEOUT_MS = 10_000
 
 /**
@@ -19,32 +19,24 @@ interface WyzieSubtitleResult {
 /**
  * Fetch subtitles from the Wyzie Subs API.
  *
- * This is intended as a **fallback** — call it only when the scraping provider
- * returned no subtitles of its own.
- *
- * @param tmdbId  TMDB ID of the movie or TV show
- * @param season  Season number (TV only)
- * @param episode Episode number (TV only)
- * @returns An array of `Subtitle` objects, or `[]` on any error / missing key
+ * Wyzie serves its own files, so the returned URLs are absolute and bypass the
+ * subtitle passthrough route. Requires `WYZIE_SUBS_API_KEY`.
  */
-export async function fetchWyzieSubtitles(
-  tmdbId: string,
-  season?: number,
-  episode?: number
-): Promise<Subtitle[]> {
-  if (!WYZIE_SUBS_API_KEY) {
+async function search(query: SubtitleQuery): Promise<Subtitle[]> {
+  const apiKey = process.env.WYZIE_SUBS_API_KEY || ''
+  if (!apiKey) {
     return []
   }
 
   try {
     const params = new URLSearchParams({
-      id: tmdbId,
-      key: WYZIE_SUBS_API_KEY,
+      id: query.tmdbId,
+      key: apiKey,
     })
 
-    if (season !== undefined && episode !== undefined) {
-      params.set('season', String(season))
-      params.set('episode', String(episode))
+    if (query.season !== undefined && query.episode !== undefined) {
+      params.set('season', String(query.season))
+      params.set('episode', String(query.episode))
     }
 
     const url = `${WYZIE_SUBS_BASE_URL}/search?${params.toString()}`
@@ -89,4 +81,10 @@ export async function fetchWyzieSubtitles(
     )
     return []
   }
+}
+
+export const wyzieSubtitleProvider: SubtitleProvider = {
+  id: 'wyzie',
+  name: 'Wyzie Subs',
+  search,
 }
