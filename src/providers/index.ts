@@ -57,7 +57,8 @@ import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
 // Register all providers here. The first six are the balanced quality/speed
-// shortlist from the 2026-08-23 live audit, with ShowBox intentionally included.
+// shortlist from the current live checks, with StreamFlix and VidRock replaced
+// by the verified PurStream and Castle fallbacks.
 const rawProviders = {
   cinejoy: cinejoyProvider,
   movy: movyProvider,
@@ -123,14 +124,14 @@ type ProviderId = keyof typeof rawProviders
 const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   cinejoy: true,
   movy: true,
-  streamflix: true,
+  streamflix: false,
   showbox: true,
   videasy: true,
   coreflix: false,
   vidfast: false,
   vuflix: false,
   vidsrc: false,
-  vidrock: true,
+  vidrock: false,
   vidnest: false,
   vidup: false,
   aether: false,
@@ -142,11 +143,11 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   notorrent: false,
   vidlink: false,
   netmirror: false,
-  castle: false,
+  castle: true,
   movieblast: false,
   peachify: false,
   movix: false,
-  purstream: false,
+  purstream: true,
   cuevana: false,
   vixsrc: false,
   vidzee: false,

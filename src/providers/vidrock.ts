@@ -318,12 +318,15 @@ function deduplicateLinks(links: ProviderLink[]): ProviderLink[] {
   )
 }
 
-function selectTargetServer(streams: VidRockStreams): VidRockStreams {
+function selectPreferredServers(streams: VidRockStreams): VidRockStreams {
   const target = TARGET_SERVER.toLowerCase()
   const entry = Object.entries(streams).find(
     ([serverName]) => serverName.trim().toLowerCase() === target
   )
-  return entry ? { [entry[0]]: entry[1] } : {}
+  // Orion is the preferred source in the normal API response, but server
+  // names are not a stable contract. If it is absent, keep the other sources
+  // instead of turning a healthy API response into an empty provider result.
+  return entry ? { [entry[0]]: entry[1] } : streams
 }
 
 async function getStreams(
@@ -351,11 +354,9 @@ async function getStreams(
     )
     if (!streams || typeof streams !== 'object') return []
 
-    const targetStreams = full ? streams : selectTargetServer(streams)
+    const targetStreams = full ? streams : selectPreferredServers(streams)
     if (Object.keys(targetStreams).length === 0) {
-      console.error(
-        `[VidRock] ${full ? 'No' : TARGET_SERVER} server unavailable for ${mediaType} ${tmdbId}`
-      )
+      console.error(`[VidRock] No servers available for ${mediaType} ${tmdbId}`)
       return []
     }
 
