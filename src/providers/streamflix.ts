@@ -52,7 +52,7 @@ interface FirebaseMessage {
     r?: number
     b?: {
       s?: string
-      d?: Record<string, EpisodeData>
+      d?: Record<string, EpisodeData> | string | null
     }
   }
 }
@@ -176,7 +176,7 @@ function createLink(
   description: string
 ): ProviderLink | null {
   try {
-    const normalizedUrl = normalizeStreamUrl(url)
+    const normalizedUrl = normalizeStreamUrl(addCacheBust(url))
     return {
       server: `StreamFlix | ${description}`,
       url: normalizedUrl,
@@ -193,6 +193,17 @@ function createLink(
 function joinStreamUrl(baseUrl: string, path: string): string {
   if (/^https?:\/\//i.test(path)) return path
   return `${baseUrl.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+}
+
+/**
+ * StreamFlix signs the redirect target behind a CDN-cached route. A cached
+ * 307 can outlive its signed target, so every source lookup needs a fresh
+ * cache key. The target URL returned by the redirect remains query-free.
+ */
+function addCacheBust(url: string): string {
+  const parsed = new URL(url)
+  parsed.searchParams.set('_sfcb', Date.now().toString())
+  return parsed.href
 }
 
 function orderHostEntries<T extends readonly [string, ...unknown[]]>(
@@ -334,8 +345,11 @@ async function fetchEpisodes(
         const message = JSON.parse(buffer) as FirebaseMessage
         buffer = ''
         const body = message.d?.b
-        if (body?.d && typeof body.d === 'object') finish(undefined, body.d)
-        else if (message.d?.r === targetSeason && body?.s === 'ok') {
+        if (body?.s === 'permission_denied') {
+          finish(new Error('Firebase episode request denied'))
+        } else if (body?.d && typeof body.d === 'object') {
+          finish(undefined, body.d)
+        } else if (message.d?.r === targetSeason && body?.s === 'ok') {
           finish(undefined, {})
         }
       } catch {
@@ -361,36 +375,6 @@ function findEpisode(
   return episodes[episode - 1] || episodes[episode]
 }
 
-function fallbackTvLink(
-  item: StreamFlixItem,
-  config: StreamFlixConfig,
-  season: number,
-  episode: number,
-  full: boolean
-): ProviderLink[] {
-  const baseEntries = [
-    ...(config.download || []),
-    ...(config.tv || []),
-    ...(config.premium || []),
-  ].map(base => [base] as const)
-  if (!item.moviekey) return []
-  const selectedBases = full
-    ? orderHostEntries(baseEntries)
-    : firstPreferredHostEntries(baseEntries).slice(0, 1)
-  return selectedBases
-    .map(([baseUrl]) =>
-      createLink(
-        joinStreamUrl(
-          baseUrl,
-          `tv/${item.moviekey}/s${season}/episode${episode}.mkv`
-        ),
-        '720p',
-        `S${season}E${episode} Fallback`
-      )
-    )
-    .filter((link): link is ProviderLink => link !== null)
-}
-
 async function tvLinks(
   item: StreamFlixItem,
   config: StreamFlixConfig,
@@ -405,9 +389,7 @@ async function tvLinks(
       await fetchEpisodes(item.moviekey, season),
       episode
     )
-    if (!episodeData?.link) {
-      return fallbackTvLink(item, config, season, episode, full)
-    }
+    if (!episodeData?.link) return []
 
     const baseEntries = Array.from(
       new Set([
@@ -434,7 +416,9 @@ async function tvLinks(
     console.warn(
       `[StreamFlix] Episode lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     )
-    return fallbackTvLink(item, config, season, episode, full)
+    // The former guessed `tv/{moviekey}/...` paths now return 404. Do not
+    // expose those dead links while the Firebase catalog is unavailable.
+    return []
   }
 }
 

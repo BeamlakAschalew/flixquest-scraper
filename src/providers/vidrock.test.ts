@@ -47,9 +47,8 @@ test('VidRock processes only the Orion server from the returned server map', asy
   }
 })
 
-test('VidRock returns no links when Orion is unavailable', async () => {
+test('VidRock falls back to another server when Orion is unavailable', async () => {
   const originalFetch = globalThis.fetch
-  let subtitleRequested = false
 
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : input.toString())
@@ -61,13 +60,14 @@ test('VidRock returns no links when Orion is unavailable', async () => {
         },
       })
     }
-    subtitleRequested = true
     return Response.json([])
   }) as typeof fetch
 
   try {
-    assert.deepEqual(await vidRockProvider.streamMovie('550'), [])
-    assert.equal(subtitleRequested, false)
+    const links = await vidRockProvider.streamMovie('550')
+    assert.equal(links.length, 1)
+    assert.equal(links[0].server, 'vidrock-Luna')
+    assert.equal(links[0].url, 'https://luna.example/master.m3u8')
   } finally {
     globalThis.fetch = originalFetch
   }
