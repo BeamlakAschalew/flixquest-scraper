@@ -57,8 +57,8 @@ import { withStreamValidation } from '../utils/stream-validation.js'
 import { PROVIDER_CONTENT_BADGES } from './content-badges.js'
 
 // Register all providers here. The first six are the balanced quality/speed
-// shortlist from the current live checks, with StreamFlix restored and VidNest
-// replacing CineBy as the resilient English/original-audio fallback.
+// shortlist from the current live checks, with StreamFlix restored and Movix
+// replacing VidNest as the fast English/original-audio fallback.
 const rawProviders = {
   cinejoy: cinejoyProvider,
   movy: movyProvider,
@@ -132,7 +132,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   vuflix: false,
   vidsrc: false,
   vidrock: false,
-  vidnest: true,
+  vidnest: false,
   vidup: false,
   aether: false,
   zstream: false,
@@ -146,7 +146,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   castle: false,
   movieblast: false,
   peachify: false,
-  movix: false,
+  movix: true,
   purstream: false,
   cuevana: false,
   vixsrc: false,
