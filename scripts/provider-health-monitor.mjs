@@ -56,6 +56,7 @@ export const providerHealthCases = {
       ['65754', 'Recep Ivedik'],
     ],
     tv: [
+      ['210865', 1, 1, 'Yali Capkini S1E1'],
       ['75219', 1, 1, 'Dirilis: Ertugrul S1E1'],
       ['79026', 1, 1, 'The Protector S1E1'],
     ],
@@ -97,7 +98,7 @@ const providerAffinity = {
   '4khdhub': 'indian', '4khdhubnew': 'indian', movieblast: 'indian', playimdb: 'indian',
   peachify: 'indian', xpass: 'indian', castle: 'indian',
   kisskh: 'korean', dramafull: 'korean', toonhub: 'anime', cuevana: 'spanish',
-  notorrent: 'spanish', jetfilmizle: 'turkish', movix: 'french', purstream: 'french',
+  notorrent: 'spanish', jetfilmizle: 'turkish', yoturkish: 'turkish', movix: 'french', purstream: 'french',
 }
 
 function positiveNumber(value, fallback) {

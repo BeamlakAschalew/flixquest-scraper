@@ -1,68 +1,74 @@
 {
   "success": true,
-  "startedAt": "2026-09-04T23:42:12.525Z",
-  "updatedAt": "2026-09-05T00:10:54.838Z",
+  "startedAt": "2026-09-05T03:10:26.743Z",
+  "updatedAt": "2026-09-05T03:10:42.897Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
-    "total": 9,
-    "online": 7,
-    "offline": 2
+    "total": 10,
+    "online": 6,
+    "offline": 4
   },
   "providers": [
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 29019
+      "requestTimeMs": 3748
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 2967
+      "requestTimeMs": 3282
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 35321
+      "requestTimeMs": 4315
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 103627
+      "requestTimeMs": 8948
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 65162
+      "requestTimeMs": 3450
     },
     {
       "id": "kisskh",
       "alias": "Chelenqo",
       "status": "online",
-      "requestTimeMs": 33033
+      "requestTimeMs": 7080
     },
     {
       "id": "bingr",
       "alias": "Roha",
-      "status": "online",
-      "requestTimeMs": 30607
+      "status": "offline",
+      "requestTimeMs": 11814
     },
     {
       "id": "rive",
       "alias": "Rive",
       "status": "offline",
-      "requestTimeMs": 1660255
+      "requestTimeMs": 9399
+    },
+    {
+      "id": "shuttletv",
+      "alias": "Gumma",
+      "status": "offline",
+      "requestTimeMs": 7181
     },
     {
       "id": "yoturkish",
-      "alias": "YoTurkish",
+      "alias": "Sebastopol",
       "status": "offline",
-      "requestTimeMs": 2988
+      "requestTimeMs": 5304
     }
   ]
 }

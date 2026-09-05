@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio'
 import type { Provider, ProviderLink, Subtitle } from '../types/index.js'
+import { withForcedForwardProxy } from '../utils/forward-proxy.js'
 
 const BASE_URL = 'https://yoturkish.to'
 const TMDB_URL = 'https://api.themoviedb.org/3'
@@ -332,7 +333,8 @@ export const yoTurkishProvider: Provider = {
   id: 'yoturkish',
   alias: 'Sebastopol',
   streamMovie: async () => [],
-  streamTV: (tmdbId, season, episode) => stream(tmdbId, season, episode),
+  streamTV: (tmdbId, season, episode) =>
+    withForcedForwardProxy(() => stream(tmdbId, season, episode)),
 }
 
 export const decodeYoTurkishPlayerData = decodePlayerData

@@ -16,6 +16,22 @@ test('uses Hollywood plus a provider affinity title list', () => {
   ])
 })
 
+test('uses the Turkish title list for YoTurkish', () => {
+  const cases = buildProviderCases('yoturkish')
+  assert.equal(cases.length, 9)
+  assert.deepEqual([...new Set(cases.map(item => item.category))], [
+    'hollywood',
+    'turkish',
+  ])
+  assert.deepEqual(cases.filter(item => item.category === 'turkish').map(item => item.title), [
+    'Miracle in Cell No. 7 (Turkish)',
+    'Recep Ivedik',
+    'Yali Capkini S1E1',
+    'Dirilis: Ertugrul S1E1',
+    'The Protector S1E1',
+  ])
+})
+
 test('tries another title after failure and stops at the first stream', async () => {
   const requests = []
   const fetchFn = async url => {

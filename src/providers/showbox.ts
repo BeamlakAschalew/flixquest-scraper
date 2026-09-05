@@ -275,26 +275,12 @@ function normalizeCookieHeader(cookie: string): string {
   return /(?:^|;\s*)ui=/.test(cookie) ? cookie : `ui=${cookie}`
 }
 
-function loadEnvironmentCookies(): void {
+function loadBuiltInCookies(): void {
   if (cookiePool.length) return
 
-  const configured =
-    process.env.SHOWBOX_COOKIES || process.env.FEBBOX_COOKIE || ''
-  const configuredCookies = configured
-    .split(',')
-    .map(cookie => cookie.trim())
-    .filter(Boolean)
-  cookiePool = Array.from(
-    new Set([...configuredCookies, ...BUILT_IN_SHOWBOX_COOKIES])
-  )
-
-  if (configuredCookies.length) {
-    console.log(
-      `[ShowBox] Loaded ${configuredCookies.length} cookie(s) from environment`
-    )
-  }
+  cookiePool = [...BUILT_IN_SHOWBOX_COOKIES]
   console.log(
-    `[ShowBox] Added ${BUILT_IN_SHOWBOX_COOKIES.length} built-in cookie(s)`
+    `[ShowBox] Using ${BUILT_IN_SHOWBOX_COOKIES.length} built-in cookie(s)`
   )
 }
 
@@ -325,7 +311,7 @@ async function checkCookieQuota(cookie: string): Promise<CookieQuotaResult> {
 }
 
 async function selectBestCookie(): Promise<string | null> {
-  loadEnvironmentCookies()
+  loadBuiltInCookies()
 
   if (!cookiePool.length) {
     console.warn(
