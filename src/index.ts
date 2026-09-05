@@ -44,6 +44,7 @@ import {
 } from './utils/redis.js'
 import { dlhdRouter } from './routes/dlhd.js'
 import { subtitlesRouter } from './routes/subtitles.js'
+import { adsRouter } from './routes/ads.js'
 import { resolveIntroConfig } from './utils/intro-config.js'
 import {
   providerStatusFile,
@@ -335,6 +336,7 @@ app.get('/', async (_req, res) => {
       dlhdChannels: 'GET /api/v2/dlhd/channels',
       dlhdStream: 'GET /api/v2/dlhd/channels/{id}/stream',
       dlhdEpg: 'GET /api/v2/dlhd/epg',
+      ads: 'GET /api/v2/ads',
     },
     redisCache: cacheStats.connected
       ? 'connected'
@@ -685,6 +687,7 @@ api.post('/cache/flush', async (_req: Request, res: Response) => {
 
 api.use('/dlhd', dlhdRouter)
 api.use(SUBTITLE_ROUTE_BASE, subtitlesRouter)
+api.use('/ads', adsRouter)
 
 /**
  * GET /api/v2/stream-movie?tmdbId=556574&provider=vixsrc&full=true
@@ -983,6 +986,7 @@ const server = app.listen(port, () => {
     console.log('   GET /api/v2/providers')
     console.log('   GET /api/v2/providers/status')
     console.log('   GET /api/v2/intro')
+    console.log('   GET /api/v2/ads')
     console.log('   GET /api/v2/dlhd/channels')
     console.log('   GET /api/v2/dlhd/channels/{id}/stream')
     console.log('   GET /api/v2/dlhd/epg')
