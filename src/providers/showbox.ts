@@ -27,6 +27,13 @@ const VIDEO_EXTENSION = /\.(?:avi|m2ts|m4v|mkv|mov|mp4|mpeg|mpg|ts|webm)$/i
 let cookiePool: string[] = []
 let currentCookieIndex = 0
 
+// Keep known-good FebBox sessions available when deployment environment
+// variables still contain stale or expired cookies.
+const BUILT_IN_SHOWBOX_COOKIES = [
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODg1NTQ4NzEsIm5iZiI6MTc4ODU1NDg3MSwiZXhwIjoxODE5NjU4ODkxLCJkYXRhIjp7InVpZCI6MjM0OTcwMiwidG9rZW4iOiJmMDM2NThjNmEzZGQ1NjM5OTllMWJiMWQ1Mjc4NzM2YiJ9fQ.sYZB-aeySM-RqHykJ1jt9EHDeA0gy32G2Wpu0hCbIQA',
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE3ODc1OTg2NzgsIm5iZiI6MTc4NzU5ODY3OCwiZXhwIjoxODE4NzAyNjk4LCJkYXRhIjp7InVpZCI6MjM0OTcyMiwidG9rZW4iOiIzY2I1ZGM2ODFjNWQxNmVmMGUyMDVlNjFjODU5ZjEyNCJ9fQ.BqF6k6kkNVRchKQhX9IOjIkb49Pg064HLX9DFFlLzEc',
+] as const
+
 interface QualityInfo {
   quality: string
   priority: number
@@ -273,16 +280,22 @@ function loadEnvironmentCookies(): void {
 
   const configured =
     process.env.SHOWBOX_COOKIES || process.env.FEBBOX_COOKIE || ''
-  cookiePool = configured
+  const configuredCookies = configured
     .split(',')
     .map(cookie => cookie.trim())
     .filter(Boolean)
+  cookiePool = Array.from(
+    new Set([...configuredCookies, ...BUILT_IN_SHOWBOX_COOKIES])
+  )
 
-  if (cookiePool.length) {
+  if (configuredCookies.length) {
     console.log(
-      `[ShowBox] Loaded ${cookiePool.length} cookie(s) from environment`
+      `[ShowBox] Loaded ${configuredCookies.length} cookie(s) from environment`
     )
   }
+  console.log(
+    `[ShowBox] Added ${BUILT_IN_SHOWBOX_COOKIES.length} built-in cookie(s)`
+  )
 }
 
 async function checkCookieQuota(cookie: string): Promise<CookieQuotaResult> {

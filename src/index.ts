@@ -102,6 +102,7 @@ const UNCACHEABLE_PROVIDER_IDS = new Set([
   'vyla',
   'streamflix',
   'vidrock',
+  'shuttletv',
 ])
 
 app.set('trust proxy', 1)

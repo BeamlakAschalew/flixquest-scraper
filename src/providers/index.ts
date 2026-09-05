@@ -51,6 +51,8 @@ import { vuflixProvider } from './vuflix.js'
 import { cinevaroProvider } from './cinevaro.js'
 import { fshareTvProvider } from './fsharetv.js'
 import { vylaProvider } from './vyla.js'
+import { shuttleTvProvider } from './shuttletv.js'
+import { yoTurkishProvider } from './yoturkish.js'
 import { movyProvider } from './movy.js'
 import { coreflixProvider } from './coreflix.js'
 import { withStreamValidation } from '../utils/stream-validation.js'
@@ -115,6 +117,8 @@ const rawProviders = {
   cinevaro: cinevaroProvider,
   fsharetv: fshareTvProvider,
   vyla: vylaProvider,
+  shuttletv: shuttleTvProvider,
+  yoturkish: yoTurkishProvider,
 } satisfies Record<string, Provider>
 
 type ProviderId = keyof typeof rawProviders
@@ -127,6 +131,9 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   streamflix: true,
   showbox: true,
   videasy: true,
+  kisskh: true,
+  bingr: true,
+  rive: true,
   coreflix: false,
   vidfast: false,
   vuflix: false,
@@ -146,7 +153,7 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   castle: false,
   movieblast: false,
   peachify: false,
-  movix: true,
+  movix: false,
   purstream: false,
   cuevana: false,
   vixsrc: false,
@@ -158,7 +165,6 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   playimdb: false,
   tamilian: false,
   xpass: false,
-  kisskh: false,
   dramafull: false,
   toonhub: false,
   jetfilmizle: false,
@@ -171,12 +177,12 @@ const PROVIDER_ENABLED: Record<ProviderId, boolean> = {
   multiembed: false,
   '111movies': false,
   goated: false,
-  bingr: false,
-  rive: false,
   vidrift: false,
   cinevaro: false,
   fsharetv: false,
   vyla: false,
+  shuttletv: true,
+  yoturkish: true,
 }
 
 function isProviderId(id: string): id is ProviderId {

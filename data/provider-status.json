@@ -1,50 +1,68 @@
 {
   "success": true,
-  "startedAt": "2026-09-02T03:11:21.587Z",
-  "updatedAt": "2026-09-02T03:11:32.678Z",
+  "startedAt": "2026-09-04T23:42:12.525Z",
+  "updatedAt": "2026-09-05T00:10:54.838Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
-    "total": 6,
-    "online": 6,
-    "offline": 0
+    "total": 9,
+    "online": 7,
+    "offline": 2
   },
   "providers": [
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 3307
+      "requestTimeMs": 29019
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 3158
+      "requestTimeMs": 2967
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 4108
+      "requestTimeMs": 35321
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 11069
+      "requestTimeMs": 103627
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 2030
+      "requestTimeMs": 65162
     },
     {
-      "id": "movix",
-      "alias": "Tiya",
+      "id": "kisskh",
+      "alias": "Chelenqo",
       "status": "online",
-      "requestTimeMs": 2553
+      "requestTimeMs": 33033
+    },
+    {
+      "id": "bingr",
+      "alias": "Roha",
+      "status": "online",
+      "requestTimeMs": 30607
+    },
+    {
+      "id": "rive",
+      "alias": "Rive",
+      "status": "offline",
+      "requestTimeMs": 1660255
+    },
+    {
+      "id": "yoturkish",
+      "alias": "YoTurkish",
+      "status": "offline",
+      "requestTimeMs": 2988
     }
   ]
 }

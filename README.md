@@ -409,7 +409,25 @@ Optional query parameters:
 curl "http://localhost:3000/api/v2/dlhd/epg?category=PPV&date=2026-08-08"
 ```
 
-### 8. Cache Stats
+### 8. ShuttleTV Lisbon HLS
+
+ShuttleTV is resolved through Cinesrc with the `Lisbon` server selected. The
+endpoint performs Cinesrc's per-request challenge in Node and returns direct
+HLS playlists only. Puppeteer/Chrome is not used by the API.
+
+Use the standard provider endpoints with `provider=shuttletv`:
+
+- Movie: `GET /api/v2/stream-movie?tmdbId={id}&provider=shuttletv`
+- TV episode: `GET /api/v2/stream-tv?tmdbId={id}&season={num}&episode={num}&provider=shuttletv`
+
+```bash
+curl "http://localhost:3000/api/v2/stream-movie?tmdbId=550&provider=shuttletv"
+```
+
+Each returned link has `isM3U8: true`, `server: ShuttleTV | lisbon | HLS`, and
+`requiresProxy: true` because the upstream playlist is hotlink-protected.
+
+### 9. Cache Stats
 
 Check Redis caching layer connection health and key statistics.
 
@@ -455,11 +473,11 @@ returned no subtitles of its own.
 
 **Example:** `GET /api/v2/subtitles/natsuki/3480430.vtt?l=en`
 
-| Parameter  | Description                                                          |
-| ---------- | -------------------------------------------------------------------- |
-| `provider` | Fallback subtitle provider that owns the id (currently `natsuki`)     |
-| `id`       | Provider-specific subtitle id                                        |
-| `l`        | Optional ISO 639 hint used to decode non-UTF-8 uploads               |
+| Parameter  | Description                                                       |
+| ---------- | ----------------------------------------------------------------- |
+| `provider` | Fallback subtitle provider that owns the id (currently `natsuki`) |
+| `id`       | Provider-specific subtitle id                                     |
+| `l`        | Optional ISO 639 hint used to decode non-UTF-8 uploads            |
 
 Responds with `text/vtt` (or `application/x-subrip` for `.srt`), open CORS, and
 a 24-hour cache. Aggregator advertisement cues are stripped, negative timings
@@ -475,10 +493,10 @@ When a scraping provider returns links without subtitles, the API fills the gap
 from an external subtitle provider. Providers are tried in order and the first
 one with results wins.
 
-| Provider  | Source                                      | Requirements               |
-| --------- | ------------------------------------------- | -------------------------- |
-| `natsuki` | `natsuki.maybeoneday.ch` (OpenSubtitles data) | None                       |
-| `wyzie`   | `sub.wyzie.io`                              | `WYZIE_SUBS_API_KEY`       |
+| Provider  | Source                                        | Requirements         |
+| --------- | --------------------------------------------- | -------------------- |
+| `natsuki` | `natsuki.maybeoneday.ch` (OpenSubtitles data) | None                 |
+| `wyzie`   | `sub.wyzie.io`                                | `WYZIE_SUBS_API_KEY` |
 
 Results are deduplicated per language and ranked best-first: human translations
 before machine ones, plain subtitles before SDH, then by how closely the
@@ -703,18 +721,18 @@ To find TMDB IDs for movies and TV shows:
 
 Create a `.env` file in the root directory (see `.env.example` for reference):
 
-| Variable              | Description                                                            | Required | Default                   |
-| --------------------- | ---------------------------------------------------------------------- | -------- | ------------------------- |
-| `TMDB_API_KEY`        | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -                         |
-| `INTRO_VIDEO_URL`     | Absolute HTTP(S) URL for the branded pre-stream intro                  | No       | -                         |
-| `INTRO_VIDEO_ENABLED` | Explicitly enable or disable the branded intro                         | No       | Enabled when a URL is set |
-| `SUBTITLE_PROVIDERS`  | Priority order of the fallback subtitle providers                      | No       | `natsuki,wyzie`           |
-| `SUBTITLE_OUTPUT_FORMAT` | Format served for fallback subtitles (`vtt` or `srt`)               | No       | `vtt`                     |
-| `SUBTITLE_MAX_PER_LANGUAGE` | Alternative subtitles kept per language                          | No       | `5`                       |
-| `WYZIE_SUBS_API_KEY`  | API key for the `wyzie` subtitle provider                              | No       | -                         |
-| `PUBLIC_BASE_URL`     | Public origin used to build absolute subtitle URLs                     | No       | Derived from the request  |
-| `PORT`                | Server port                                                            | No       | `3000`                    |
-| `NODE_ENV`            | Environment mode (`production` or `development`)                       | No       | -                         |
+| Variable                    | Description                                                            | Required | Default                   |
+| --------------------------- | ---------------------------------------------------------------------- | -------- | ------------------------- |
+| `TMDB_API_KEY`              | Your TMDB API key from [TMDB](https://www.themoviedb.org/settings/api) | Yes      | -                         |
+| `INTRO_VIDEO_URL`           | Absolute HTTP(S) URL for the branded pre-stream intro                  | No       | -                         |
+| `INTRO_VIDEO_ENABLED`       | Explicitly enable or disable the branded intro                         | No       | Enabled when a URL is set |
+| `SUBTITLE_PROVIDERS`        | Priority order of the fallback subtitle providers                      | No       | `natsuki,wyzie`           |
+| `SUBTITLE_OUTPUT_FORMAT`    | Format served for fallback subtitles (`vtt` or `srt`)                  | No       | `vtt`                     |
+| `SUBTITLE_MAX_PER_LANGUAGE` | Alternative subtitles kept per language                                | No       | `5`                       |
+| `WYZIE_SUBS_API_KEY`        | API key for the `wyzie` subtitle provider                              | No       | -                         |
+| `PUBLIC_BASE_URL`           | Public origin used to build absolute subtitle URLs                     | No       | Derived from the request  |
+| `PORT`                      | Server port                                                            | No       | `3000`                    |
+| `NODE_ENV`                  | Environment mode (`production` or `development`)                       | No       | -                         |
 
 ## Development
 
