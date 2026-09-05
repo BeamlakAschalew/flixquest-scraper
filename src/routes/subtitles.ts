@@ -16,6 +16,7 @@ import {
 import { convertSubtitle } from '../utils/subtitles/vtt.js'
 import type { SubtitleOutputFormat } from '../utils/subtitles/types.js'
 import { getProviderCache, setProviderCache } from '../utils/redis.js'
+import { generateMovieMedia, generateShowMedia } from '../utils/tmdb.js'
 
 export const subtitlesRouter = Router()
 
@@ -47,13 +48,34 @@ subtitlesRouter.get('/search', async (req: Request, res: Response) => {
 
   const season = digits(req.query.season)
   const episode = digits(req.query.episode)
-  const imdbId = typeof req.query.imdbId === 'string' ? req.query.imdbId.trim() : undefined
+  let imdbId =
+    typeof req.query.imdbId === 'string' ? req.query.imdbId.trim() : undefined
   if (Boolean(season) !== Boolean(episode)) {
     res.status(400).json({
       success: false,
       error: 'Both season and episode are required for TV subtitles',
     })
     return
+  }
+
+  // OpenSubtitles searches by IMDb ID. Resolve it transparently for the
+  // public TMDB-based endpoint so clients do not need a second metadata call.
+  if (!imdbId) {
+    try {
+      if (season && episode) {
+        imdbId = (
+          await generateShowMedia(tmdbId, Number(season), Number(episode))
+        ).imdbId
+      } else {
+        imdbId = (await generateMovieMedia(tmdbId)).imdbId
+      }
+    } catch (error) {
+      console.warn(
+        `[Subtitles] IMDb lookup ${tmdbId}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      )
+    }
   }
 
   try {
@@ -91,16 +113,34 @@ subtitlesRouter.get('/search', async (req: Request, res: Response) => {
   }
 })
 
-subtitlesRouter.get('/opensubtitles/:file', async (req: Request, res: Response) => {
-  const parsed = parseFileParam(req.params.file)
-  if (!parsed) { sendBadPath(res, '/opensubtitles/{id}.vtt or /opensubtitles/{id}.srt'); return }
-  const rawToken = typeof req.query.t === 'string' ? req.query.t : ''
-  let token: SubtitleFileToken
-  try { token = decodeSubtitleFileToken(rawToken) } catch (error) {
-    res.status(400).json({ success: false, error: 'Invalid subtitle token', details: error instanceof Error ? error.message : 'Unknown error' }); return
+subtitlesRouter.get(
+  '/opensubtitles/:file',
+  async (req: Request, res: Response) => {
+    const parsed = parseFileParam(req.params.file)
+    if (!parsed) {
+      sendBadPath(res, '/opensubtitles/{id}.vtt or /opensubtitles/{id}.srt')
+      return
+    }
+    const rawToken = typeof req.query.t === 'string' ? req.query.t : ''
+    let token: SubtitleFileToken
+    try {
+      token = decodeSubtitleFileToken(rawToken)
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid subtitle token',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      })
+      return
+    }
+    await serveSubtitle(res, {
+      label: `opensubtitles/${parsed.id}`,
+      cacheKey: `flixquest:provider:subs:opensubtitles:file:${fingerprint(token.url)}:${parsed.format}`,
+      format: parsed.format,
+      fetchRaw: () => fetchOpenSubtitlesFile(token),
+    })
   }
-  await serveSubtitle(res, { label: `opensubtitles/${parsed.id}`, cacheKey: `flixquest:provider:subs:opensubtitles:file:${fingerprint(token.url)}:${parsed.format}`, format: parsed.format, fetchRaw: () => fetchOpenSubtitlesFile(token) })
-})
+)
 
 /**
  * Upstream subtitle hosts gate access on their own `Origin` allowlist and serve
