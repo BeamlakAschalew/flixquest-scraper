@@ -25,7 +25,17 @@ const ADS: readonly BannerAd[] = [
     altText: 'Join the FlixQuest community',
     shape: 'wide',
     aspectRatio: 3.2,
-    placements: ['home_movies', 'home_tv', 'movie_detail', 'tv_detail'],
+    placements: [
+      'home_movies',
+      'home_tv',
+      'movie_detail',
+      'tv_detail',
+      'season_detail',
+      'episode_detail',
+      'downloads',
+      'bookmarks',
+      'live_tv',
+    ],
   },
   {
     key: 'banner_2',
@@ -37,7 +47,17 @@ const ADS: readonly BannerAd[] = [
     altText: 'Discover more stories with FlixQuest',
     shape: 'rectangle',
     aspectRatio: 2.2,
-    placements: ['home_movies', 'home_tv', 'movie_detail', 'tv_detail'],
+    placements: [
+      'home_movies',
+      'home_tv',
+      'movie_detail',
+      'tv_detail',
+      'season_detail',
+      'episode_detail',
+      'downloads',
+      'bookmarks',
+      'live_tv',
+    ],
   },
 ]
 
