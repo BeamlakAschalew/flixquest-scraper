@@ -30,7 +30,7 @@
     },
     {
       "name": "Subtitles",
-      "description": "Passthrough for fallback subtitle tracks referenced by stream responses."
+      "description": "Subtitle search across the configured providers, plus the passthrough that serves the files."
     },
     {
       "name": "Proxy",
@@ -543,10 +543,77 @@
         }
       }
     },
+    "/api/v2/subtitles/search": {
+      "get": {
+        "summary": "Search Subtitles",
+        "description": "Searches every configured subtitle provider and returns one combined catalog for a movie or episode. Each entry's `url` points back at this API, so clients never contact a subtitle host directly and never need provider credentials. Entries are deduplicated by `id`. Responses are privately cacheable for 5 minutes.",
+        "operationId": "searchSubtitles",
+        "tags": ["Subtitles"],
+        "parameters": [
+          {
+            "name": "tmdbId",
+            "in": "query",
+            "required": true,
+            "description": "TMDB id of the movie or show.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+$",
+              "example": "550"
+            }
+          },
+          {
+            "name": "season",
+            "in": "query",
+            "required": false,
+            "description": "Season number. Required together with `episode` for shows.",
+            "schema": { "type": "string", "pattern": "^\\d+$", "example": "1" }
+          },
+          {
+            "name": "episode",
+            "in": "query",
+            "required": false,
+            "description": "Episode number. Required together with `season` for shows.",
+            "schema": { "type": "string", "pattern": "^\\d+$", "example": "1" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Combined subtitle catalog.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtitleSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid `tmdbId`, or only one of `season` and `episode`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Every subtitle provider failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/subtitles/{provider}/{id}": {
       "get": {
-        "summary": "Get a Fallback Subtitle File",
-        "description": "Serves one fallback subtitle track, converted to WebVTT (or SubRip) with aggregator advertisement cues removed. URLs for this endpoint are returned in `links[].subtitles[].file` when a scraping provider supplies no subtitles of its own; clients should not construct them by hand. Responses allow any origin and are cacheable for 24 hours.",
+        "summary": "Get a Subtitle File",
+        "description": "Serves one subtitle track, converted to WebVTT (or SubRip) with aggregator advertisement cues removed and the body re-encoded to UTF-8. URLs for this endpoint are returned in `subtitles[].url` from a search and in `links[].subtitles[].file` when a scraping provider supplies no subtitles of its own; clients should not construct them by hand. Responses allow any origin and are cacheable for 24 hours.",
         "operationId": "getSubtitleFile",
         "tags": ["Subtitles"],
         "parameters": [
@@ -554,8 +621,8 @@
             "name": "provider",
             "in": "path",
             "required": true,
-            "description": "Fallback subtitle provider that owns the id.",
-            "schema": { "type": "string", "enum": ["natsuki"] }
+            "description": "Subtitle provider that owns the id.",
+            "schema": { "type": "string", "enum": ["natsuki", "wyzie"] }
           },
           {
             "name": "id",
@@ -570,6 +637,13 @@
             "required": false,
             "description": "ISO 639 language hint used to decode non-UTF-8 uploads.",
             "schema": { "type": "string", "example": "en" }
+          },
+          {
+            "name": "t",
+            "in": "query",
+            "required": false,
+            "description": "Signed token identifying the upstream file. Required for `wyzie`, whose files live on third-party hosts behind per-download tokens rather than stable ids. Issued by a search or stream response, signed with `STREAM_PROXY_SECRET`, and valid for 12 hours.",
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
@@ -586,7 +660,7 @@
             }
           },
           "400": {
-            "description": "Malformed subtitle path.",
+            "description": "Malformed subtitle path, or a missing, expired or tampered token.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1129,6 +1203,103 @@
             "type": "string",
             "description": "Subtitle identifier code if present.",
             "example": "en"
+          }
+        }
+      },
+      "SubtitleCatalogEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "display",
+          "language",
+          "format",
+          "encoding",
+          "isHearingImpaired",
+          "source",
+          "flagUrl",
+          "media"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable `{provider}-{providerId}` identifier.",
+            "example": "natsuki-3852781"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Absolute URL of this API's subtitle passthrough.",
+            "example": "https://your-api/api/v2/subtitles/natsuki/3852781.vtt?l=en"
+          },
+          "display": {
+            "type": "string",
+            "description": "Human label. Carries `(MT)` and `#n` markers so same-language alternatives stay distinguishable.",
+            "example": "English (#2)"
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO 639 language code.",
+            "example": "en"
+          },
+          "format": {
+            "type": "string",
+            "enum": ["vtt", "srt"],
+            "description": "Format the passthrough serves, per `SUBTITLE_OUTPUT_FORMAT`."
+          },
+          "encoding": {
+            "type": "string",
+            "description": "Always `UTF-8`; the passthrough re-encodes upstream files.",
+            "example": "UTF-8"
+          },
+          "isHearingImpaired": { "type": "boolean", "example": false },
+          "source": {
+            "type": "string",
+            "enum": ["natsuki", "wyzie"],
+            "description": "Provider the entry came from."
+          },
+          "flagUrl": {
+            "type": "string",
+            "description": "Flag image for the language, or an empty string when unmapped.",
+            "example": "https://flagsapi.com/US/flat/24.png"
+          },
+          "media": {
+            "type": "string",
+            "description": "Title reported by the provider, or an empty string.",
+            "example": "Fight Club"
+          },
+          "release": {
+            "type": "string",
+            "description": "Release or file name the subtitle was timed against.",
+            "example": "Fight.Club.1999.1080p.BluRay.x264.srt"
+          },
+          "machineTranslated": { "type": "boolean", "example": false }
+        }
+      },
+      "SubtitleSearchResponse": {
+        "type": "object",
+        "required": ["success", "tmdbId", "count", "subtitles"],
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "tmdbId": { "type": "integer", "example": 550 },
+          "season": {
+            "type": "integer",
+            "description": "Echoed back for show lookups.",
+            "example": 1
+          },
+          "episode": {
+            "type": "integer",
+            "description": "Echoed back for show lookups.",
+            "example": 1
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of entries in `subtitles`.",
+            "example": 152
+          },
+          "subtitles": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SubtitleCatalogEntry" }
           }
         }
       },

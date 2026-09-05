@@ -28,19 +28,24 @@ export function defaultOutputFormat(): SubtitleOutputFormat {
  *
  * @param provider Provider that owns the subtitle id
  * @param id       Provider-specific subtitle id
- * @param options  Optional language hint used for legacy encoding detection
+ * @param options  `language` is a hint for legacy encoding detection; `token`
+ *                 carries the signed upstream URL for providers whose files are
+ *                 not addressable by id alone
  */
 export function subtitleFilePath(
   provider: SubtitleProviderId,
   id: string,
-  options: { language?: string } = {}
+  options: { language?: string; token?: string } = {}
 ): string {
   const format = defaultOutputFormat()
-  const query = options.language
-    ? `?l=${encodeURIComponent(options.language)}`
-    : ''
+  const params = new URLSearchParams()
+  if (options.language) params.set('l', options.language)
+  if (options.token) params.set('t', options.token)
 
-  return `${SUBTITLE_ROUTE_BASE}/${provider}/${id}.${format}${query}`
+  const query = params.toString()
+  return `${SUBTITLE_ROUTE_BASE}/${provider}/${id}.${format}${
+    query ? `?${query}` : ''
+  }`
 }
 
 /**

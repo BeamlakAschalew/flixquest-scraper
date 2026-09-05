@@ -1,8 +1,13 @@
 import type { Subtitle } from '../../types/index.js'
 import { getProviderCache, setProviderCache } from '../redis.js'
+import { languageFlagUrl } from './flags.js'
 import { decodeSubtitleBytes } from './vtt.js'
-import type { SubtitleProvider, SubtitleQuery } from './types.js'
-import { subtitleFilePath } from './paths.js'
+import type {
+  SubtitleCatalogEntry,
+  SubtitleProvider,
+  SubtitleQuery,
+} from './types.js'
+import { defaultOutputFormat, subtitleFilePath } from './paths.js'
 
 const NATSUKI_BASE_URL = 'https://natsuki.maybeoneday.ch'
 /**
@@ -86,12 +91,13 @@ function searchUrl(query: SubtitleQuery): string {
   return `${NATSUKI_BASE_URL}/subs?${params.toString()}`
 }
 
+/** `v2` marks the catalog payload shape; older cached entries are ignored. */
 function cacheKey(query: SubtitleQuery): string {
   const suffix =
     query.season !== undefined && query.episode !== undefined
       ? `:s${query.season}:e${query.episode}`
       : ''
-  return `flixquest:provider:subs:natsuki:${query.tmdbId}${suffix}`
+  return `flixquest:provider:subs:natsuki:v2:${query.tmdbId}${suffix}`
 }
 
 /** Splits a release name into comparable tokens (`1080p`, `web`, `amzn`, …). */
@@ -175,7 +181,7 @@ function compareLanguages(a: string, b: string): number {
   return aEnglish - bEnglish || a.localeCompare(b)
 }
 
-function toSubtitles(payload: NatsukiSearchResponse): Subtitle[] {
+function toCatalog(payload: NatsukiSearchResponse): SubtitleCatalogEntry[] {
   const entries = (payload.subtitles || []).filter(
     entry => typeof entry.sid === 'string' && /^\d+$/.test(entry.sid)
   )
@@ -190,8 +196,9 @@ function toSubtitles(payload: NatsukiSearchResponse): Subtitle[] {
     else byLanguage.set(label, [entry])
   }
 
+  const format = defaultOutputFormat()
   const limit = maxPerLanguage()
-  const subtitles: Subtitle[] = []
+  const catalogEntries: SubtitleCatalogEntry[] = []
 
   for (const label of [...byLanguage.keys()].sort(compareLanguages)) {
     const ranked = rankEntries(byLanguage.get(label) || [], release).slice(
@@ -200,28 +207,39 @@ function toSubtitles(payload: NatsukiSearchResponse): Subtitle[] {
     )
 
     ranked.forEach((entry, index) => {
+      // Hearing impairment is reported as its own field, so it stays out of
+      // the label to keep clients from rendering it twice.
       const suffixes: string[] = []
-      if (entry.hearingImpaired) suffixes.push('SDH')
       if (entry.translatedFrom) suffixes.push('MT')
       // Disambiguate same-language alternatives for clients rendering a picker.
       if (index > 0) suffixes.push(`#${index + 1}`)
 
-      subtitles.push({
-        file: subtitleFilePath('natsuki', entry.sid as string, {
-          language: languageCode(entry),
-        }),
-        label: suffixes.length ? `${label} (${suffixes.join(', ')})` : label,
-        kind: entry.hearingImpaired ? 'captions' : 'subtitles',
+      const sid = entry.sid as string
+      const language = languageCode(entry)
+
+      catalogEntries.push({
+        id: `natsuki-${sid}`,
+        url: subtitleFilePath('natsuki', sid, { language }),
+        display: suffixes.length ? `${label} (${suffixes.join(', ')})` : label,
+        language: language || '',
+        format,
+        encoding: 'UTF-8',
+        isHearingImpaired: entry.hearingImpaired === true,
+        source: 'natsuki',
+        flagUrl: languageFlagUrl(language),
+        media: '',
+        release: entry.fileName || payload.title,
+        machineTranslated: Boolean(entry.translatedFrom),
       })
     })
   }
 
-  return subtitles
+  return catalogEntries
 }
 
-async function search(query: SubtitleQuery): Promise<Subtitle[]> {
+async function catalog(query: SubtitleQuery): Promise<SubtitleCatalogEntry[]> {
   const key = cacheKey(query)
-  const cached = await getProviderCache<Subtitle[]>(key)
+  const cached = await getProviderCache<SubtitleCatalogEntry[]>(key)
   if (cached) {
     console.log(`[NatsukiSubs] Cache HIT (${cached.length} subtitle(s))`)
     return cached
@@ -239,16 +257,16 @@ async function search(query: SubtitleQuery): Promise<Subtitle[]> {
     }
 
     const payload = (await response.json()) as NatsukiSearchResponse
-    const subtitles = toSubtitles(payload)
+    const entries = toCatalog(payload)
 
-    if (subtitles.length === 0) {
+    if (entries.length === 0) {
       console.log('[NatsukiSubs] No subtitles found')
       return []
     }
 
-    console.log(`[NatsukiSubs] Fetched ${subtitles.length} subtitle(s)`)
-    await setProviderCache(key, subtitles, SEARCH_CACHE_TTL_SECONDS)
-    return subtitles
+    console.log(`[NatsukiSubs] Fetched ${entries.length} subtitle(s)`)
+    await setProviderCache(key, entries, SEARCH_CACHE_TTL_SECONDS)
+    return entries
   } catch (error) {
     console.warn(
       `[NatsukiSubs] ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -257,9 +275,21 @@ async function search(query: SubtitleQuery): Promise<Subtitle[]> {
   }
 }
 
+async function search(query: SubtitleQuery): Promise<Subtitle[]> {
+  const entries = await catalog(query)
+
+  return entries.map(entry => ({
+    file: entry.url,
+    // A flat track carries a label and nothing else, so fold SDH back in.
+    label: entry.isHearingImpaired ? `${entry.display} (SDH)` : entry.display,
+    kind: entry.isHearingImpaired ? 'captions' : 'subtitles',
+  }))
+}
+
 export const natsukiSubtitleProvider: SubtitleProvider = {
   id: 'natsuki',
   name: 'Natsuki Subs',
+  catalog,
   search,
 }
 

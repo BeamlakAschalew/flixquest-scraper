@@ -1,74 +1,74 @@
 {
   "success": true,
-  "startedAt": "2026-09-05T07:49:47.627Z",
-  "updatedAt": "2026-09-05T07:51:31.711Z",
+  "startedAt": "2026-09-05T11:04:33.488Z",
+  "updatedAt": "2026-09-05T11:06:09.552Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
     "total": 10,
-    "online": 9,
-    "offline": 1
+    "online": 10,
+    "offline": 0
   },
   "providers": [
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 16065
+      "requestTimeMs": 10330
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 2715
+      "requestTimeMs": 21605
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 14697
+      "requestTimeMs": 18953
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 19837
+      "requestTimeMs": 20615
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 1927
+      "requestTimeMs": 4418
     },
     {
       "id": "kisskh",
       "alias": "Chelenqo",
-      "status": "offline",
-      "requestTimeMs": 99421
+      "status": "online",
+      "requestTimeMs": 16229
     },
     {
       "id": "bingr",
       "alias": "Roha",
       "status": "online",
-      "requestTimeMs": 14289
+      "requestTimeMs": 13005
     },
     {
       "id": "rive",
       "alias": "Rive",
       "status": "online",
-      "requestTimeMs": 15439
+      "requestTimeMs": 7204
     },
     {
       "id": "shuttletv",
       "alias": "Gumma",
       "status": "online",
-      "requestTimeMs": 21273
+      "requestTimeMs": 39836
     },
     {
       "id": "yoturkish",
       "alias": "Sebastopol",
       "status": "online",
-      "requestTimeMs": 33811
+      "requestTimeMs": 68228
     }
   ]
 }

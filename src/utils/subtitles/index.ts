@@ -3,6 +3,7 @@ import { natsukiSubtitleProvider } from './natsuki.js'
 import { wyzieSubtitleProvider } from './wyzie.js'
 import { absoluteSubtitleUrl } from './paths.js'
 import type {
+  SubtitleCatalogEntry,
   SubtitleProvider,
   SubtitleProviderId,
   SubtitleQuery,
@@ -55,6 +56,33 @@ export async function fetchFallbackSubtitles(
 }
 
 /**
+ * Every subtitle every configured provider offers for one title, for clients
+ * that let the viewer pick a track themselves.
+ *
+ * Unlike {@link fetchFallbackSubtitles} this merges all providers instead of
+ * stopping at the first with results, and providers are queried concurrently
+ * because none of them depends on another. Never throws.
+ *
+ * @param query TMDB id, plus season/episode for TV
+ * @returns Entries in provider-priority order, deduplicated by id
+ */
+export async function fetchSubtitleCatalog(
+  query: SubtitleQuery
+): Promise<SubtitleCatalogEntry[]> {
+  const order = subtitleProviderOrder()
+  const results = await Promise.all(
+    order.map(providerId => PROVIDERS[providerId].catalog(query))
+  )
+
+  const seen = new Set<string>()
+  return results.flat().filter(entry => {
+    if (seen.has(entry.id)) return false
+    seen.add(entry.id)
+    return true
+  })
+}
+
+/**
  * Rewrite router-relative subtitle paths into absolute URLs.
  *
  * Applied when a response is sent — including cache hits — so a cached payload
@@ -87,9 +115,30 @@ export function withAbsoluteSubtitleUrls(
   }
 }
 
+/**
+ * The same rewrite as {@link withAbsoluteSubtitleUrls}, for catalog entries.
+ *
+ * @param entries    Catalog entries about to be sent
+ * @param apiBaseUrl Public API base URL, e.g. `https://host/api/v2`
+ */
+export function withAbsoluteCatalogUrls(
+  entries: SubtitleCatalogEntry[],
+  apiBaseUrl: string
+): SubtitleCatalogEntry[] {
+  return entries.map(entry =>
+    entry.url.startsWith('/')
+      ? { ...entry, url: absoluteSubtitleUrl(entry.url, apiBaseUrl) }
+      : entry
+  )
+}
+
 function hasRelativeFile(subtitle: Subtitle): boolean {
   return typeof subtitle.file === 'string' && subtitle.file.startsWith('/')
 }
 
 export { SUBTITLE_ROUTE_BASE } from './paths.js'
-export type { SubtitleProviderId, SubtitleQuery } from './types.js'
+export type {
+  SubtitleCatalogEntry,
+  SubtitleProviderId,
+  SubtitleQuery,
+} from './types.js'

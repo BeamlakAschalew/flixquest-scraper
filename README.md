@@ -463,21 +463,88 @@ Clear all cached provider stream responses.
 }
 ```
 
-### 10. Subtitle File
+### 10. Subtitle Search
 
-Serves one fallback subtitle track. Clients never build these URLs themselves —
-they arrive ready to use in `links[].subtitles[].file` whenever a provider
-returned no subtitles of its own.
+Searches every configured subtitle provider and returns one combined catalog for
+a movie or episode. Clients use this to render a subtitle picker: each entry
+already points at this API, so the app never contacts a subtitle host itself and
+never needs provider credentials.
+
+**Endpoint:** `GET /api/v2/subtitles/search`
+
+**Examples:**
+
+- `GET /api/v2/subtitles/search?tmdbId=550`
+- `GET /api/v2/subtitles/search?tmdbId=1396&season=1&episode=1`
+
+| Parameter | Description                                                |
+| --------- | ---------------------------------------------------------- |
+| `tmdbId`  | TMDB id of the movie or show (required)                    |
+| `season`  | Season number — required together with `episode` for shows |
+| `episode` | Episode number — required together with `season` for shows |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "tmdbId": 550,
+  "count": 152,
+  "subtitles": [
+    {
+      "id": "natsuki-3852781",
+      "url": "https://your-api/api/v2/subtitles/natsuki/3852781.vtt?l=en",
+      "display": "English",
+      "language": "en",
+      "format": "vtt",
+      "encoding": "UTF-8",
+      "isHearingImpaired": false,
+      "source": "natsuki",
+      "flagUrl": "https://flagsapi.com/US/flat/24.png",
+      "media": "",
+      "release": "Fight.Club.1999.1080p.BluRay.x264.srt",
+      "machineTranslated": false
+    }
+  ]
+}
+```
+
+Every `url` is absolute and served by this API, converted to
+`SUBTITLE_OUTPUT_FORMAT` and re-encoded to UTF-8. Entries are deduplicated by
+`id`, and `display` carries `(MT)` and `#n` markers so same-language
+alternatives stay distinguishable — hearing impairment is reported through
+`isHearingImpaired` instead of the label. `season`/`episode` are echoed back for
+show lookups. Responses are privately cacheable for 5 minutes.
+
+Malformed parameters return `400`; a provider outage returns `502`. Wyzie
+entries are omitted when `WYZIE_SUBS_API_KEY` or the token signing secret is
+unset, so a missing key degrades the catalog instead of failing the request.
+
+### 11. Subtitle File
+
+Serves one subtitle track. Clients never build these URLs themselves — they
+arrive ready to use in `subtitles[].url` from a search, and in
+`links[].subtitles[].file` whenever a provider returned no subtitles of its own.
 
 **Endpoint:** `GET /api/v2/subtitles/{provider}/{id}.{vtt|srt}`
 
-**Example:** `GET /api/v2/subtitles/natsuki/3480430.vtt?l=en`
+**Examples:**
 
-| Parameter  | Description                                                       |
-| ---------- | ----------------------------------------------------------------- |
-| `provider` | Fallback subtitle provider that owns the id (currently `natsuki`) |
-| `id`       | Provider-specific subtitle id                                     |
-| `l`        | Optional ISO 639 hint used to decode non-UTF-8 uploads            |
+- `GET /api/v2/subtitles/natsuki/3480430.vtt?l=en`
+- `GET /api/v2/subtitles/wyzie/28633.vtt?t=eyJ1cmwiOi...`
+
+| Parameter  | Description                                               |
+| ---------- | --------------------------------------------------------- |
+| `provider` | Subtitle provider that owns the id (`natsuki` or `wyzie`) |
+| `id`       | Provider-specific subtitle id                             |
+| `l`        | Optional ISO 639 hint used to decode non-UTF-8 uploads    |
+| `t`        | Signed token identifying the upstream file (`wyzie` only) |
+
+Wyzie hands out files on third-party hosts with per-download tokens rather than
+stable ids, so its route carries the upstream URL in an HMAC-signed `t` token
+(12-hour lifetime, signed with `STREAM_PROXY_SECRET`) instead of deriving it.
+The signature and a private-address guard keep the route from acting as an open
+proxy; an expired or tampered token returns `400`.
 
 Responds with `text/vtt` (or `application/x-subrip` for `.srt`), open CORS, and
 a 24-hour cache. Aggregator advertisement cues are stripped, negative timings
@@ -490,20 +557,26 @@ cannot be handed to players directly.
 ## 🔤 Fallback Subtitles
 
 When a scraping provider returns links without subtitles, the API fills the gap
-from an external subtitle provider. Providers are tried in order and the first
-one with results wins.
+from an external subtitle provider. For stream responses the providers are tried
+in order and the first one with results wins; [Subtitle Search](#10-subtitle-search)
+instead queries them in parallel and returns the merged catalog.
 
 | Provider  | Source                                        | Requirements         |
 | --------- | --------------------------------------------- | -------------------- |
 | `natsuki` | `natsuki.maybeoneday.ch` (OpenSubtitles data) | None                 |
 | `wyzie`   | `sub.wyzie.io`                                | `WYZIE_SUBS_API_KEY` |
 
-Results are deduplicated per language and ranked best-first: human translations
-before machine ones, plain subtitles before SDH, then by how closely the
-subtitle's release name matches the matched file, then by recency. Labels carry
-`(SDH)`, `(MT)` and `#n` markers so clients can tell alternatives apart, and
-`kind` is `captions` for hearing-impaired tracks and `subtitles` otherwise — the
-same response shape as before.
+Results are deduplicated per language, capped at `SUBTITLE_MAX_PER_LANGUAGE`
+and ranked best-first: human translations before machine ones, plain subtitles
+before SDH, then by how closely the subtitle's release name matches the matched
+file, then by recency. Labels carry `(MT)` and `#n` markers so clients can tell
+alternatives apart, and in stream responses `kind` is `captions` for
+hearing-impaired tracks and `subtitles` otherwise — the same response shape as
+before.
+
+Both providers are served through the [Subtitle File](#11-subtitle-file)
+passthrough, so no client ever needs credentials for, or a route to, the
+upstream subtitle hosts.
 
 ## ⚡ Redis Caching Layer
 

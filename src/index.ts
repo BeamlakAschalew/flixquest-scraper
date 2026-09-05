@@ -32,6 +32,7 @@ import {
   fetchFallbackSubtitles,
   withAbsoluteSubtitleUrls,
 } from './utils/subtitles/index.js'
+import { API_PREFIX, apiBaseUrl } from './utils/api-base-url.js'
 import {
   buildProviderCacheKey,
   flushProviderCache,
@@ -55,7 +56,6 @@ setupForwardProxyPatch()
 const app = express()
 const api = express.Router()
 const port = parseInt(process.env.PORT || '3000', 10)
-const API_PREFIX = '/api/v2'
 
 // Providers whose responses contain short-lived or session-bound URLs must
 // not be cached for the default two-hour Redis TTL:
@@ -213,20 +213,6 @@ function withFreshSizeTokens(response: ProviderResponse): ProviderResponse {
       }
     }),
   }
-}
-
-/**
- * Public API base URL (e.g. `https://host/api/v2`) used to materialize
- * router-relative subtitle paths. Set `PUBLIC_BASE_URL` when the API sits
- * behind a proxy that does not forward `Host`/`X-Forwarded-Proto`.
- */
-function apiBaseUrl(req: Request): string {
-  const configured = (process.env.PUBLIC_BASE_URL || '').trim()
-  const origin = configured
-    ? configured.replace(/\/+$/, '')
-    : `${req.protocol}://${req.get('host')}`
-
-  return `${origin}${API_PREFIX}`
 }
 
 /**
