@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import vm from 'node:vm'
 import { Buffer } from 'node:buffer'
 import { Window } from 'happy-dom'
@@ -61,7 +62,9 @@ export function buildShuttleTvEmbedUrl(
 }
 class NodeWorker {
   private listeners = new Set<(event: { data: unknown }) => void>()
+  private errorListeners = new Set<(event: { message?: string }) => void>()
   private onmessage?: (event: { data: unknown }) => void
+  private onerror?: (event: { message?: string }) => void
   private context: Record<string, any>
   private ready: Promise<void>
   constructor(url: string) {
@@ -99,18 +102,37 @@ class NodeWorker {
         vm.createContext(this.context)
         vm.runInContext(code, this.context, { timeout: 20_000 })
       })
+    // A worker script that fails to load or execute must never surface as an
+    // unhandled promise rejection: Node >=15 crashes the process on those.
+    // Instead, deliver the failure to the emulated runtime as an error event
+    // so the challenge flow can give up and the request fails as a 500.
+    void this.ready.catch(error => {
+      const event = {
+        message: error instanceof Error ? error.message : String(error),
+      }
+      queueMicrotask(() => {
+        for (const fn of this.errorListeners) fn(event)
+        this.onerror?.(event)
+      })
+    })
   }
   postMessage(value: unknown): void {
-    void this.ready.then(() => this.context.onmessage?.({ data: value }))
+    void this.ready
+      .then(() => this.context.onmessage?.({ data: value }))
+      .catch(() => {
+        // Worker never became ready; the error event above already fired.
+      })
   }
   addEventListener(type: string, fn: (event: { data: unknown }) => void): void {
     if (type === 'message') this.listeners.add(fn)
+    if (type === 'error') this.errorListeners.add(fn as never)
   }
   removeEventListener(
     type: string,
     fn: (event: { data: unknown }) => void
   ): void {
     if (type === 'message') this.listeners.delete(fn)
+    if (type === 'error') this.errorListeners.delete(fn as never)
   }
   terminate(): void {}
 }

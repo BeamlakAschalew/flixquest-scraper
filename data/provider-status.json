@@ -1,74 +1,74 @@
 {
   "success": true,
-  "startedAt": "2026-09-05T03:10:26.743Z",
-  "updatedAt": "2026-09-05T03:10:42.897Z",
+  "startedAt": "2026-09-05T06:59:01.578Z",
+  "updatedAt": "2026-09-05T06:59:51.042Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
     "total": 10,
-    "online": 6,
-    "offline": 4
+    "online": 9,
+    "offline": 1
   },
   "providers": [
     {
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 3748
+      "requestTimeMs": 5626
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 3282
+      "requestTimeMs": 3477
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 4315
+      "requestTimeMs": 4812
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 8948
+      "requestTimeMs": 12794
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 3450
+      "requestTimeMs": 4227
     },
     {
       "id": "kisskh",
       "alias": "Chelenqo",
       "status": "online",
-      "requestTimeMs": 7080
+      "requestTimeMs": 9004
     },
     {
       "id": "bingr",
       "alias": "Roha",
-      "status": "offline",
-      "requestTimeMs": 11814
+      "status": "online",
+      "requestTimeMs": 8638
     },
     {
       "id": "rive",
       "alias": "Rive",
-      "status": "offline",
-      "requestTimeMs": 9399
+      "status": "online",
+      "requestTimeMs": 20505
     },
     {
       "id": "shuttletv",
       "alias": "Gumma",
       "status": "offline",
-      "requestTimeMs": 7181
+      "requestTimeMs": 31573
     },
     {
       "id": "yoturkish",
       "alias": "Sebastopol",
-      "status": "offline",
-      "requestTimeMs": 5304
+      "status": "online",
+      "requestTimeMs": 35625
     }
   ]
 }
