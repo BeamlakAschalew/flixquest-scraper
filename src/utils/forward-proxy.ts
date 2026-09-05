@@ -374,6 +374,12 @@ export function setupForwardProxyPatch() {
         targetUrlStr = String(input)
       }
 
+      // Blob and data URLs are process-local (e.g. the Node registry behind
+      // URL.createObjectURL) and can never be fetched by a remote proxy.
+      if (/^(?:blob|data):/i.test(targetUrlStr)) {
+        return originalFetch(input, init)
+      }
+
       // TMDB metadata requests should always use the server's direct egress.
       if (isTmdbApiUrl(targetUrlStr)) {
         return originalFetch(input, init)

@@ -305,7 +305,7 @@ async function resolve(
     },
     body: JSON.stringify([
       id,
-      mediaType,
+      mediaType === 'tv' ? 'show' : 'movie',
       season ?? null,
       episode ?? null,
       `${one}::c2::${two}::c3::${boot.r}`,
@@ -355,7 +355,11 @@ export async function resolveShuttleTvStreams(
         ]
       : []
   )
-  if (!links.length)
-    throw new Error('ShuttleTV Lisbon returned no direct M3U8 streams')
+  // A successful challenge that yields no playable streams (e.g. Cinesrc
+  // replying `{"url":null,"error":"no_streams","provider":"lisbon"}`) means the
+  // title is unavailable, not that resolution failed. Return an empty list so
+  // the API answers 404 "No streams found" and callers can fall through to
+  // other providers instead of surfacing a 500.
+  if (!links.length) return []
   return links
 }

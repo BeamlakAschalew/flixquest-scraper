@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { riveProvider } from './rive.js'
 
-test('Rive keeps partial resolver results and normalizes quality metadata', async () => {
+test('Rive tries resolvers until one works and keeps partial full-mode results', async () => {
   const originalFetch = globalThis.fetch
   const resolverQueries: URL[] = []
+  let citadelWorks = false
 
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : input.toString())
@@ -14,6 +15,7 @@ test('Rive keeps partial resolver results and normalizes quality metadata', asyn
     if (url.pathname === '/api/provider') {
       resolverQueries.push(url)
       if (url.searchParams.get('provider') === 'citadel') {
+        if (!citadelWorks) return Response.json({ data: { sources: [] } })
         return Response.json({
           data: {
             sources: [
@@ -58,7 +60,15 @@ test('Rive keeps partial resolver results and normalizes quality metadata', asyn
   }) as typeof fetch
 
   try {
-    const links = await riveProvider.streamMovie('27205')
+    const defaultLinks = await riveProvider.streamMovie('27205')
+    assert.equal(resolverQueries.length, 2)
+    assert.equal(resolverQueries[0].searchParams.get('provider'), 'citadel')
+    assert.equal(resolverQueries[1].searchParams.get('provider'), 'flowcast')
+    assert.equal(defaultLinks.length, 2)
+
+    citadelWorks = true
+    resolverQueries.length = 0
+    const links = await riveProvider.streamMovie('27205', { full: true })
     assert.equal(resolverQueries.length, 3)
     assert.deepEqual(
       links.map(link => link.quality),

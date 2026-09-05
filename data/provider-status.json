@@ -1,7 +1,7 @@
 {
   "success": true,
-  "startedAt": "2026-09-05T06:59:01.578Z",
-  "updatedAt": "2026-09-05T06:59:51.042Z",
+  "startedAt": "2026-09-05T07:49:47.627Z",
+  "updatedAt": "2026-09-05T07:51:31.711Z",
   "intervalMs": 900000,
   "methodology": "Providers run concurrently; each provider tries titles sequentially until one returns a validated stream or its title list is exhausted.",
   "summary": {
@@ -14,61 +14,61 @@
       "id": "cinejoy",
       "alias": "Shewa",
       "status": "online",
-      "requestTimeMs": 5626
+      "requestTimeMs": 16065
     },
     {
       "id": "movy",
       "alias": "Zeila",
       "status": "online",
-      "requestTimeMs": 3477
+      "requestTimeMs": 2715
     },
     {
       "id": "streamflix",
       "alias": "Harar",
       "status": "online",
-      "requestTimeMs": 4812
+      "requestTimeMs": 14697
     },
     {
       "id": "showbox",
       "alias": "Adwa",
       "status": "online",
-      "requestTimeMs": 12794
+      "requestTimeMs": 19837
     },
     {
       "id": "videasy",
       "alias": "Abyssinia",
       "status": "online",
-      "requestTimeMs": 4227
+      "requestTimeMs": 1927
     },
     {
       "id": "kisskh",
       "alias": "Chelenqo",
-      "status": "online",
-      "requestTimeMs": 9004
+      "status": "offline",
+      "requestTimeMs": 99421
     },
     {
       "id": "bingr",
       "alias": "Roha",
       "status": "online",
-      "requestTimeMs": 8638
+      "requestTimeMs": 14289
     },
     {
       "id": "rive",
       "alias": "Rive",
       "status": "online",
-      "requestTimeMs": 20505
+      "requestTimeMs": 15439
     },
     {
       "id": "shuttletv",
       "alias": "Gumma",
-      "status": "offline",
-      "requestTimeMs": 31573
+      "status": "online",
+      "requestTimeMs": 21273
     },
     {
       "id": "yoturkish",
       "alias": "Sebastopol",
       "status": "online",
-      "requestTimeMs": 35625
+      "requestTimeMs": 33811
     }
   ]
 }

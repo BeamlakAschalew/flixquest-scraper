@@ -213,7 +213,8 @@ async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   if (!isValidTmdbId(tmdbId)) return []
   if (
@@ -225,6 +226,34 @@ async function getStreams(
 
   try {
     const resolvers = await getResolverNames()
+    if (!full) {
+      for (const resolver of resolvers) {
+        try {
+          const links = await fetchResolver(
+            resolver,
+            tmdbId,
+            mediaType,
+            season,
+            episode
+          )
+          if (links.length > 0) {
+            const unique = Array.from(
+              new Map(links.map(link => [link.url, link] as const)).values()
+            )
+            console.log(
+              `[Rive] Extracted ${unique.length} candidate stream(s) for ${mediaType} ${tmdbId}`
+            )
+            return mergeSubtitles(unique)
+          }
+        } catch (error) {
+          console.warn(
+            `[Rive] ${resolver} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        }
+      }
+      return []
+    }
+
     const results = await Promise.allSettled(
       resolvers.map(resolver =>
         fetchResolver(resolver, tmdbId, mediaType, season, episode)
@@ -251,7 +280,8 @@ async function getStreams(
 export const riveProvider: Provider = {
   name: 'Rive',
   id: 'rive',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getStreams(tmdbId, 'tv', season, episode, options?.full),
 }

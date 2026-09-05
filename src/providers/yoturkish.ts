@@ -298,7 +298,8 @@ function playerEmbeds(html: string, pageUrl: string): string[] {
 async function stream(
   tmdbId: string,
   season: number,
-  episode: number
+  episode: number,
+  full = false
 ): Promise<ProviderLink[]> {
   try {
     const info = await details(tmdbId, 'tv')
@@ -308,6 +309,20 @@ async function stream(
     if (!page) return []
     const html = await (await request(page)).text()
     const embeds = playerEmbeds(html, page)
+    if (!full) {
+      for (const embed of embeds) {
+        try {
+          const links = await extractEmbed(embed)
+          if (links.length > 0) return links
+        } catch (error) {
+          console.warn(
+            `[YoTurkish] ${new URL(embed).hostname} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        }
+      }
+      return []
+    }
+
     const settled = await Promise.allSettled(
       embeds.map(url => extractEmbed(url))
     )
@@ -333,8 +348,10 @@ export const yoTurkishProvider: Provider = {
   id: 'yoturkish',
   alias: 'Sebastopol',
   streamMovie: async () => [],
-  streamTV: (tmdbId, season, episode) =>
-    withForcedForwardProxy(() => stream(tmdbId, season, episode)),
+  streamTV: (tmdbId, season, episode, options) =>
+    withForcedForwardProxy(() =>
+      stream(tmdbId, season, episode, options?.full)
+    ),
 }
 
 export const decodeYoTurkishPlayerData = decodePlayerData

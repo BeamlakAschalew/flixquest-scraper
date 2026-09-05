@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { bingrProvider } from './bingr.js'
 
-test('Bingr keeps partial multi-server results and playback metadata', async () => {
+test('Bingr tries servers until one works and keeps partial full-mode results', async () => {
   const originalFetch = globalThis.fetch
   const streamBodies: Array<Record<string, unknown>> = []
+  let siriusWorks = false
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input.toString())
@@ -15,6 +16,7 @@ test('Bingr keeps partial multi-server results and playback metadata', async () 
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>
       streamBodies.push(body)
       if (body.srv === 's11') {
+        if (!siriusWorks) return Response.json({ sources: [] })
         return Response.json({
           sources: [
             {
@@ -46,7 +48,16 @@ test('Bingr keeps partial multi-server results and playback metadata', async () 
   }) as typeof fetch
 
   try {
-    const links = await bingrProvider.streamMovie('27205')
+    const defaultLinks = await bingrProvider.streamMovie('27205')
+    assert.equal(streamBodies.length, 3)
+    assert.equal(streamBodies[0].srv, 's11')
+    assert.equal(streamBodies[1].srv, 's40')
+    assert.equal(streamBodies[2].srv, 's12')
+    assert.equal(defaultLinks.length, 1)
+
+    siriusWorks = true
+    streamBodies.length = 0
+    const links = await bingrProvider.streamMovie('27205', { full: true })
     assert.equal(streamBodies.length, 9)
     assert.deepEqual(streamBodies[0], {
       srv: 's11',

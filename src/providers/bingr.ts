@@ -252,7 +252,8 @@ async function getStreams(
   tmdbId: string,
   mediaType: 'movie' | 'tv',
   season?: number,
-  episode?: number
+  episode?: number,
+  full = false
 ): Promise<ProviderLink[]> {
   if (!isValidTmdbId(tmdbId)) return []
   if (
@@ -265,6 +266,35 @@ async function getStreams(
     const details = await getDetails(tmdbId, mediaType).catch(() => ({
       title: '',
     }))
+    if (!full) {
+      for (const server of SERVERS) {
+        try {
+          const links = await fetchServer(
+            server,
+            tmdbId,
+            mediaType,
+            details,
+            season,
+            episode
+          )
+          if (links.length > 0) {
+            const unique = Array.from(
+              new Map(links.map(link => [link.url, link] as const)).values()
+            )
+            console.log(
+              `[Bingr] Extracted ${unique.length} candidate stream(s) for ${mediaType} ${tmdbId}`
+            )
+            return unique
+          }
+        } catch (error) {
+          console.warn(
+            `[Bingr] ${server.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        }
+      }
+      return []
+    }
+
     const results = await Promise.allSettled(
       SERVERS.map(server =>
         fetchServer(server, tmdbId, mediaType, details, season, episode)
@@ -292,7 +322,8 @@ export const bingrProvider: Provider = {
   name: 'Bingr',
   id: 'bingr',
   alias: 'Roha',
-  streamMovie: tmdbId => getStreams(tmdbId, 'movie'),
-  streamTV: (tmdbId, season, episode) =>
-    getStreams(tmdbId, 'tv', season, episode),
+  streamMovie: (tmdbId, options) =>
+    getStreams(tmdbId, 'movie', undefined, undefined, options?.full),
+  streamTV: (tmdbId, season, episode, options) =>
+    getStreams(tmdbId, 'tv', season, episode, options?.full),
 }
