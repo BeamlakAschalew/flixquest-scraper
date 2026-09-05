@@ -535,10 +535,8 @@ REDIS_CACHE_ENABLED=true
 
 ```
 flixquest-scraper/
-├── api/
-│   └── index.ts              # Vercel serverless entry point
 ├── src/
-│   ├── index.ts              # Main Express app with API endpoints
+│   ├── index.ts              # Main Express app with API endpoints (Vercel zero-config Express entry)
 │   ├── types/
 │   │   └── index.ts          # TypeScript type definitions
 │   ├── providers/

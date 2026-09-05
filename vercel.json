@@ -1,9 +1,8 @@
 {
   "version": 2,
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/src/index"
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 300
     }
-  ]
+  }
 }
