@@ -22,6 +22,7 @@ export interface ShowMedia {
   title: string
   releaseYear: number
   tmdbId: string
+  imdbId?: string
   episode: {
     number: number
     tmdbId: string
@@ -51,6 +52,7 @@ interface TMDBShowResponse {
     name: string
     episode_count: number
   }>
+  external_ids?: { imdb_id?: string }
 }
 
 interface TMDBSeasonResponse {
@@ -132,6 +134,7 @@ export async function generateShowMedia(
       {
         params: {
           api_key: TMDB_API_KEY,
+          append_to_response: 'external_ids',
         },
       }
     )
@@ -165,6 +168,7 @@ export async function generateShowMedia(
       title: show.name,
       releaseYear,
       tmdbId: tmdbId,
+      ...(show.external_ids?.imdb_id && { imdbId: show.external_ids.imdb_id }),
       episode: {
         number: episodeNumber,
         tmdbId: episode.id.toString(),

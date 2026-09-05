@@ -774,7 +774,10 @@ api.get('/stream-movie', async (req: Request, res: Response) => {
     // Subtitle fallback: if no link has subtitles, source them externally.
     const hasAnySubtitles = links.some(link => link.subtitles.length > 0)
     if (!hasAnySubtitles) {
-      const fallbackSubs = await fetchFallbackSubtitles({ tmdbId })
+      const fallbackSubs = await fetchFallbackSubtitles({
+        tmdbId,
+        ...(media.imdbId ? { imdbId: media.imdbId } : {}),
+      })
       if (fallbackSubs.length > 0) {
         console.log(
           `🔤 [${provider.name}] Injecting ${fallbackSubs.length} fallback subtitle(s)`
@@ -920,6 +923,7 @@ api.get('/stream-tv', async (req: Request, res: Response) => {
         tmdbId,
         season,
         episode,
+        ...(media.imdbId ? { imdbId: media.imdbId } : {}),
       })
       if (fallbackSubs.length > 0) {
         console.log(

@@ -2,11 +2,12 @@
 import type { Subtitle } from '../../types/index.js'
 
 /** Identifiers of the supported fallback subtitle providers. */
-export type SubtitleProviderId = 'natsuki' | 'wyzie'
+export type SubtitleProviderId = 'opensubtitles' | 'natsuki' | 'wyzie'
 
 /** Media coordinates a subtitle provider searches with. */
 export interface SubtitleQuery {
   tmdbId: string
+  imdbId?: string
   /** TV only. */
   season?: number
   /** TV only. */

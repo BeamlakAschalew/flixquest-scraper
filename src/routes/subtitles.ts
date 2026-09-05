@@ -4,6 +4,7 @@ import type { Request, Response } from 'express'
 import { apiBaseUrl } from '../utils/api-base-url.js'
 import { fetchNatsukiSubtitleFile } from '../utils/subtitles/natsuki.js'
 import { fetchWyzieSubtitleFile } from '../utils/subtitles/wyzie.js'
+import { fetchOpenSubtitlesFile } from '../utils/subtitles/opensubtitles.js'
 import {
   fetchSubtitleCatalog,
   withAbsoluteCatalogUrls,
@@ -46,6 +47,7 @@ subtitlesRouter.get('/search', async (req: Request, res: Response) => {
 
   const season = digits(req.query.season)
   const episode = digits(req.query.episode)
+  const imdbId = typeof req.query.imdbId === 'string' ? req.query.imdbId.trim() : undefined
   if (Boolean(season) !== Boolean(episode)) {
     res.status(400).json({
       success: false,
@@ -57,6 +59,7 @@ subtitlesRouter.get('/search', async (req: Request, res: Response) => {
   try {
     const entries = await fetchSubtitleCatalog({
       tmdbId,
+      ...(imdbId ? { imdbId } : {}),
       season: season ? Number(season) : undefined,
       episode: episode ? Number(episode) : undefined,
     })
@@ -86,6 +89,17 @@ subtitlesRouter.get('/search', async (req: Request, res: Response) => {
       details: error instanceof Error ? error.message : 'Unknown error',
     })
   }
+})
+
+subtitlesRouter.get('/opensubtitles/:file', async (req: Request, res: Response) => {
+  const parsed = parseFileParam(req.params.file)
+  if (!parsed) { sendBadPath(res, '/opensubtitles/{id}.vtt or /opensubtitles/{id}.srt'); return }
+  const rawToken = typeof req.query.t === 'string' ? req.query.t : ''
+  let token: SubtitleFileToken
+  try { token = decodeSubtitleFileToken(rawToken) } catch (error) {
+    res.status(400).json({ success: false, error: 'Invalid subtitle token', details: error instanceof Error ? error.message : 'Unknown error' }); return
+  }
+  await serveSubtitle(res, { label: `opensubtitles/${parsed.id}`, cacheKey: `flixquest:provider:subs:opensubtitles:file:${fingerprint(token.url)}:${parsed.format}`, format: parsed.format, fetchRaw: () => fetchOpenSubtitlesFile(token) })
 })
 
 /**

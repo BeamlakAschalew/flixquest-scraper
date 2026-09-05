@@ -1,6 +1,7 @@
 import type { ProviderResponse, Subtitle } from '../../types/index.js'
 import { natsukiSubtitleProvider } from './natsuki.js'
 import { wyzieSubtitleProvider } from './wyzie.js'
+import { opensubtitlesProvider } from './opensubtitles.js'
 import { absoluteSubtitleUrl } from './paths.js'
 import type {
   SubtitleCatalogEntry,
@@ -10,15 +11,20 @@ import type {
 } from './types.js'
 
 const PROVIDERS: Record<SubtitleProviderId, SubtitleProvider> = {
+  opensubtitles: opensubtitlesProvider,
   natsuki: natsukiSubtitleProvider,
   wyzie: wyzieSubtitleProvider,
 }
 
-/** Natsuki first; Wyzie is a no-op unless `WYZIE_SUBS_API_KEY` is configured. */
-const DEFAULT_PROVIDER_ORDER: SubtitleProviderId[] = ['natsuki', 'wyzie']
+/** OpenSubtitles first; Natsuki and Wyzie remain available as fallbacks. */
+const DEFAULT_PROVIDER_ORDER: SubtitleProviderId[] = [
+  'opensubtitles',
+  'natsuki',
+  'wyzie',
+]
 
 function isProviderId(value: string): value is SubtitleProviderId {
-  return value === 'natsuki' || value === 'wyzie'
+  return value === 'opensubtitles' || value === 'natsuki' || value === 'wyzie'
 }
 
 /**
